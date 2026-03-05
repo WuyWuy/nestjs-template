@@ -1,0 +1,12 @@
+
+enum Role {
+    ADMIN 
+    USER 
+    //Enter more roles if you want 
+}
+enum TokenType {
+    RESET_PASSWORD 
+    RESET_EMAIL 
+    ACCESS 
+    REFRESH 
+}

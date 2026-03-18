@@ -19,8 +19,13 @@ CREATE TYPE "PaymentStatus" AS ENUM ('FAILED', 'SOLVING', 'DONE');
 -- CreateTable
 CREATE TABLE "Address" (
     "id" SERIAL NOT NULL,
+    "street" TEXT,
+    "ward" TEXT,
+    "district" TEXT NOT NULL,
     "city" TEXT NOT NULL,
-    "state" TEXT NOT NULL,
+    "latitude" DOUBLE PRECISION,
+    "longitude" DOUBLE PRECISION,
+    "fullText" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Address_pkey" PRIMARY KEY ("id")

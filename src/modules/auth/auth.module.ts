@@ -9,26 +9,26 @@ import { LocalStrategy } from './local.strategy';
 import { ConfigService } from '@nestjs/config';
 
 @Module({
-  imports: [
-    JwtModule.registerAsync({
-      inject: [ConfigService], 
-      global: true,
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('ACCESS_SECRET'),
-        signOptions: {
-          expiresIn: '15m',
-        },
-      }),
-    }),
-  ],
-  providers: [
-    AuthService,
-    JwtAuthGuard,
-    LocalAuthGuard,
-    JwtStrategy,
-    LocalStrategy,
-  ],
-  controllers: [AuthController],
-  exports: [AuthService],
+    imports: [
+        JwtModule.registerAsync({
+            inject: [ConfigService],
+            global: true,
+            useFactory: async (configService: ConfigService) => ({
+                secret: configService.get<string>('ACCESS_SECRET'),
+                signOptions: {
+                    expiresIn: '15m',
+                },
+            }),
+        }),
+    ],
+    providers: [
+        AuthService,
+        JwtAuthGuard,
+        LocalAuthGuard,
+        JwtStrategy,
+        LocalStrategy,
+    ],
+    controllers: [AuthController],
+    exports: [AuthService],
 })
 export class AuthModule {}

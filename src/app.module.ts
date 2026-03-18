@@ -9,6 +9,7 @@ import { TransformInterceptor } from './bases/interceptors/transform.interceptor
 import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
+import { TwilioModule } from './modules/twilio/twilio.module';
 //Add  e module here
 @Module({
     imports: [
@@ -18,6 +19,7 @@ import { AuthModule } from './modules/auth/auth.module';
             isGlobal: true,
         }),
         AuthModule,
+        TwilioModule, //Sending SmS
     ],
     controllers: [AppController],
     providers: [

@@ -10,6 +10,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
 import { TwilioModule } from './modules/twilio/twilio.module';
+import { DeviceModule } from './modules/device/device.module';
+import { NotificationModule } from './modules/notification/notification.module';
 //Add  e module here
 @Module({
     imports: [
@@ -20,6 +22,8 @@ import { TwilioModule } from './modules/twilio/twilio.module';
         }),
         AuthModule,
         TwilioModule, //Sending SmS
+        DeviceModule,
+        NotificationModule,
     ],
     controllers: [AppController],
     providers: [

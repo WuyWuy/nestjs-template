@@ -171,5 +171,5 @@ erDiagram
 - Use modern NestJS module-based design for new features.
 
 ---
-
+![](https://capgo.app/conventional_commits.webp)
 > Simple, clean, and ready for production-grade extension.

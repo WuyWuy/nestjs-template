@@ -90,6 +90,17 @@ CREATE TABLE "Category" (
 );
 
 -- CreateTable
+CREATE TABLE "Device" (
+    "id" SERIAL NOT NULL,
+    "deviceToken" TEXT NOT NULL,
+    "platform" TEXT NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Device_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Food" (
     "id" SERIAL NOT NULL,
     "code" TEXT NOT NULL,
@@ -111,6 +122,18 @@ CREATE TABLE "Menu" (
     "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Menu_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Notification" (
+    "id" SERIAL NOT NULL,
+    "title" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    "readAt" TIMESTAMP(3),
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -218,6 +241,9 @@ CREATE INDEX "CartItem_cartId_idx" ON "CartItem"("cartId");
 CREATE INDEX "CartItem_foodId_idx" ON "CartItem"("foodId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Device_deviceToken_key" ON "Device"("deviceToken");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Food_code_key" ON "Food"("code");
 
 -- CreateIndex
@@ -248,6 +274,9 @@ ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_cartId_fkey" FOREIGN KEY ("cartI
 ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_foodId_fkey" FOREIGN KEY ("foodId") REFERENCES "Food"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Device" ADD CONSTRAINT "Device_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Food" ADD CONSTRAINT "Food_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -255,6 +284,9 @@ ALTER TABLE "Menu" ADD CONSTRAINT "Menu_foodId_fkey" FOREIGN KEY ("foodId") REFE
 
 -- AddForeignKey
 ALTER TABLE "Menu" ADD CONSTRAINT "Menu_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "Restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "Restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -35,7 +35,7 @@ export class AuthService {
     async validateUser(phone: string, password: string) {
         //Ham validate user dung de validate nguoi dung khi ho dang nhap
         const user = await this.prismaService.user.findFirst({
-            where: { phone , active : true },
+            where: { phone, active: true },
         });
         if (user) {
             const results = await Bun.password.verify(password, user.password);
@@ -167,7 +167,7 @@ export class AuthService {
             throw err;
         }
     }
-    async login(user : any) {
+    async login(user: any) {
         try {
             const userRoles = await this.prismaService.userRole.findMany({
                 where: {
@@ -187,14 +187,20 @@ export class AuthService {
             const refreshSecretKey =
                 this.configService.get<string>('REFRESH_SECRET_KEY');
 
-            const accessToken = await this.jwtService.signAsync({...payload , [TokenBody.PURPOSE] : TokenType.ACCESS }, {
-                secret: accessSecretKey,
-                expiresIn: ACCESS_TOKEN_LIVE_TIME,
-            });
-            const refreshToken = await this.jwtService.signAsync({...payload , [TokenBody.PURPOSE] : TokenType.REFRESH }, {
-                secret: refreshSecretKey,
-                expiresIn: REFRESH_TOKEN_LIVE_TIME,
-            });
+            const accessToken = await this.jwtService.signAsync(
+                { ...payload, [TokenBody.PURPOSE]: TokenType.ACCESS },
+                {
+                    secret: accessSecretKey,
+                    expiresIn: ACCESS_TOKEN_LIVE_TIME,
+                },
+            );
+            const refreshToken = await this.jwtService.signAsync(
+                { ...payload, [TokenBody.PURPOSE]: TokenType.REFRESH },
+                {
+                    secret: refreshSecretKey,
+                    expiresIn: REFRESH_TOKEN_LIVE_TIME,
+                },
+            );
             //Delete old and store new token
             return {
                 accessToken,

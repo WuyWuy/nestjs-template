@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 // import { RegisterData } from './dto/auth.dto';
 import { AuthService } from './auth.service';
-import { LoginData, RegisterData } from './dto/auth.dto';
+import { RegisterData } from './dto/auth.dto';
 import { LocalAuthGuard } from './local-auth.guard';
 import type { Request } from 'express';
 // import { LocalAuthGuard } from './local-auth.guard';
@@ -40,7 +40,7 @@ export class AuthController {
     }
     @Post("login") 
     @UseGuards(LocalAuthGuard) 
-    async login(@Body() loginData : LoginData , @Req() req : Request) 
+    async login(@Req() req : Request) 
     {
         const user = req.user as any 
         const responseData = await this.authService.login(user) 

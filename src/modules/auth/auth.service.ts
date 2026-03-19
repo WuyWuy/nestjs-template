@@ -1,14 +1,27 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import {
     BadRequestException,
+    // BadRequestException,
     Injectable,
-    UnauthorizedException,
+    // UnauthorizedException,
+    // UnauthorizedException,
 } from '@nestjs/common';
-import { RegisterData } from './dto/auth.dto';
-import { Role, TokenType } from '@prisma/client';
+// import { Role, TokenType } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+// import { TokenBody } from '@/bases/commons/enums/token.enum';
+// import { TwilioService } from '../twilio/twilio.service';
+import { RegisterData } from './dto/auth.dto';
+import { OTPType, Role, TokenType } from '@prisma/client';
+import { generateOtp } from '@/utilis/ranomOtp';
+import { VERIFY_OTP_LIVE_TIME } from '@/bases/commons/constants/auth.constant';
+import { hashing } from '@/utilis/sha256';
+import { ResponseBody } from '@/bases/commons/enums/response.enum';
 import { TokenBody } from '@/bases/commons/enums/token.enum';
+import {
+    ACCESS_TOKEN_LIVE_TIME,
+    REFRESH_TOKEN_LIVE_TIME,
+} from '@/bases/commons/constants/jwt.constant';
 
 @Injectable()
 export class AuthService {
@@ -17,11 +30,12 @@ export class AuthService {
         private readonly prismaService: PrismaService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
+        // private readonly twilioService: TwilioService,
     ) {}
-    async validateUser(email: string, password: string) {
+    async validateUser(phone: string, password: string) {
         //Ham validate user dung de validate nguoi dung khi ho dang nhap
         const user = await this.prismaService.user.findFirst({
-            where: { email },
+            where: { phone , active : true },
         });
         if (user) {
             const results = await Bun.password.verify(password, user.password);
@@ -30,95 +44,164 @@ export class AuthService {
         }
         return null;
     }
-    async register(data: RegisterData) {
+    async register(registerData: RegisterData) {
         try {
-            let user = await this.prismaService.user.findFirst({
-                where: { email: data.email },
+            const results = await this.prismaService.$transaction(
+                async (tx) => {
+                    let user = await tx.user.findFirst({
+                        where: {
+                            deleteAt: null,
+                            OR: [
+                                {
+                                    phone: registerData.phone,
+                                },
+                                {
+                                    email: registerData.email,
+                                },
+                            ],
+                        },
+                    });
+                    if (user && user.active)
+                        throw new BadRequestException(
+                            'Use has been register. Please login',
+                        );
+                    if (!user) {
+                        const hashedPassword = await Bun.password.hash(
+                            registerData.password,
+                            {
+                                cost: 10,
+                                algorithm: 'bcrypt',
+                            },
+                        );
+                        user = await tx.user.create({
+                            data: {
+                                active: false,
+                                name: registerData.name,
+                                email: registerData.email,
+                                birthday: new Date(registerData.birthday),
+                                password: hashedPassword,
+                                addressId: registerData.addressId as number,
+                                phone: registerData.phone,
+                            },
+                        });
+                        //Creating Role
+                        await tx.userRole.create({
+                            data: {
+                                userId: user.id,
+                                role: Role.CUSTOMER, //Default is the customer
+                            },
+                        });
+                    }
+                    //Create otp
+                    //Drop any otp related to the user
+                    await tx.oTP.deleteMany({
+                        where: {
+                            userId: user.id,
+                            type: OTPType.VERIFY_OTP, //Use for verify register
+                        },
+                    });
+                    const otp = generateOtp();
+                    await tx.oTP.create({
+                        data: {
+                            otp: hashing(otp),
+                            userId: user.id,
+                            type: OTPType.VERIFY_OTP,
+                            expiresAt: new Date(
+                                Date.now() + VERIFY_OTP_LIVE_TIME,
+                            ),
+                        },
+                    });
+
+                    return {
+                        otp,
+                        id: user.id,
+                        birthday: user.birthday,
+                        name: user.name,
+                        phone: user.phone,
+                        email: user.email,
+                    };
+                },
+            );
+            return results;
+        } catch (err) {
+            console.log('Register Error: ', err);
+            throw err;
+        }
+    }
+    async verify(otp: string) {
+        try {
+            const hashedOtp = hashing(otp);
+            const storeOtp = await this.prismaService.oTP.findFirst({
+                where: {
+                    otp: hashedOtp,
+                    expiresAt: {
+                        gte: new Date(),
+                    },
+                },
             });
-            if (user && user.active)
-                throw new BadRequestException('User Has Been Registered');
-            if (user == null) {
-                //Neu user la    null thi  ao user moi
-                const hashedPassword = await Bun.password.hash(data.password, {
-                    cost: 10,
-                    algorithm: 'bcrypt',
-                });
-                user = await this.prismaService.user.create({
+            if (!storeOtp) throw new BadRequestException('Invalid Otp Code');
+            if (!storeOtp.usedAt) {
+                await this.prismaService.user.update({
+                    where: {
+                        id: storeOtp.userId,
+                    },
                     data: {
-                        email: data.email,
-                        password: hashedPassword,
-                        name: 'Admin',
                         active: true,
                     },
                 });
-                //Gan role cho nguoi dung
-                await this.prismaService.userRole.create({
+                await this.prismaService.oTP.update({
+                    where: {
+                        id: storeOtp.id,
+                    },
                     data: {
-                        userID: user.id,
-                        role: Role.USER,
+                        usedAt: new Date(),
                     },
                 });
+                return {
+                    [ResponseBody.MESSAGE]: 'Verify Account successfully',
+                };
             }
-            //tien hanh gui duoing maii verify
-            //Tien hanh verify tai khoan o day
-            return {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-            };
-        } catch (e) {
-            if (e instanceof BadRequestException) throw e;
-            throw e;
+            throw new BadRequestException('User has been verified');
+        } catch (err) {
+            console.log('Verify Account Error: ', err);
+            throw err;
         }
     }
-    async login(email: string, password: string) {
+    async login(user : any) {
         try {
-            const user = await this.prismaService.user.findFirst({
-                where: { email },
+            const userRoles = await this.prismaService.userRole.findMany({
+                where: {
+                    userId: user.id,
+                },
+                select: {
+                    role: true,
+                },
             });
-            if (user == null)
-                throw new UnauthorizedException('User Has Not Registered');
-            const accessSecretKey: string =
-                this.configService.get<string>('ACCESS_SECRET') || '';
-            const refreshSecretKey: string =
-                this.configService.get<string>('REFRESH_SECRET') || '';
-            //--- Verify Password ---
-            const results = await Bun.password.verify(password, user.password);
-            if (!results) throw new BadRequestException('Wrong Password');
-            //--- Access Token ---
-            const accessToken = this.jwtService.sign(
-                {
-                    [TokenBody.EMAIL]: email,
-                    [TokenBody.PURPOSE]: TokenType.ACCESS,
-                    [TokenBody.SUB]: user.id,
-                    [TokenBody.ROLES]: [Role.USER], //Chinh thaynh lay role that su cua nguoi dung
-                },
-                {
-                    secret: accessSecretKey,
-                    expiresIn: '15m', //Best Practice: Change to jwt constant
-                },
-            );
+            const payload = {
+                [TokenBody.EMAIL]: user.email,
+                [TokenBody.SUB]: user.id,
+                [TokenBody.ROLES]: userRoles.map((roleItem) => roleItem.role),
+            };
+            const accessSecretKey =
+                this.configService.get<string>('ACCESS_SECRET_KEY');
+            const refreshSecretKey =
+                this.configService.get<string>('REFRESH_SECRET_KEY');
 
-            //--- Refresh Token ---
-            const refreshToken = this.jwtService.sign(
-                {
-                    [TokenBody.EMAIL]: email,
-                    [TokenBody.PURPOSE]: TokenType.ACCESS,
-                    [TokenBody.SUB]: user.id,
-                    [TokenBody.ROLES]: Role.USER, //Chinh thaynh lay role that su cua nguoi dung
-                },
-                {
-                    secret: refreshSecretKey,
-                    expiresIn: '14d',
-                },
-            );
+            const accessToken = await this.jwtService.signAsync({...payload , [TokenBody.PURPOSE] : TokenType.ACCESS }, {
+                secret: accessSecretKey,
+                expiresIn: ACCESS_TOKEN_LIVE_TIME,
+            });
+            const refreshToken = await this.jwtService.signAsync({...payload , [TokenBody.PURPOSE] : TokenType.REFRESH }, {
+                secret: refreshSecretKey,
+                expiresIn: REFRESH_TOKEN_LIVE_TIME,
+            });
+            //Delete old and store new token
             return {
-                email,
-                access_token: accessToken,
-                refresh_token: refreshToken,
+                accessToken,
+                refreshToken,
             };
         } catch (err) {
-            if (err instanceof UnauthorizedException) throw err;
+            console.log('Login error: ', err);
             throw err;
         }
     }

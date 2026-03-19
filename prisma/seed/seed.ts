@@ -102,6 +102,8 @@ async function seedAdminAccount() {
             password: hashPassword,
             active: true,
             addressId: address.id,
+            phone: "0984120972", 
+            birthday: new Date(2006, 0, 19) 
         },
     });
 

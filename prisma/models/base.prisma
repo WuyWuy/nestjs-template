@@ -10,9 +10,9 @@ enum TokenType {
 }
 
 enum OTPType {
-    RESET_PASSWORD_OTP
-    RESET_EMAIL_OTP
-    VERIFY_OTP
+    RESET_PASSWORD_OTP   //Reset Password 
+    RESET_EMAIL_OTP   //Change Email 
+    VERIFY_OTP   //Verify When Register 
 }
 
 enum OrderStatus {

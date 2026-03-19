@@ -1,16 +1,17 @@
 import {
-    // Body,
+    Body,
     Controller,
-    Get,
+    // Get,
     // HttpCode,
     // HttpStatus,
-    // Post,
+    Post,
     // Query,
     // Req,
     // UseGuards,
 } from '@nestjs/common';
 // import { RegisterData } from './dto/auth.dto';
 import { AuthService } from './auth.service';
+import { RegisterData } from './dto/auth.dto';
 // import { LocalAuthGuard } from './local-auth.guard';
 // import type { Request } from 'express';
 // import { Roles } from '@/bases/decorators/role.decorators';
@@ -21,9 +22,10 @@ import { AuthService } from './auth.service';
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
-    @Get()
-    async sendOtp() {
-        const responseData = await this.authService.sendOtp('+84941422097');
-        return responseData;
+    @Post("register") 
+    async register(@Body() registerData : RegisterData) 
+    {
+        const responseData = await this.authService.register(registerData) 
+        return responseData
     }
 }

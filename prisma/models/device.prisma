@@ -1,0 +1,8 @@
+model Device {
+    id          Int      @id @default(autoincrement())
+    deviceToken String   @unique
+    platform    String //ios, android, ... 
+    userId      Int
+    user        User     @relation(fields: [userId], references: [id])
+    createdAt   DateTime @default(now())
+}

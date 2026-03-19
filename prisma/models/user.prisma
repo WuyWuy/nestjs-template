@@ -11,10 +11,12 @@ model User {
     addressId Int
     deleteAt  DateTime?
 
-    restaurants Restaurant[]
-    ratings     RestaurantRating[]
-    carts       Cart[]
-    userRoles   UserRole[]
+    restaurants   Restaurant[]
+    ratings       RestaurantRating[]
+    carts         Cart[]
+    userRoles     UserRole[]
+    devices       Device[]
+    notifications Notification[]
 }
 
 model UserRole {

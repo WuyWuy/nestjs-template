@@ -1,3 +1,4 @@
+//https://github.com/nestjs/nest/issues/3856 - Should we inject guard to provider? No 
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/role.decorators';

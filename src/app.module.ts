@@ -22,8 +22,8 @@ import { NotificationModule } from './modules/notification/notification.module';
         }),
         AuthModule,
         TwilioModule, //Sending SmS
-        DeviceModule, 
-        NotificationModule
+        DeviceModule,
+        NotificationModule,
     ],
     controllers: [AppController],
     providers: [

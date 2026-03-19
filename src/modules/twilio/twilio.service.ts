@@ -39,12 +39,12 @@ export class TwilioService {
     }
     async sendSms(phone: string, body: string) {
         const messagingServiceSid = this.configService.get<string>(
-            'TWILIO_SENDING_SMS_SERVICE_SID'
+            'TWILIO_SENDING_SMS_SERVICE_SID',
         ) as string;
 
         const msg = await this.twilioClient.messages.create({
             body,
-            messagingServiceSid,  
+            messagingServiceSid,
             to: phone,
         });
 

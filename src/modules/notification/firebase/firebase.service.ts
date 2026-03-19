@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import admin from 'firebase-admin'
+import admin from 'firebase-admin';
 import { ServiceAccount } from 'firebase-admin';
 
 @Injectable()
@@ -22,7 +22,7 @@ export class FirebaseService {
     ) {
         try {
             await admin.messaging().send({
-                token : deviceToken,
+                token: deviceToken,
                 notification: payload.notification,
                 data: payload.data,
             });

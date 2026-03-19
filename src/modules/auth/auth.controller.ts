@@ -26,24 +26,21 @@ import type { Request } from 'express';
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
-    @Post("register") 
-    async register(@Body() registerData : RegisterData) 
-    {
-        const responseData = await this.authService.register(registerData) 
-        return responseData
+    @Post('register')
+    async register(@Body() registerData: RegisterData) {
+        const responseData = await this.authService.register(registerData);
+        return responseData;
     }
-    @Get("verify") 
-    async verify(@Query("otp") otp : string) 
-    {
-        const responseData = await this.authService.verify(otp) 
-        return responseData
+    @Get('verify')
+    async verify(@Query('otp') otp: string) {
+        const responseData = await this.authService.verify(otp);
+        return responseData;
     }
-    @Post("login") 
-    @UseGuards(LocalAuthGuard) 
-    async login(@Req() req : Request) 
-    {
-        const user = req.user as any 
-        const responseData = await this.authService.login(user) 
-        return responseData
+    @Post('login')
+    @UseGuards(LocalAuthGuard)
+    async login(@Req() req: Request) {
+        const user = req.user as any;
+        const responseData = await this.authService.login(user);
+        return responseData;
     }
 }

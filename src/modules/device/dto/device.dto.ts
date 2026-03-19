@@ -1,9 +1,8 @@
-import { IsString } from "class-validator";
-
+import { IsString } from 'class-validator';
 
 export class RegisterDeviceData {
-    @IsString() 
-    deviceToken : string 
-    @IsString() 
-    platform : string 
+    @IsString()
+    deviceToken: string;
+    @IsString()
+    platform: string;
 }

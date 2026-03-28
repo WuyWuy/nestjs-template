@@ -26,6 +26,7 @@ import {
     REFRESH_TOKEN_LIVE_TIME,
 } from '@/bases/commons/constants/jwt.constant';
 import { TwilioService } from '../twilio/twilio.service';
+import { generatePassword } from '@/utilis/rnadomPassword';
 
 @Injectable()
 export class AuthService {
@@ -291,5 +292,42 @@ export class AuthService {
             console.log('Update email error', err);
             throw err;
         }
+    }
+    async forgotPassword(email : string) 
+    {
+        try 
+        {
+            const user = await this.prismaService.user.findFirst({
+                where: {
+                    email 
+                }
+            }) 
+            if (!user) 
+                throw new BadRequestException("Email has not been registered") 
+            const defaultPassword = generatePassword() 
+            const hashPassword = await Bun.password.hash(
+                defaultPassword , {
+                    cost : 10, 
+                    algorithm : 'bcrypt'
+                }
+            ) 
+            await this.prismaService.user.update({
+                data: {
+                    password : hashPassword
+                }, 
+                where: {
+                    id : user.id 
+                }
+            })
+            return {
+                defaultPassword 
+            }
+        } 
+        catch (err) 
+        {
+            console.log("Reset password to default error" , err) 
+            throw err 
+        }
+
     }
 }

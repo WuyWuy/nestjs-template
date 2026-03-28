@@ -66,5 +66,15 @@ export class AuthController {
         const responseData = await this.authService.verifyChangeEmail(email , otp) 
         return responseData 
     }
-    
+    @Post("forgot-password") 
+    async forgotPassword(
+        @Body() data : { email : string }
+    )
+    {
+        const email = data.email 
+        if (!email) 
+            throw new BadRequestException("Email invalid") 
+        const response = await this.authService.forgotPassword(email) 
+        return response
+    }
 }

@@ -8,7 +8,6 @@ model User {
     active    Boolean   @default(false)
     createdAt DateTime  @default(now())
     updatedAt DateTime  @updatedAt
-    addressId Int
     deleteAt  DateTime?
 
     restaurants   Restaurant[]
@@ -17,6 +16,7 @@ model User {
     userRoles     UserRole[]
     devices       Device[]
     notifications Notification[]
+    userAddress   UserAddress[]
 }
 
 model UserRole {

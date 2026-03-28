@@ -1,18 +1,28 @@
 model Address {
     id Int @id @default(autoincrement())
 
-    street     String?   
-    ward       String?    
-    district   String     
-    city       String     
+    street   String?
+    ward     String?
+    district String
+    city     String
 
-    latitude   Float?
-    longitude  Float?
+    latitude  Float?
+    longitude Float?
 
-    fullText   String?   
+    fullText String?
 
-    updatedAt  DateTime @updatedAt
+    updatedAt DateTime @updatedAt
 
     restaurants Restaurant[]
     orders      Order[]
+    userAddress UserAddress[]
+}
+
+//Mot nguoi se co nhieu loai dia chi ==== Them 1 bang de lien ket giua nguoi va dia chi 
+model UserAddress {
+    id        Int     @id @default(autoincrement())
+    userId    Int
+    addressId Int
+    user      User    @relation(fields: [userId], references: [id])
+    address   Address @relation(fields: [addressId], references: [id])
 }

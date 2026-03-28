@@ -32,6 +32,15 @@ CREATE TABLE "Address" (
 );
 
 -- CreateTable
+CREATE TABLE "UserAddress" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "addressId" INTEGER NOT NULL,
+
+    CONSTRAINT "UserAddress_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "OTP" (
     "id" SERIAL NOT NULL,
     "otp" TEXT NOT NULL,
@@ -210,7 +219,6 @@ CREATE TABLE "User" (
     "active" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "addressId" INTEGER NOT NULL,
     "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
@@ -260,6 +268,12 @@ CREATE UNIQUE INDEX "Restaurant_phone_key" ON "Restaurant"("phone");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- AddForeignKey
+ALTER TABLE "UserAddress" ADD CONSTRAINT "UserAddress_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserAddress" ADD CONSTRAINT "UserAddress_addressId_fkey" FOREIGN KEY ("addressId") REFERENCES "Address"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Cart" ADD CONSTRAINT "Cart_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

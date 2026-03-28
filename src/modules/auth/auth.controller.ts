@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     Controller,
     Get,
@@ -16,6 +17,7 @@ import { AuthService } from './auth.service';
 import { RegisterData } from './dto/auth.dto';
 import { LocalAuthGuard } from './local-auth.guard';
 import type { Request } from 'express';
+import { JwtAuthGuard } from './jwt-auth.guard';
 // import { LocalAuthGuard } from './local-auth.guard';
 // import type { Request } from 'express';
 // import { Roles } from '@/bases/decorators/role.decorators';
@@ -43,4 +45,26 @@ export class AuthController {
         const responseData = await this.authService.login(user);
         return responseData;
     }
+    @Post("reset-email") 
+    @UseGuards(JwtAuthGuard)
+    async resetEmail(
+        @Req() req : Request 
+    )
+    {
+        const {phone , password } = req.body 
+        if (!phone || !password) 
+            throw new BadRequestException("Invalid body") 
+        const responseData = await this.authService.changeEmail(phone , password) 
+        return responseData
+    } 
+    @Get("reset-email/verify")   //updated-email?email=nguyenkhaan2000@gmail.com&otp=123456
+    async verifyChangeEmail(
+        @Query('email') email : string, 
+        @Query('otp') otp : string 
+    ) 
+    {
+        const responseData = await this.authService.verifyChangeEmail(email , otp) 
+        return responseData 
+    }
+    
 }

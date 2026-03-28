@@ -22,6 +22,9 @@ This repository is a backend template for a food delivery app built with NestJS.
 - PostgreSQL (or compatible SQL)
 - Jest (testing)
 
+## Run Docker 
+- Click the right button 
+
 ## ▶️ Run locally
 
 1. Install dependencies:

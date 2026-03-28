@@ -101,11 +101,17 @@ async function seedAdminAccount() {
             email,
             password: hashPassword,
             active: true,
-            addressId: address.id,
             phone: "0984120972", 
             birthday: new Date(2006, 0, 19) 
         },
     });
+    //Create address Id 
+    await prisma.userAddress.create({
+        data : {
+            userId : admin.id, 
+            addressId : address.id
+        }
+    })
 
     await prisma.userRole.createMany({
         data: [

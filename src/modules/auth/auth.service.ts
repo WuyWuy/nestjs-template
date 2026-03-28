@@ -14,7 +14,10 @@ import { ConfigService } from '@nestjs/config';
 import { RegisterData } from './dto/auth.dto';
 import { OTPType, Role, TokenType } from '@prisma/client';
 import { generateOtp } from '@/utilis/ranomOtp';
-import { VERIFY_OTP_LIVE_TIME } from '@/bases/commons/constants/auth.constant';
+import {
+    RESET_EMAIL_OTP_LIVE_TIME,
+    VERIFY_OTP_LIVE_TIME,
+} from '@/bases/commons/constants/auth.constant';
 import { hashing } from '@/utilis/sha256';
 import { ResponseBody } from '@/bases/commons/enums/response.enum';
 import { TokenBody } from '@/bases/commons/enums/token.enum';
@@ -22,6 +25,7 @@ import {
     ACCESS_TOKEN_LIVE_TIME,
     REFRESH_TOKEN_LIVE_TIME,
 } from '@/bases/commons/constants/jwt.constant';
+import { TwilioService } from '../twilio/twilio.service';
 
 @Injectable()
 export class AuthService {
@@ -30,6 +34,7 @@ export class AuthService {
         private readonly prismaService: PrismaService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
+        private readonly twilioService: TwilioService,
         // private readonly twilioService: TwilioService,
     ) {}
     async validateUser(phone: string, password: string) {
@@ -73,6 +78,12 @@ export class AuthService {
                                 algorithm: 'bcrypt',
                             },
                         );
+                        let address = null;
+                        if (registerData.addressId) {
+                            address = await tx.address.findFirst({
+                                where: { id: registerData.addressId },
+                            });
+                        }
                         user = await tx.user.create({
                             data: {
                                 active: false,
@@ -80,10 +91,20 @@ export class AuthService {
                                 email: registerData.email,
                                 birthday: new Date(registerData.birthday),
                                 password: hashedPassword,
-                                addressId: registerData.addressId as number,
                                 phone: registerData.phone,
                             },
                         });
+
+                        if (user && address) {
+                            console.log(address.city);
+                            console.log(user.id, address.id);
+                            await tx.userAddress.create({
+                                data: {
+                                    userId: user.id,
+                                    addressId: address.id,
+                                },
+                            });
+                        }
                         //Creating Role
                         await tx.userRole.create({
                             data: {
@@ -208,6 +229,66 @@ export class AuthService {
             };
         } catch (err) {
             console.log('Login error: ', err);
+            throw err;
+        }
+    }
+    async changeEmail(phone: string, password: string) {
+        try {
+            const user = await this.prismaService.user.findFirst({
+                where: { phone },
+            });
+            console.log(user) 
+            if (!user) throw new BadRequestException('User Not Found');
+            if (phone.startsWith('0')) {
+                phone = phone.replace('0', '84');
+            }
+            const result = await Bun.password.verify(password, user.password);
+            if (!result) throw new BadRequestException('Wrong Password');
+            const otp = generateOtp();
+            const hashOtp = hashing(otp);
+            //Calling twilio
+            await this.prismaService.oTP.create({
+                data: {
+                    otp: hashOtp,
+                    type: OTPType.RESET_EMAIL_OTP,
+                    expiresAt: new Date(Date.now() + RESET_EMAIL_OTP_LIVE_TIME),
+                    userId: user.id,
+                },
+            });
+            await this.twilioService.sendSms(phone, otp);
+            console.log('OTP da gui: ', otp);
+            return {
+                otp,
+            };
+        } catch (err) {
+            console.log('Change email error: ', err);
+            throw err;
+        }
+    }
+    async verifyChangeEmail(email: string, otp: string) {
+        try {
+            const hashedOtp = hashing(otp);
+            const existsOtp = await this.prismaService.oTP.findFirst({
+                where: {
+                    otp: hashedOtp,
+                    type: OTPType.RESET_EMAIL_OTP,
+                    usedAt: null,
+                },
+            });
+            if (!existsOtp) throw new BadRequestException('OTP Invalid');
+            if (existsOtp.expiresAt < new Date())
+                throw new BadRequestException('OTP has been expired');
+            await this.prismaService.user.update({
+                data: { email },
+                where: {
+                    id: existsOtp.userId,
+                },
+            });
+            return {
+                message: 'Email has been updated',
+            };
+        } catch (err) {
+            console.log('Update email error', err);
             throw err;
         }
     }

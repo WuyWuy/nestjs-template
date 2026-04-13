@@ -3,7 +3,6 @@ import {
     IsString,
     IsNotEmpty,
     MinLength,
-    IsOptional,
     Matches,
     IsDateString,
 } from 'class-validator';
@@ -27,9 +26,6 @@ export class RegisterData {
     @IsString()
     @IsNotEmpty()
     name: string;
-
-    @IsOptional()
-    addressId?: number;
 }
 export class LoginData {
     @IsString()

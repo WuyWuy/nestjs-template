@@ -1,10 +1,10 @@
 model Address {
-    id Int @id @default(autoincrement())
-    title String 
-    latitude  Float?
-    longitude Float?
-    fullText String?
-    updatedAt DateTime @updatedAt
+    id          Int           @id @default(autoincrement())
+    title       String
+    latitude    Float?
+    longitude   Float?
+    fullText    String?
+    updatedAt   DateTime      @updatedAt
     restaurants Restaurant[]
     userAddress UserAddress[]
 }
@@ -13,6 +13,7 @@ model Address {
 model UserAddress {
     id        Int     @id @default(autoincrement())
     userId    Int
+    title     String
     addressId Int
     user      User    @relation(fields: [userId], references: [id])
     address   Address @relation(fields: [addressId], references: [id])

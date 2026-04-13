@@ -4,19 +4,20 @@ model Order {
     restaurantId Int
     restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
     totalPrice   Decimal     @default(0)
-    addressId    Int
-    address      Address     @relation(fields: [addressId], references: [id])
     status       OrderStatus
     orderFoods   OrderFood[]
     payments     Payment[]
 }
 
 model OrderFood {
-    id       Int     @id @default(autoincrement())
-    orderId  Int
-    order    Order   @relation(fields: [orderId], references: [id])
-    foodId   Int
-    food     Food    @relation(fields: [foodId], references: [id])
-    quantity Int
-    price    Decimal @default(0)
+    id        Int     @id @default(autoincrement())
+    orderId   Int
+    order     Order   @relation(fields: [orderId], references: [id])
+    foodId    Int
+    food      Food    @relation(fields: [foodId], references: [id])
+    quantity  Int
+    latitude  Float?
+    longitude Float?
+    fullText  String?
+    price     Decimal @default(0)
 }

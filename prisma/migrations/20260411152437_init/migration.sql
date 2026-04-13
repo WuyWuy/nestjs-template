@@ -117,6 +117,7 @@ CREATE TABLE "Food" (
     "description" TEXT NOT NULL DEFAULT '',
     "categoryId" INTEGER NOT NULL,
     "price" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "image" TEXT NOT NULL DEFAULT '',
     "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Food_pkey" PRIMARY KEY ("id")
@@ -185,6 +186,7 @@ CREATE TABLE "Restaurant" (
     "id" SERIAL NOT NULL,
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "image" TEXT NOT NULL DEFAULT '',
     "phone" TEXT NOT NULL,
     "approved" BOOLEAN NOT NULL DEFAULT false,
     "addressId" INTEGER NOT NULL,
@@ -220,6 +222,7 @@ CREATE TABLE "User" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deleteAt" TIMESTAMP(3),
+    "avatar" TEXT NOT NULL DEFAULT '',
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );

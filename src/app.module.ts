@@ -13,6 +13,9 @@ import { TwilioModule } from './modules/twilio/twilio.module';
 import { DeviceModule } from './modules/device/device.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { EmailModule } from './modules/email/email.module';
+import { MinioModule } from './modules/minio/minio.module';
+import { UserModule } from './modules/user/user.module';
+import { AddressModule } from './modules/address/address.module';
 //Add  e module here
 @Module({
     imports: [
@@ -25,7 +28,10 @@ import { EmailModule } from './modules/email/email.module';
         TwilioModule, //Sending SmS
         DeviceModule,
         NotificationModule,
-        EmailModule
+        EmailModule, 
+        MinioModule, 
+        UserModule, 
+        AddressModule
     ],
     controllers: [AppController],
     providers: [

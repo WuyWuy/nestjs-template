@@ -6,7 +6,7 @@
     "module": "ESNext",
     "moduleDetection": "force",
     "allowJs": true,
-
+    "types": ["node" , "express" , "multer"], 
     // Bundler mode
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": false, 

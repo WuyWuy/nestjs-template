@@ -82,12 +82,6 @@ export class AuthService {
                                 algorithm: 'bcrypt',
                             },
                         );
-                        let address = null;
-                        if (registerData.addressId) {
-                            address = await tx.address.findFirst({
-                                where: { id: registerData.addressId },
-                            });
-                        }
                         user = await tx.user.create({
                             data: {
                                 active: false,
@@ -98,17 +92,6 @@ export class AuthService {
                                 phone: registerData.phone,
                             },
                         });
-
-                        if (user && address) {
-                            console.log(address.city);
-                            console.log(user.id, address.id);
-                            await tx.userAddress.create({
-                                data: {
-                                    userId: user.id,
-                                    addressId: address.id,
-                                },
-                            });
-                        }
                         //Creating Role
                         await tx.userRole.create({
                             data: {

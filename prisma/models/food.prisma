@@ -1,15 +1,16 @@
 model Food {
-    id          Int       @id @default(autoincrement())
-    code        String    @unique
+    id          Int         @id @default(autoincrement())
+    code        String      @unique
     name        String
-    description String    @default("") @db.Text
+    description String      @default("") @db.Text
     categoryId  Int
-    category    Category  @relation(fields: [categoryId], references: [id])
-    price       Decimal   @default(0)
+    category    Category    @relation(fields: [categoryId], references: [id])
+    price       Decimal     @default(0)
+    image       String      @default("")
     deleteAt    DateTime?
     menus       Menu[]
-    orderFoods OrderFood[] 
-    cartItems CartItem[] 
+    orderFoods  OrderFood[]
+    cartItems   CartItem[]
 }
 
 model Menu {

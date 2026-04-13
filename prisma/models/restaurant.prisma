@@ -2,6 +2,7 @@ model Restaurant {
     id        Int                @id @default(autoincrement())
     code      String             @unique
     name      String
+    image     String             @default("")
     phone     String             @unique
     approved  Boolean            @default(false)
     addressId Int
@@ -12,8 +13,8 @@ model Restaurant {
     deleteAt  DateTime?
     menus     Menu[]
     ratings   RestaurantRating[]
-    orders Order[] 
-    carts Cart[] 
+    orders    Order[]
+    carts     Cart[]
 }
 
 model RestaurantRating {

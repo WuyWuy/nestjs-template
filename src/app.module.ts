@@ -15,6 +15,7 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { EmailModule } from './modules/email/email.module';
 import { MinioModule } from './modules/minio/minio.module';
 import { CustomerModule } from './modules/customer/customer.module';
+import { AddressModule } from './modules/address/address.module';
 //Add  e module here
 @Module({
     imports: [
@@ -29,7 +30,8 @@ import { CustomerModule } from './modules/customer/customer.module';
         NotificationModule,
         EmailModule, 
         MinioModule, 
-        CustomerModule
+        CustomerModule, 
+        AddressModule
     ],
     controllers: [AppController],
     providers: [

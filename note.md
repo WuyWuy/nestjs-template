@@ -37,3 +37,8 @@ Sử dụng mật khẩu mặc định ?
 - Bước 1. Yêu cầu người dùng nhập email 
 - Bước 2. Gửi email về tài khoản người dùng + (mã thay đổi mật khẩu)
 - Bước 3. Nhập số điện thoại mới + mã gửi về email 
+
+## Thêm mới một địa điểm 
+- Ở giao diện Frontend, call về GGMap API, liên tục cập nhật 
+- Khi người dùng chọn vào một address và bấm xác nhận. Gửi địa điểm này về cho Backend lưu trữ và tạo mối liên kết 
+    + Tránh trùng lặp địa điểm: Kiểm tra tung độ và vĩ độ đc chọn có xấp xỉ với cái nào trong Database không, nhớ xấp xỉ nhỏ thôi (tầm 0.000001)

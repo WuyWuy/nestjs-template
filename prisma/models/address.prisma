@@ -1,20 +1,11 @@
 model Address {
     id Int @id @default(autoincrement())
-
-    street   String?
-    ward     String?
-    district String
-    city     String
-
+    title String 
     latitude  Float?
     longitude Float?
-
     fullText String?
-
     updatedAt DateTime @updatedAt
-
     restaurants Restaurant[]
-    orders      Order[]
     userAddress UserAddress[]
 }
 

@@ -77,4 +77,13 @@ export class AuthController {
         const response = await this.authService.forgotPassword(email) 
         return response
     }
+    @Post("login-facebook") 
+    async loginFb(@Req() req : Request) 
+    {
+        const code = req.body.code 
+        if (!code) 
+            throw new BadRequestException("invalid code") 
+        const response = await this.authService.fbLogin(code) 
+        return response
+    }
 }

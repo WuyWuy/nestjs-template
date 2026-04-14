@@ -29,6 +29,7 @@ import { TwilioService } from '../twilio/twilio.service';
 import { generatePassword } from '@/utilis/rnadomPassword';
 import { EmailService } from '../email/email.service';
 import { APP_NAME } from '@/bases/commons/constants/app.constant';
+import axios from 'axios' 
 
 @Injectable()
 export class AuthService {
@@ -318,5 +319,35 @@ export class AuthService {
             throw err 
         }
 
+    }
+
+    //[SOCIAL _LOGIN ] 
+    //User have to update their phone, birthday ... 
+    async fbLogin(code : string) 
+    {
+        try 
+        {
+            const { data } = await axios.get(
+                'https://graph.facebook.com/me', 
+                {
+                    params: {
+                        fields: 'id,name,email,picture', 
+                        access_token: code 
+                    }
+                }
+            )
+            console.log("Facebook data: " , data) 
+            return {
+                facebookId : data.id, 
+                name : data.name, 
+                email : data.email, 
+                avatar: data.picture?.data?.url,
+            }
+        } 
+        catch (err) 
+        {
+            console.log("Login facebook error: ", err) 
+            throw err 
+        }
     }
 }

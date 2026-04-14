@@ -2,7 +2,7 @@ import { PrismaService } from "@/prisma/prisma.service";
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { MinioService } from "../minio/minio.service";
 import { Express } from "express";
-import { AddUserAddressDto } from "./dto/user.dto";
+import { AddUserAddressDto, UpdateUserProfileDto } from "./dto/user.dto";
 import { AddressService } from "../address/address.service";
 @Injectable() 
 export class UserService 
@@ -71,6 +71,36 @@ export class UserService
         catch (err) 
         {
             console.log("get customer error" , err) 
+            throw err 
+        }
+    }
+    async updateUserProfile(id : number , data : UpdateUserProfileDto , file : Express.Multer.File) 
+    {
+        try 
+        {
+            const user = await this.getUserById(id) 
+            if (!user) 
+                throw new BadRequestException("user not found") 
+            const result = await this.prismaService.$transaction(async (tx) => {
+                let avatar = user.avatar
+                if (file) 
+                {
+                    avatar = await this.minioService.uploadFile(file) 
+                } 
+                const nuser = await tx.user.update({
+                    where: { id }, 
+                    data: {
+                        ...data, 
+                        avatar 
+                    }
+                })
+                return nuser
+            })
+            return result
+        } 
+        catch (err) 
+        {
+            console.log("update user profile error" , err) 
             throw err 
         }
     }

@@ -16,6 +16,7 @@ import { EmailModule } from './modules/email/email.module';
 import { MinioModule } from './modules/minio/minio.module';
 import { UserModule } from './modules/user/user.module';
 import { AddressModule } from './modules/address/address.module';
+import { ChatGateway } from './realtime/chat.gateway';
 //Add  e module here
 @Module({
     imports: [
@@ -35,6 +36,7 @@ import { AddressModule } from './modules/address/address.module';
     ],
     controllers: [AppController],
     providers: [
+        ChatGateway, 
         AppService,
         {
             provide: APP_FILTER,

@@ -1,22 +1,25 @@
 model User {
-    id            Int                @id @default(autoincrement())
-    name          String
-    password      String
-    phone         String?
-    birthday      DateTime
-    email         String             @unique
-    active        Boolean            @default(false)
-    createdAt     DateTime           @default(now())
-    updatedAt     DateTime           @updatedAt
-    deleteAt      DateTime?
-    avatar        String             @default("")
-    restaurants   Restaurant[]
-    ratings       RestaurantRating[]
-    carts         Cart[]
-    userRoles     UserRole[]
-    devices       Device[]
-    notifications Notification[]
-    userAddress   UserAddress[]
+    id                    Int                @id @default(autoincrement())
+    name                  String
+    password              String
+    phone                 String?
+    birthday              DateTime
+    email                 String             @unique
+    active                Boolean            @default(false)
+    createdAt             DateTime           @default(now())
+    updatedAt             DateTime           @updatedAt
+    deleteAt              DateTime?
+    avatar                String             @default("")
+    restaurants           Restaurant[]
+    ratings               RestaurantRating[]
+    carts                 Cart[]
+    userRoles             UserRole[]
+    devices               Device[]
+    notifications         Notification[]
+    userAddress           UserAddress[]
+    customerConversations Conversation[]     @relation("CustomerConversations")
+    sellerConversations   Conversation[]     @relation("SellerConversations")
+    chatMessages          Message[]         @relation("ChatMessages")
 }
 
 model UserRole {

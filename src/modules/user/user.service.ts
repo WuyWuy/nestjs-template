@@ -46,6 +46,29 @@ export class UserService
             throw err 
         }
     }
+    //Xem lại giao diện như thế nào sau đó mới xử lí logic tương đương 
+    async deleteCustomerAccount(id : number) 
+    {
+        try {
+            const result = await this.prismaService.$transaction(async (tx) => {
+                const response = await tx.user.update({
+                    where: {
+                        id, 
+                        
+                    }, 
+                    data: {
+                        deleteAt: new Date(Date.now()) 
+                    }
+                })
+                return response 
+            })
+            return result 
+        }   
+        catch (err) {
+            console.log("Delete customer account" , err) 
+            throw err 
+        }
+    }
     async getUserProfile(id : number) 
     {
         try 

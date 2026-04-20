@@ -1,16 +1,39 @@
 model Food {
-    id          Int         @id @default(autoincrement())
-    code        String      @unique
-    name        String
-    description String      @default("") @db.Text
-    categoryId  Int
-    category    Category    @relation(fields: [categoryId], references: [id])
-    price       Decimal     @default(0)
-    image       String      @default("")
-    deleteAt    DateTime?
-    menus       Menu[]
-    orderFoods  OrderFood[]
-    cartItems   CartItem[]
+    id              Int              @id @default(autoincrement())
+    code            String           @unique
+    name            String
+    description     String           @default("") @db.Text
+    categoryId      Int
+    category        Category         @relation(fields: [categoryId], references: [id])
+    price           Decimal          @default(0)
+    image           String           @default("")
+    deleteAt        DateTime?
+    label           String           @default("")
+    rating          Int              @default(0)
+    menus           Menu[]
+    orderFoods      OrderFood[]
+    cartItems       CartItem[]
+    foodIngredients FoodIngredient[]
+
+    @@index([categoryId])
+    @@index([price])
+}
+
+model Ingredient {
+    id              Int              @id @default(autoincrement())
+    name            String
+    icon            String           @default("")
+    foodIngredients FoodIngredient[]
+}
+
+model FoodIngredient {
+    foodId       Int
+    ingredientId Int
+    food         Food       @relation(fields: [foodId], references: [id])
+    ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+    @@unique([foodId, ingredientId])
+    @@index([ingredientId])
 }
 
 model Menu {

@@ -36,6 +36,7 @@ export class NotificationService {
             throw err;
         }
     }
+    //App xin quyền nhận thông báo -> Gửi device Token về cho BE lưu trữ. Sau đó sẽ tiến hành push notification 
     async testPushNotification(deviceToken: string) {
         try {
             const payload = {

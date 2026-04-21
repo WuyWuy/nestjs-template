@@ -10,3 +10,9 @@ export class ChatMessage {
     @IsNotEmpty() 
     content: string 
 }
+export class JoiNRoomDto {
+    @IsInt() 
+    @IsNotEmpty() 
+    @Type(() => Number)
+    conversationId : number 
+}

@@ -78,6 +78,7 @@ async function seedUserAccounts() {
         console.log(`   Password: ${u.password}`);
     }
 }
+
 async function main() {
     try {
         await prisma.$transaction(async () => {

@@ -18,6 +18,7 @@ import { UserModule } from './modules/user/user.module';
 import { AddressModule } from './modules/address/address.module';
 import { ChatGateway } from './realtime/chat.gateway';
 import { ChatService } from './realtime/chat.service';
+import { ConversationModule } from './modules/conversation/conversation.module';
 //Add  e module here
 @Module({
     imports: [
@@ -33,7 +34,8 @@ import { ChatService } from './realtime/chat.service';
         EmailModule, 
         MinioModule, 
         UserModule, 
-        AddressModule
+        AddressModule, 
+        ConversationModule
     ],
     controllers: [AppController],
     providers: [

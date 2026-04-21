@@ -1,6 +1,6 @@
 model Conversation {
     id         Int      @id @default(autoincrement())
-    orderId    Int
+    orderId    Int      @unique 
     customerId Int
     sellerId   Int
     customer   User     @relation("CustomerConversations", fields: [customerId], references: [id])

@@ -16,6 +16,9 @@ import { EmailModule } from './modules/email/email.module';
 import { MinioModule } from './modules/minio/minio.module';
 import { UserModule } from './modules/user/user.module';
 import { AddressModule } from './modules/address/address.module';
+import { ChatGateway } from './realtime/chat.gateway';
+import { ChatService } from './realtime/chat.service';
+import { ConversationModule } from './modules/conversation/conversation.module';
 //Add  e module here
 @Module({
     imports: [
@@ -31,10 +34,13 @@ import { AddressModule } from './modules/address/address.module';
         EmailModule, 
         MinioModule, 
         UserModule, 
-        AddressModule
+        AddressModule, 
+        ConversationModule
     ],
     controllers: [AppController],
     providers: [
+        ChatGateway, 
+        ChatService, 
         AppService,
         {
             provide: APP_FILTER,

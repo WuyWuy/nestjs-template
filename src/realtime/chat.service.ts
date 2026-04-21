@@ -7,9 +7,11 @@ import { WsException } from '@nestjs/websockets';
 export class ChatService {
     constructor(private readonly prismaService: PrismaService) {}
     async validateConversation(userId: number, conversationId: number) {
-        const conversation = await this.prismaService.conversation.findUnique({
+
+        const conversation = await this.prismaService.conversation.findFirst({
             where: { id: conversationId },
         });
+        console.log(conversation)
         if (!conversation) 
             throw new WsException("Conversation not found") 
         if (conversation.customerId !== userId && conversation.sellerId !== userId) 
@@ -26,8 +28,8 @@ export class ChatService {
             if (!conversation)
                 throw new WsException('Conversation is not initialized');
             if (
-                conversation.customerId != senderId &&
-                conversation.sellerId != senderId
+                conversation.customerId !== senderId &&
+                conversation.sellerId !== senderId
             )
                 throw new WsException(
                     'You are not belong to this conversation',

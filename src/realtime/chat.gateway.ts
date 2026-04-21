@@ -10,7 +10,7 @@
  * 
  */ 
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer} from '@nestjs/websockets' 
-import { ChatMessage } from './dto/chat.dto'
+import { ChatMessage, JoiNRoomDto } from './dto/chat.dto'
 import { UseFilters, UsePipes, ValidationPipe } from '@nestjs/common'
 import { WebSocketExceptionFilter } from './ws-exception.filter'
 import {Server , Socket} from 'socket.io'
@@ -70,11 +70,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect
     @UsePipes(new ValidationPipe( {transform : true }))
     @SubscribeMessage('join-room') 
     async handJoinRoom(
-        @MessageBody() data : { conversationId : number }, 
+        @MessageBody() data : JoiNRoomDto, 
         @ConnectedSocket() client : AuthenticatedSocket
     ) 
     {
         const conversation = await this.chatService.validateConversation(client.user.sub , data.conversationId) 
+        
         if (conversation)
             client.join(`room-${data.conversationId}`)
     }
@@ -86,7 +87,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     ) {
         const conversationId = message.conversationId 
-        const { sub } = client.user.sub 
+        const sub = client.user.sub 
         const storeRes = await this.chatService.storeDbAndEmitMessage(Number(sub) , message) 
         if (storeRes)
         this.server.to(`room-${conversationId}`).emit('text-chat' , {

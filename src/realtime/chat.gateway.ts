@@ -9,7 +9,7 @@
  * 
  * 
  */ 
-import { MessageBody, OnGatewayConnection, SubscribeMessage, WebSocketGateway, WebSocketServer} from '@nestjs/websockets' 
+import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer} from '@nestjs/websockets' 
 import { ChatMessage } from './dto/chat.dto'
 import { UseFilters, UsePipes, ValidationPipe } from '@nestjs/common'
 import { WebSocketExceptionFilter } from './ws-exception.filter'
@@ -17,6 +17,7 @@ import {Server , Socket} from 'socket.io'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { ChatResponseBody, ChatStatus } from './chat.constants'
+import { ChatService } from './chat.service'
 
 export interface AuthenticatedSocket extends Socket {
     user?: any 
@@ -25,11 +26,12 @@ export interface AuthenticatedSocket extends Socket {
 @WebSocketGateway() 
 @UseFilters(new WebSocketExceptionFilter())
 @UsePipes(new ValidationPipe())
-export class ChatGateway implements OnGatewayConnection
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect
 {
     constructor(
         private readonly configService : ConfigService, 
-        private readonly jwtService : JwtService
+        private readonly jwtService : JwtService, 
+        private readonly chatService : ChatService
     ) {} 
     @WebSocketServer() 
     server : Server 
@@ -62,15 +64,37 @@ export class ChatGateway implements OnGatewayConnection
                 [ChatResponseBody.STATUS]: ChatStatus.ERROR, 
                 [ChatResponseBody.CONTENT]: "Client is undefined"
             })
+            client.disconnect() 
         }
+    }
+    @UsePipes(new ValidationPipe( {transform : true }))
+    @SubscribeMessage('join-room') 
+    async handJoinRoom(
+        @MessageBody() data : { conversationId : number }, 
+        @ConnectedSocket() client : AuthenticatedSocket
+    ) 
+    {
+        const conversation = await this.chatService.validateConversation(client.user.sub , data.conversationId) 
+        if (conversation)
+            client.join(`room-${data.conversationId}`)
     }
     @SubscribeMessage('text-chat') 
     @UsePipes(new ValidationPipe()) 
-    handleMessage(
+    async handleMessage(
+        @ConnectedSocket() client : AuthenticatedSocket, 
         @MessageBody() message : ChatMessage, 
-        client: AuthenticatedSocket 
 
     ) {
-        console.log(message, client.id) //content , 
+        const conversationId = message.conversationId 
+        const { sub } = client.user.sub 
+        const storeRes = await this.chatService.storeDbAndEmitMessage(Number(sub) , message) 
+        if (storeRes)
+        this.server.to(`room-${conversationId}`).emit('text-chat' , {
+            data : storeRes, 
+            [ChatResponseBody.STATUS] : "success"
+        })
+    }
+    handleDisconnect(client: Socket) {
+        console.log("Client disconnected: " , client.id)
     }
 }

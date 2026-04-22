@@ -1,7 +1,11 @@
-import { Controller, Get, Param, ParseIntPipe, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ConversationService } from "./conversation.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import type { Request } from "express";
+import { RolesGuard } from "@/bases/guards/role.guard";
+import { Roles } from "@/bases/decorators/role.decorators";
+import { Role } from "@prisma/client";
+import { CreateConversationDto } from "./dto/conversation.dto";
 
 @Controller("conversation") 
 export class ConversationController 
@@ -16,7 +20,19 @@ export class ConversationController
     {
         const response = await this.conversationService.getAllUserConversation(Number(userId)) 
         return response 
-    } 
+    }  
+    @Roles(Role.CUSTOMER)
+    @UseGuards(JwtAuthGuard , RolesGuard)
+    @Post() 
+    async createConversation(
+        @Req() req : Request, 
+        @Body() createConversation : CreateConversationDto
+    ) 
+    {
+        const id = (req.user as any).id 
+        const response = await this.conversationService.createConversation(Number(id) , createConversation) 
+        return response
+    }
     @UseGuards(JwtAuthGuard)
     @Get("detail")
     async getConversationDetailById(

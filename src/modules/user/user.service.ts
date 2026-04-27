@@ -1,186 +1,280 @@
-import { PrismaService } from "@/prisma/prisma.service";
-import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
-import { MinioService } from "../minio/minio.service";
-import { Express } from "express";
-import { AddUserAddressDto, UpdateUserProfileDto } from "./dto/user.dto";
-import { AddressService } from "../address/address.service";
-@Injectable() 
-export class UserService 
-{
+import { PrismaService } from '@/prisma/prisma.service';
+import {
+    BadRequestException,
+    Injectable,
+    UnauthorizedException,
+} from '@nestjs/common';
+import { MinioService } from '../minio/minio.service';
+import { Express } from 'express';
+import {
+    AddUserAddressDto,
+    UpdateUserAddressDto,
+    UpdateUserProfileDto,
+} from './dto/user.dto';
+import { AddressService } from '../address/address.service';
+@Injectable()
+export class UserService {
     constructor(
-        private readonly prismaService : PrismaService,  
-        private readonly minioService : MinioService, 
-        private readonly addressService : AddressService
-    ) {} 
-    async uploadImages(file : Express.Multer.File) 
-    {
-        try 
-        {
-            const results = await this.minioService.uploadFile(file) 
-            console.log("File name: " , results) 
-            return results
-        } 
-        catch (err) 
-        {
-            console.log("upload file error" , err) 
-            throw err 
+        private readonly prismaService: PrismaService,
+        private readonly minioService: MinioService,
+        private readonly addressService: AddressService,
+    ) {}
+    async uploadImages(file: Express.Multer.File) {
+        try {
+            if (!file) throw new BadRequestException('File is required');
+            const results = await this.minioService.uploadFile(file);
+            console.log('File name: ', results);
+            return results;
+        } catch (err) {
+            console.log('upload file error', err);
+            throw err;
         }
     }
-    async getAllUsers() 
-    {
-        try  
-        {
+    async getAllUsers() {
+        try {
             const customers = await this.prismaService.user.findMany({
+                where: {
+                    deleteAt: null,
+                    userRoles: {
+                        some: {
+                            role: 'CUSTOMER',
+                        },
+                    },
+                },
                 select: {
-                    id: true, 
-                    name: true, 
-                    email : true, 
-                    phone: true 
-                }
-            }) 
-            return customers 
-        } 
-        catch (err) 
-        {
-            console.log("Get customer error" , err) 
-            throw err 
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true,
+                },
+            });
+            return customers;
+        } catch (err) {
+            console.log('Get customer error', err);
+            throw err;
         }
     }
-    //Xem lại giao diện như thế nào sau đó mới xử lí logic tương đương 
-    async deleteCustomerAccount(id : number) 
-    {
+    //Xem lại giao diện như thế nào sau đó mới xử lí logic tương đương
+    async deleteCustomerAccount(id: number) {
         try {
             const result = await this.prismaService.$transaction(async (tx) => {
                 const response = await tx.user.update({
                     where: {
-                        id, 
-                        
-                    }, 
+                        id,
+                    },
                     data: {
-                        deleteAt: new Date(Date.now()) 
-                    }
-                })
-                return response 
-            })
-            return result 
-        }   
-        catch (err) {
-            console.log("Delete customer account" , err) 
-            throw err 
+                        deleteAt: new Date(Date.now()),
+                    },
+                });
+                return response;
+            });
+            return result;
+        } catch (err) {
+            console.log('Delete customer account', err);
+            throw err;
         }
     }
-    async getUserProfile(id : number) 
-    {
-        try 
-        {
+    async getUserProfile(id: number) {
+        try {
+            const user = await this.getUserById(id);
+            if (!user) throw new BadRequestException('customer not found');
             const customer = await this.prismaService.user.findFirst({
-                where: { id , active : true }, 
+                where: { id, deleteAt: null },
                 select: {
-                    name: true, 
-                    email: true, phone: true, 
-                    birthday: true, 
-                    avatar: true, //Fix lai la lay avatar 
-                    
-                }
-            })
-            if (!customer) 
-                throw new BadRequestException("customer not found") 
-            const newAvatar = await this.minioService.getFileUrl(customer.avatar) 
+                    name: true,
+                    email: true,
+                    phone: true,
+                    birthday: true,
+                    avatar: true, //Fix lai la lay avatar
+                },
+            });
+            if (!customer) throw new BadRequestException('customer not found');
+            const newAvatar = customer.avatar
+                ? await this.minioService.getFileUrl(customer.avatar)
+                : '';
             return {
-                ...customer, 
-                avatar : newAvatar
-            }
-        } 
-        catch (err) 
-        {
-            console.log("get customer error" , err) 
-            throw err 
+                ...customer,
+                avatar: newAvatar,
+            };
+        } catch (err) {
+            console.log('get customer error', err);
+            throw err;
         }
     }
-    async updateUserProfile(id : number , data : UpdateUserProfileDto , file : Express.Multer.File) 
-    {
-        try 
-        {
-            const user = await this.getUserById(id) 
-            if (!user) 
-                throw new BadRequestException("user not found") 
+    async updateUserProfile(
+        id: number,
+        data: UpdateUserProfileDto,
+        file: Express.Multer.File,
+    ) {
+        try {
+            const user = await this.getUserById(id);
+            if (!user) throw new BadRequestException('user not found');
             const result = await this.prismaService.$transaction(async (tx) => {
-                let avatar = user.avatar
-                if (file) 
-                {
-                    avatar = await this.minioService.uploadFile(file) 
-                } 
+                let avatar = user.avatar;
+                if (file) {
+                    avatar = await this.minioService.uploadFile(file);
+                }
                 const nuser = await tx.user.update({
-                    where: { id }, 
+                    where: { id },
                     data: {
-                        ...data, 
-                        avatar 
-                    }
-                })
-                return nuser
-            })
-            return result
-        } 
-        catch (err) 
-        {
-            console.log("update user profile error" , err) 
-            throw err 
+                        ...data,
+                        avatar,
+                    },
+                });
+                return nuser;
+            });
+            return result;
+        } catch (err) {
+            console.log('update user profile error', err);
+            throw err;
         }
     }
-    async getUserById(id : number ) 
-    {
+    async getUserById(id: number) {
         const user = await this.prismaService.user.findFirst({
             where: {
-                id 
-            }
-        })
-        return user 
+                id,
+                deleteAt: null,
+            },
+        });
+        return user;
     }
-    async addUserAddress(userId : number , address : AddUserAddressDto) 
+    private async getUserAddressOrThrow(id: number, userId: number) {
+        const userAddress = await this.prismaService.userAddress.findFirst({
+            where: {
+                id,
+                userId,
+                deleteAt: null,
+            },
+        });
+        if (!userAddress) {
+            throw new BadRequestException(
+                'This address not belong to this user or was deleted',
+            );
+        }
+        return userAddress;
+    }
+    async addUserAddress(userId: number, address: AddUserAddressDto) {
+        try {
+            const user = await this.getUserById(userId);
+            if (!user) throw new UnauthorizedException('user not found');
+            const result = await this.prismaService.$transaction(async (tx) => {
+                const crAddress = await this.addressService.createAddress(
+                    address.address,
+                    tx,
+                );
+                const respo = await tx.userAddress.create({
+                    data: {
+                        title: address.title,
+                        addressId: crAddress.id,
+                        userId: userId,
+                    },
+                });
+                return respo;
+            });
+            return result;
+        } catch (err) {
+            console.log('add user address error', err);
+            throw err;
+        }
+    }
+    async getAllAddress(userId: number) {
+        try {
+            const user = await this.getUserById(userId);
+            if (!user) throw new UnauthorizedException('user not found');
+            const addresses = await this.prismaService.userAddress.findMany({
+                where: { userId , deleteAt: null },
+                select: {
+                    title: true,
+                    address: true,
+                },
+            });
+            return addresses;
+        } catch (err) {
+            console.log('get all address error', err);
+            throw err;
+        }
+    }
+    async updateUserAddress(
+        id: number,
+        userId: number,
+        updateAddress: UpdateUserAddressDto,
+    ) {
+        try {
+            await this.getUserAddressOrThrow(id, userId);
+            const result = await this.prismaService.$transaction(async (tx) => {
+                const updateData: any = {};
+                if (updateAddress.title) updateData.title = updateAddress.title;
+                if (updateAddress.address) {
+                    const addressRecord = await this.addressService.createAddress(
+                        updateAddress.address,
+                        tx,
+                    );
+                    updateData.addressId = addressRecord.id;
+                }
+                if (!Object.keys(updateData).length) {
+                    throw new BadRequestException(
+                        'No valid address data provided for update',
+                    );
+                }
+                const result = await tx.userAddress.update({
+                    where: {
+                        id,
+                    },
+                    data: {
+                        ...updateData,
+                    },
+                });
+                return result;
+            });
+            return result;
+        } catch (err) {
+            console.log("update user's address", err);
+            throw err;
+        }
+    }
+    async getUserAddressById(id : number , userId : number) 
     {
         try 
         {
-            const user = await this.getUserById(userId) 
-            if (!user) 
-                throw new UnauthorizedException("user not found") 
-            const result = await this.prismaService.$transaction(async (tx) => {
-                const crAddress = await this.addressService.createAddress(address.address)
-                const respo = await tx.userAddress.create({
-                    data: {
-                        title : address.title, 
-                        addressId : crAddress.id, 
-                        userId : userId
-                    }
-                })
-                return respo
-            })
-            return result
-        } 
-        catch (err) 
-        {
-            console.log("add user address error" , err) 
-            throw err 
-        }
-    }
-    async getAllAddress(userId : number) 
-    {
-        try {
-            const user = await this.getUserById(userId) 
-            if (!user) 
-                throw new UnauthorizedException("user not found") 
-            const addresses = await this.prismaService.userAddress.findMany({
-                where: { userId : 1}, 
+            const result = await this.prismaService.userAddress.findFirst({
+                where : {id  , userId, deleteAt: null}, 
                 select: {
-                    title : true, 
+                    id: true,
+                    title: true,
                     address: true 
                 }
             })
-            return addresses
+            if (!result) 
+                throw new BadRequestException("User Address not found") 
+            return result 
+        }
+        catch (err) 
+        {
+            console.log("get user's address by id error" , err) 
+            throw err 
+        }
+    }
+    async deleteUserAddress(id : number , userId : number) 
+    {
+        try 
+        {
+            await this.getUserAddressOrThrow(id, userId);
+            const result = await this.prismaService.userAddress.update({
+                where: {
+                    id
+                }, 
+                data : {
+                    deleteAt : new Date(Date.now()) 
+                } 
+
+            })  
+            return result 
         } 
         catch (err) 
         {
-            console.log('get all address error' , err) 
-            throw err
+            console.log("delete user's address error" , err) 
+            throw err 
         }
     }
+
 }

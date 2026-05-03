@@ -216,9 +216,10 @@ async function seedRestaurants(businessUser: any) {
     return createdRestaurants;
 }
 
-async function seedFoods(restaurants: any[]) {
-    
-    console.log('🌱 Seeding foods...' , restaurants);
+
+
+async function seedFoods(menus: any[]) {
+    console.log('🌱 Seeding foods...');
 
     const categories = await prisma.category.findMany();
     const ingredients = await prisma.ingredient.findMany();
@@ -240,53 +241,62 @@ async function seedFoods(restaurants: any[]) {
         { code: 'FOOD010', name: 'Cheesecake', categoryId: categories[4].id, price: 7.99, description: 'Creamy New York style cheesecake' },
     ];
 
-    const createdFoods = await Promise.all(
-        foods.map((food) => prisma.food.create({ data: food })),
-    );
+    const createdFoods: any[] = [];
 
-    // Link foods with ingredients
+    // 👉 chia đều foods cho menus
+    const foodsPerMenu = Math.ceil(foods.length / menus.length);
+
+    for (let i = 0; i < menus.length; i++) {
+        const menu = menus[i];
+        const startIdx = i * foodsPerMenu;
+        const endIdx = startIdx + foodsPerMenu;
+
+        for (let j = startIdx; j < endIdx && j < foods.length; j++) {
+            const food = await prisma.food.create({
+                data: {
+                    ...foods[j],
+                    menuId: menu.id, // ✅ QUAN TRỌNG
+                },
+            });
+            createdFoods.push(food);
+        }
+    }
+
+    // link ingredients (giữ nguyên)
     if (ingredients.length > 0) {
         await prisma.foodIngredient.createMany({
             data: [
-                { foodId: createdFoods[0].id, ingredientId: ingredients[0].id }, // Tomato for Margherita
-                { foodId: createdFoods[0].id, ingredientId: ingredients[1].id }, // Cheese for Margherita
-                { foodId: createdFoods[2].id, ingredientId: ingredients[2].id }, // Lettuce for burger
-                { foodId: createdFoods[2].id, ingredientId: ingredients[0].id }, // Tomato for burger
-                { foodId: createdFoods[3].id, ingredientId: ingredients[3].id }, // Bacon for bacon burger
-                { foodId: createdFoods[6].id, ingredientId: ingredients[4].id }, // Shrimp for sushi
-                { foodId: createdFoods[6].id, ingredientId: ingredients[6].id }, // Avocado for sushi
+                { foodId: createdFoods[0].id, ingredientId: ingredients[0].id },
+                { foodId: createdFoods[0].id, ingredientId: ingredients[1].id },
+                { foodId: createdFoods[2].id, ingredientId: ingredients[2].id },
+                { foodId: createdFoods[2].id, ingredientId: ingredients[0].id },
+                { foodId: createdFoods[3].id, ingredientId: ingredients[3].id },
+                { foodId: createdFoods[6].id, ingredientId: ingredients[4].id },
+                { foodId: createdFoods[6].id, ingredientId: ingredients[6].id },
             ],
             skipDuplicates: true,
         });
     }
 
-    console.log(`✅ Seeded 10 foods`);
+    console.log(`✅ Seeded ${createdFoods.length} foods`);
     return createdFoods;
 }
+async function seedMenus(restaurants: any[]) {
+    console.log('🌱 Seeding menus (1 restaurant = 1 menu)...');
 
-async function seedMenus(restaurants: any[], foods: any[]) {
-    console.log('🌱 Seeding menus...');
+    const menus = await Promise.all(
+        restaurants.map((restaurant) =>
+            prisma.menu.create({
+                data: {
+                    restaurantId: restaurant.id,
+                    
+                },
+            }),
+        ),
+    );
 
-    const menuData = [];
-    for (let i = 0; i < restaurants.length; i++) {
-        const restaurant = restaurants[i];
-        const startIdx = i * 2;
-        const endIdx = startIdx + 2;
-
-        for (let j = startIdx; j < endIdx && j < foods.length; j++) {
-            menuData.push({
-                restaurantId: restaurant.id,
-                foodId: foods[j].id,
-                quantity: 50 + Math.random() * 50,
-            });
-        }
-    }
-
-    await prisma.menu.createMany({
-        data: menuData,
-    });
-
-    console.log(`✅ Seeded menus`);
+    console.log(`✅ Seeded ${menus.length} menus`);
+    return menus;
 }
 
 async function seedOrders(businessUser: any, customer1: any, customer2: any, restaurants: any[]) {
@@ -490,15 +500,21 @@ async function main() {
             await seedAddress();
             await seedCategories();
             await seedIngredients();
+
             const users = await seedUsers();
             const restaurants = await seedRestaurants(users.business);
-            const foods = await seedFoods(restaurants);
-            await seedMenus(restaurants, foods);
+
+            // 🔥 NEW FLOW
+            const menus = await seedMenus(restaurants);
+            const foods = await seedFoods(menus);
+
             const orders = await seedOrders(users.business, users.customer1, users.customer2, restaurants);
             await seedOrderFoods(orders, foods);
             await seedPayments(orders);
+
             const conversations = await seedConversations(users.business, users.customer1, users.customer2, orders);
             await seedMessages(conversations, users.business, users.customer1, users.customer2);
+
             await seedCarts(users.customer1, users.customer2, restaurants, foods);
         });
 
@@ -510,5 +526,4 @@ async function main() {
         await prisma.$disconnect();
     }
 }
-
 main();

@@ -8,6 +8,9 @@ CREATE TYPE "TokenType" AS ENUM ('ACCESS', 'REFRESH');
 CREATE TYPE "OTPType" AS ENUM ('RESET_PASSWORD_OTP', 'RESET_EMAIL_OTP', 'VERIFY_OTP');
 
 -- CreateEnum
+CREATE TYPE "AuthProvider" AS ENUM ('LOCAL', 'FACEBOOK', 'GOOGLE');
+
+-- CreateEnum
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'CONFIRMED', 'PREPARING', 'DELIVERING', 'DELIVERED', 'CANCELLED');
 
 -- CreateEnum
@@ -34,6 +37,7 @@ CREATE TABLE "UserAddress" (
     "userId" INTEGER NOT NULL,
     "title" TEXT NOT NULL,
     "addressId" INTEGER NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "UserAddress_pkey" PRIMARY KEY ("id")
 );
@@ -49,6 +53,19 @@ CREATE TABLE "OTP" (
     "expiresAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "OTP_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Identity" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "provider" "AuthProvider" NOT NULL,
+    "providerUserId" TEXT NOT NULL,
+    "accessToken" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Identity_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -143,6 +160,7 @@ CREATE TABLE "Food" (
     "deleteAt" TIMESTAMP(3),
     "label" TEXT NOT NULL DEFAULT '',
     "rating" INTEGER NOT NULL DEFAULT 0,
+    "menuId" INTEGER NOT NULL,
 
     CONSTRAINT "Food_pkey" PRIMARY KEY ("id")
 );
@@ -278,6 +296,15 @@ CREATE TABLE "UserRole" (
 );
 
 -- CreateIndex
+CREATE INDEX "Identity_userId_idx" ON "Identity"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Identity_provider_providerUserId_key" ON "Identity"("provider", "providerUserId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Identity_userId_provider_key" ON "Identity"("userId", "provider");
+
+-- CreateIndex
 CREATE INDEX "AuthToken_userId_idx" ON "AuthToken"("userId");
 
 -- CreateIndex
@@ -291,6 +318,9 @@ CREATE INDEX "CartItem_cartId_idx" ON "CartItem"("cartId");
 
 -- CreateIndex
 CREATE INDEX "CartItem_foodId_idx" ON "CartItem"("foodId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Conversation_orderId_key" ON "Conversation"("orderId");
 
 -- CreateIndex
 CREATE INDEX "Conversation_customerId_idx" ON "Conversation"("customerId");
@@ -323,6 +353,9 @@ CREATE INDEX "FoodIngredient_ingredientId_idx" ON "FoodIngredient"("ingredientId
 CREATE UNIQUE INDEX "FoodIngredient_foodId_ingredientId_key" ON "FoodIngredient"("foodId", "ingredientId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Menu_restaurantId_key" ON "Menu"("restaurantId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Order_code_key" ON "Order"("code");
 
 -- CreateIndex
@@ -342,6 +375,9 @@ ALTER TABLE "UserAddress" ADD CONSTRAINT "UserAddress_userId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "UserAddress" ADD CONSTRAINT "UserAddress_addressId_fkey" FOREIGN KEY ("addressId") REFERENCES "Address"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Identity" ADD CONSTRAINT "Identity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Cart" ADD CONSTRAINT "Cart_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -374,13 +410,13 @@ ALTER TABLE "Device" ADD CONSTRAINT "Device_userId_fkey" FOREIGN KEY ("userId") 
 ALTER TABLE "Food" ADD CONSTRAINT "Food_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Food" ADD CONSTRAINT "Food_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "Menu"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "FoodIngredient" ADD CONSTRAINT "FoodIngredient_foodId_fkey" FOREIGN KEY ("foodId") REFERENCES "Food"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "FoodIngredient" ADD CONSTRAINT "FoodIngredient_ingredientId_fkey" FOREIGN KEY ("ingredientId") REFERENCES "Ingredient"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Menu" ADD CONSTRAINT "Menu_foodId_fkey" FOREIGN KEY ("foodId") REFERENCES "Food"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Menu" ADD CONSTRAINT "Menu_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "Restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

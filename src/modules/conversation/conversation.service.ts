@@ -8,13 +8,41 @@
  */
 import { PrismaService } from "@/prisma/prisma.service";
 import { BadRequestException, Injectable } from "@nestjs/common"; 
+import { CreateConversationDto } from "./dto/conversation.dto";
+import { UserService } from "../user/user.service";
 
 @Injectable() 
 export class ConversationService 
 {
     constructor(
-        private readonly prismaService : PrismaService
+        private readonly prismaService : PrismaService, 
+        private readonly userService : UserService
     ) {} 
+    async createConversation(userId : number , data : CreateConversationDto) 
+    {
+        const customer = await this.userService.getUserById(userId) 
+        const seller = await this.userService.getUserById(userId) 
+        if (!customer || !seller) 
+            throw new BadRequestException("user not found") 
+        try 
+        {   
+            const result = await this.prismaService.$transaction(async (tx) => {
+                const conversation = await tx.conversation.create({
+                    data: {
+                        orderId: data.orderId, 
+                        customerId : userId, 
+                        sellerId : data.sellerId
+                    }
+                })
+                return conversation
+            }) 
+            return result
+        } 
+        catch (err) {
+            console.log("initialized conversation error" , err) 
+            throw err 
+        }
+    }
     async getAllUserConversation(userId : number) 
     {
         const result = await this.prismaService.conversation.findMany({

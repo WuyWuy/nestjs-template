@@ -11,7 +11,7 @@ model Restaurant {
     owner     User               @relation(fields: [ownerId], references: [id])
     createdAt DateTime           @default(now())
     deleteAt  DateTime?
-    menus     Menu[]
+    menus     Menu?
     ratings   RestaurantRating[]
     orders    Order[]
     carts     Cart[]

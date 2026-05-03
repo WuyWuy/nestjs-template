@@ -15,6 +15,12 @@ enum OTPType {
     VERIFY_OTP   //Verify When Register 
 }
 
+enum AuthProvider {
+    LOCAL
+    FACEBOOK
+    GOOGLE
+}
+
 enum OrderStatus {
     PENDING
     CONFIRMED
@@ -36,4 +42,3 @@ enum PaymentStatus {
     SOLVING
     DONE
 }
-

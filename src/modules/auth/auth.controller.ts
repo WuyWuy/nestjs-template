@@ -9,21 +9,12 @@ import {
     Query,
     Req,
     UseGuards,
-    // Req,
-    // UseGuards,
 } from '@nestjs/common';
-// import { RegisterData } from './dto/auth.dto';
 import { AuthService } from './auth.service';
-import { RegisterData } from './dto/auth.dto';
+import { RegisterData, SocialLoginData } from './dto/auth.dto';
 import { LocalAuthGuard } from './local-auth.guard';
 import type { Request } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
-// import { LocalAuthGuard } from './local-auth.guard';
-// import type { Request } from 'express';
-// import { Roles } from '@/bases/decorators/role.decorators';
-// import { Role } from '@prisma/client';
-// import { RolesGuard } from '@/bases/guards/role.guard';
-// import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -78,12 +69,29 @@ export class AuthController {
         return response
     }
     @Post("login-facebook") 
-    async loginFb(@Req() req : Request) 
+    async loginFb(@Body() data: Omit<SocialLoginData, 'provider'>) 
     {
-        const code = req.body.code 
-        if (!code) 
-            throw new BadRequestException("invalid code") 
-        const response = await this.authService.fbLogin(code) 
+        const accessToken = data.accessToken || data.code;
+        if (!accessToken) 
+            throw new BadRequestException("invalid access token") 
+        const response = await this.authService.fbLogin(accessToken) 
         return response
+    }
+    @Post("login-google")
+    async loginGoogle(@Body() data: Omit<SocialLoginData, 'provider'>) {
+        const accessToken = data.accessToken || data.code;
+        if (!accessToken)
+            throw new BadRequestException('invalid access token');
+        return await this.authService.googleLogin(accessToken);
+    }
+    @Post("login-social")
+    async loginSocial(@Body() data: SocialLoginData) {
+        const accessToken = data.accessToken || data.code;
+        if (!accessToken)
+            throw new BadRequestException('invalid access token');
+        if (data.provider === 'facebook') {
+            return await this.authService.fbLogin(accessToken);
+        }
+        return await this.authService.googleLogin(accessToken);
     }
 }

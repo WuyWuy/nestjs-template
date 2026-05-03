@@ -17,4 +17,5 @@ model UserAddress {
     addressId Int
     user      User    @relation(fields: [userId], references: [id])
     address   Address @relation(fields: [addressId], references: [id])
+    deleteAt  DateTime? 
 }

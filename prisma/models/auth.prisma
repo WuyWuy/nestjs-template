@@ -8,6 +8,21 @@ model OTP {
     expiresAt DateTime
 }
 
+model Identity {
+    id             Int          @id @default(autoincrement())
+    userId         Int
+    user           User         @relation(fields: [userId], references: [id])
+    provider       AuthProvider
+    providerUserId String
+    accessToken    String?
+    createdAt      DateTime     @default(now())
+    updatedAt      DateTime     @updatedAt
+
+    @@unique([provider, providerUserId])
+    @@unique([userId, provider])
+    @@index([userId])
+}
+
 model AuthToken {
     id     Int       @id @default(autoincrement())
     token  String

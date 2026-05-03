@@ -7,10 +7,11 @@ model Food {
     category        Category         @relation(fields: [categoryId], references: [id])
     price           Decimal          @default(0)
     image           String           @default("")
+    menu            Menu             @relation(fields: [menuId], references: [id])
     deleteAt        DateTime?
     label           String           @default("")
     rating          Int              @default(0)
-    menus           Menu[]
+    menuId          Int
     orderFoods      OrderFood[]
     cartItems       CartItem[]
     foodIngredients FoodIngredient[]
@@ -38,10 +39,8 @@ model FoodIngredient {
 
 model Menu {
     id           Int        @id @default(autoincrement())
-    foodId       Int
-    food         Food       @relation(fields: [foodId], references: [id])
-    restaurantId Int
+    foods         Food[]
+    restaurantId Int        @unique
     restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
-    quantity     Int        @default(0)
     deleteAt     DateTime?
 }

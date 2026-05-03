@@ -89,9 +89,7 @@ export class UserService {
                 },
             });
             if (!customer) throw new BadRequestException('customer not found');
-            const newAvatar = customer.avatar
-                ? await this.minioService.getFileUrl(customer.avatar)
-                : '';
+            const newAvatar = await this.resolveAvatarUrl(customer.avatar);
             return {
                 ...customer,
                 avatar: newAvatar,
@@ -137,6 +135,11 @@ export class UserService {
             },
         });
         return user;
+    }
+    private async resolveAvatarUrl(avatar: string) {
+        if (!avatar) return '';
+        if (/^https?:\/\//i.test(avatar)) return avatar;
+        return await this.minioService.getFileUrl(avatar);
     }
     private async getUserAddressOrThrow(id: number, userId: number) {
         const userAddress = await this.prismaService.userAddress.findFirst({

@@ -1,11 +1,12 @@
 model Cart {
     id           Int @id @default(autoincrement())
-    userId       Int
     restaurantId Int
 
+    userId     Int        @unique
     user       User       @relation(fields: [userId], references: [id])
     restaurant Restaurant @relation(fields: [restaurantId], references: [id])
     cartItems  CartItem[]
+
     @@unique([userId, restaurantId])
 }
 

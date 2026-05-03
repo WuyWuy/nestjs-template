@@ -1,10 +1,12 @@
 import {
     IsEmail,
+    IsIn,
     IsString,
     IsNotEmpty,
     MinLength,
     Matches,
     IsDateString,
+    IsOptional,
 } from 'class-validator';
 
 export class RegisterData {
@@ -37,4 +39,19 @@ export class LoginData {
             'Phone number must start with 0 and contain 10-11 digits (e.g., 0901234567)',
     })
     phone: string;
+}
+
+export class SocialLoginData {
+    @IsString()
+    @IsNotEmpty()
+    @IsIn(['facebook', 'google'])
+    provider: 'facebook' | 'google';
+
+    @IsOptional()
+    @IsString()
+    accessToken?: string;
+
+    @IsOptional()
+    @IsString()
+    code?: string;
 }

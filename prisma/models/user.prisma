@@ -12,14 +12,15 @@ model User {
     avatar                String             @default("")
     restaurants           Restaurant[]
     ratings               RestaurantRating[]
-    carts                 Cart[]
+    cart                  Cart? 
     userRoles             UserRole[]
     devices               Device[]
     notifications         Notification[]
     userAddress           UserAddress[]
     customerConversations Conversation[]     @relation("CustomerConversations")
     sellerConversations   Conversation[]     @relation("SellerConversations")
-    chatMessages          Message[]         @relation("ChatMessages")
+    chatMessages          Message[]          @relation("ChatMessages")
+    identities            Identity[]
 }
 
 model UserRole {

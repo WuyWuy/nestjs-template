@@ -1,18 +1,18 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import {
     BadRequestException,
-    // BadRequestException,
     Injectable,
-    // UnauthorizedException,
-    // UnauthorizedException,
 } from '@nestjs/common';
-// import { Role, TokenType } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-// import { TokenBody } from '@/bases/commons/enums/token.enum';
-// import { TwilioService } from '../twilio/twilio.service';
 import { RegisterData } from './dto/auth.dto';
-import { OTPType, Role, TokenType } from '@prisma/client';
+import {
+    AuthProvider,
+    OTPType,
+    Prisma as PrismaClientType,
+    Role,
+    TokenType,
+} from '@prisma/client';
 import { generateOtp } from '@/utilis/ranomOtp';
 import {
     RESET_EMAIL_OTP_LIVE_TIME,
@@ -31,6 +31,15 @@ import { EmailService } from '../email/email.service';
 import { APP_NAME } from '@/bases/commons/constants/app.constant';
 import axios from 'axios' 
 
+type SocialProfile = {
+    provider: AuthProvider;
+    providerUserId: string;
+    accessToken: string;
+    email?: string;
+    name: string;
+    avatar: string;
+};
+
 @Injectable()
 export class AuthService {
     //this is the simple Authentication. You can config it to suitable for your job
@@ -43,13 +52,28 @@ export class AuthService {
         // private readonly twilioService: TwilioService,
     ) {}
     async validateUser(phone: string, password: string) {
-        //Ham validate user dung de validate nguoi dung khi ho dang nhap
         const user = await this.prismaService.user.findFirst({
             where: { phone, active: true },
         });
         if (user) {
             const results = await Bun.password.verify(password, user.password);
-            if (results) return user;
+            if (results) {
+                await this.prismaService.identity.upsert({
+                    where: {
+                        userId_provider: {
+                            userId: user.id,
+                            provider: AuthProvider.LOCAL,
+                        },
+                    },
+                    create: {
+                        userId: user.id,
+                        provider: AuthProvider.LOCAL,
+                        providerUserId: this.getLocalProviderUserId(user.id),
+                    },
+                    update: {},
+                });
+                return user;
+            }
             return null;
         }
         return null;
@@ -100,9 +124,34 @@ export class AuthService {
                                 role: Role.CUSTOMER, //Default is the customer
                             },
                         });
+                        await tx.identity.create({
+                            data: {
+                                userId: user.id,
+                                provider: AuthProvider.LOCAL,
+                                providerUserId: this.getLocalProviderUserId(
+                                    user.id,
+                                ),
+                            },
+                        });
+                    } else {
+                        await tx.identity.upsert({
+                            where: {
+                                userId_provider: {
+                                    userId: user.id,
+                                    provider: AuthProvider.LOCAL,
+                                },
+                            },
+                            create: {
+                                userId: user.id,
+                                provider: AuthProvider.LOCAL,
+                                providerUserId: this.getLocalProviderUserId(
+                                    user.id,
+                                ),
+                            },
+                            update: {},
+                        });
                     }
                     //Create otp
-                    //Drop any otp related to the user
                     await tx.oTP.deleteMany({
                         where: {
                             userId: user.id,
@@ -178,47 +227,244 @@ export class AuthService {
     }
     async login(user: any) {
         try {
-            const userRoles = await this.prismaService.userRole.findMany({
-                where: {
-                    userId: user.id,
-                },
-                select: {
-                    role: true,
-                },
-            });
-            const payload = {
-                [TokenBody.EMAIL]: user.email,
-                [TokenBody.SUB]: user.id,
-                [TokenBody.ROLES]: userRoles.map((roleItem) => roleItem.role),
-            };
-            const accessSecretKey =
-                this.configService.get<string>('ACCESS_SECRET_KEY');
-            const refreshSecretKey =
-                this.configService.get<string>('REFRESH_SECRET_KEY');
-
-            const accessToken = await this.jwtService.signAsync(
-                { ...payload, [TokenBody.PURPOSE]: TokenType.ACCESS },
-                {
-                    secret: accessSecretKey,
-                    expiresIn: ACCESS_TOKEN_LIVE_TIME,
-                },
-            );
-            const refreshToken = await this.jwtService.signAsync(
-                { ...payload, [TokenBody.PURPOSE]: TokenType.REFRESH },
-                {
-                    secret: refreshSecretKey,
-                    expiresIn: REFRESH_TOKEN_LIVE_TIME,
-                },
-            );
-            //Delete old and store new token
-            return {
-                accessToken,
-                refreshToken,
-            };
+            return await this.buildAuthResponse(user.id);
         } catch (err) {
             console.log('Login error: ', err);
             throw err;
         }
+    }
+    private async buildAuthResponse(userId: number) {
+        const user = await this.prismaService.user.findFirst({
+            where: {
+                id: userId,
+                deleteAt: null,
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                birthday: true,
+                avatar: true,
+                active: true,
+            },
+        });
+        if (!user) throw new BadRequestException('User Not Found');
+
+        const userRoles = await this.prismaService.userRole.findMany({
+            where: {
+                userId: user.id,
+            },
+            select: {
+                role: true,
+            },
+        });
+        const roles = userRoles.map((roleItem) => roleItem.role);
+        const payload = {
+            [TokenBody.EMAIL]: user.email,
+            [TokenBody.SUB]: user.id,
+            [TokenBody.ROLES]: roles,
+        };
+        const accessSecretKey =
+            this.configService.get<string>('ACCESS_SECRET_KEY');
+        const refreshSecretKey =
+            this.configService.get<string>('REFRESH_SECRET_KEY');
+
+        const accessToken = await this.jwtService.signAsync(
+            { ...payload, [TokenBody.PURPOSE]: TokenType.ACCESS },
+            {
+                secret: accessSecretKey,
+                expiresIn: ACCESS_TOKEN_LIVE_TIME,
+            },
+        );
+        const refreshToken = await this.jwtService.signAsync(
+            { ...payload, [TokenBody.PURPOSE]: TokenType.REFRESH },
+            {
+                secret: refreshSecretKey,
+                expiresIn: REFRESH_TOKEN_LIVE_TIME,
+            },
+        );
+
+        return {
+            accessToken,
+            refreshToken,
+            user: {
+                ...user,
+                roles,
+            },
+        };
+    }
+    private getLocalProviderUserId(userId: number) {
+        return `local:${userId}`;
+    }
+    private getFallbackSocialEmail(
+        provider: AuthProvider,
+        providerUserId: string,
+    ) {
+        const safeId = providerUserId.replace(/[^a-zA-Z0-9._-]/g, '-');
+        return `${provider.toLowerCase()}-${safeId}@social.local`;
+    }
+    private async ensureDefaultRole(
+        tx: PrismaClientType.TransactionClient,
+        userId: number,
+    ) {
+        const userRole = await tx.userRole.findFirst({
+            where: {
+                userId,
+                role: Role.CUSTOMER,
+            },
+        });
+        if (!userRole) {
+            await tx.userRole.create({
+                data: {
+                    userId,
+                    role: Role.CUSTOMER,
+                },
+            });
+        }
+    }
+    private async resolveSocialLogin(profile: SocialProfile) {
+        const userId = await this.prismaService.$transaction(async (tx) => {
+            const existingIdentity = await tx.identity.findUnique({
+                where: {
+                    provider_providerUserId: {
+                        provider: profile.provider,
+                        providerUserId: profile.providerUserId,
+                    },
+                },
+                include: {
+                    user: true,
+                },
+            });
+
+            if (existingIdentity) {
+                await tx.identity.update({
+                    where: {
+                        id: existingIdentity.id,
+                    },
+                    data: {
+                        accessToken: profile.accessToken,
+                    },
+                });
+                await tx.user.update({
+                    where: {
+                        id: existingIdentity.userId,
+                    },
+                    data: {
+                        active: true,
+                        name: existingIdentity.user.name || profile.name,
+                        avatar: existingIdentity.user.avatar || profile.avatar,
+                    },
+                });
+                await this.ensureDefaultRole(tx, existingIdentity.userId);
+                return existingIdentity.userId;
+            }
+
+            const matchedUser = profile.email
+                ? await tx.user.findFirst({
+                      where: {
+                          email: profile.email,
+                          deleteAt: null,
+                      },
+                  })
+                : null;
+
+            if (matchedUser) {
+                await tx.identity.create({
+                    data: {
+                        userId: matchedUser.id,
+                        provider: profile.provider,
+                        providerUserId: profile.providerUserId,
+                        accessToken: profile.accessToken,
+                    },
+                });
+                await tx.user.update({
+                    where: {
+                        id: matchedUser.id,
+                    },
+                    data: {
+                        active: true,
+                        name: matchedUser.name || profile.name,
+                        avatar: matchedUser.avatar || profile.avatar,
+                    },
+                });
+                await this.ensureDefaultRole(tx, matchedUser.id);
+                return matchedUser.id;
+            }
+
+            const generatedPassword = generatePassword();
+            const hashedPassword = await Bun.password.hash(generatedPassword, {
+                cost: 10,
+                algorithm: 'bcrypt',
+            });
+            const createdUser = await tx.user.create({
+                data: {
+                    active: true,
+                    name: profile.name,
+                    email:
+                        profile.email ||
+                        this.getFallbackSocialEmail(
+                            profile.provider,
+                            profile.providerUserId,
+                        ),
+                    birthday: new Date('1970-01-01T00:00:00.000Z'),
+                    password: hashedPassword,
+                    avatar: profile.avatar,
+                },
+            });
+            await this.ensureDefaultRole(tx, createdUser.id);
+            await tx.identity.create({
+                data: {
+                    userId: createdUser.id,
+                    provider: profile.provider,
+                    providerUserId: profile.providerUserId,
+                    accessToken: profile.accessToken,
+                },
+            });
+            return createdUser.id;
+        });
+
+        return await this.buildAuthResponse(userId);
+    }
+    private async getFacebookProfile(accessToken: string): Promise<SocialProfile> {
+        const { data } = await axios.get('https://graph.facebook.com/me', {
+            params: {
+                fields: 'id,name,email,picture',
+                access_token: accessToken,
+            },
+        });
+        if (!data?.id) {
+            throw new BadRequestException('Invalid Facebook account');
+        }
+        return {
+            provider: AuthProvider.FACEBOOK,
+            providerUserId: String(data.id),
+            accessToken,
+            email: data.email,
+            name: data.name || 'Facebook User',
+            avatar: data.picture?.data?.url || '',
+        };
+    }
+    private async getGoogleProfile(accessToken: string): Promise<SocialProfile> {
+        const { data } = await axios.get(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            },
+        );
+        if (!data?.sub) {
+            throw new BadRequestException('Invalid Google account');
+        }
+        return {
+            provider: AuthProvider.GOOGLE,
+            providerUserId: String(data.sub),
+            accessToken,
+            email: data.email,
+            name: data.name || data.given_name || 'Google User',
+            avatar: data.picture || '',
+        };
     }
     async changeEmail(phone: string, password: string) {
         try {
@@ -321,33 +567,26 @@ export class AuthService {
 
     }
 
-    //[SOCIAL _LOGIN ] 
-    //User have to update their phone, birthday ... 
     async fbLogin(code : string) 
     {
         try 
         {
-            const { data } = await axios.get(
-                'https://graph.facebook.com/me', 
-                {
-                    params: {
-                        fields: 'id,name,email,picture', 
-                        access_token: code 
-                    }
-                }
-            )
-            console.log("Facebook data: " , data) 
-            return {
-                facebookId : data.id, 
-                name : data.name, 
-                email : data.email, 
-                avatar: data.picture?.data?.url,
-            }
+            const profile = await this.getFacebookProfile(code);
+            return await this.resolveSocialLogin(profile);
         } 
         catch (err) 
         {
             console.log("Login facebook error: ", err) 
             throw err 
+        }
+    }
+    async googleLogin(accessToken: string) {
+        try {
+            const profile = await this.getGoogleProfile(accessToken);
+            return await this.resolveSocialLogin(profile);
+        } catch (err) {
+            console.log('Login google error: ', err);
+            throw err;
         }
     }
 }

@@ -19,6 +19,19 @@ export class UserService {
         private readonly minioService: MinioService,
         private readonly addressService: AddressService,
     ) {}
+    //__________________________HELPER 
+    async findById(userId : number) 
+    {
+        const user = await this.prismaService.user.findFirst({
+            where : {
+                id : userId
+            }, 
+            include: {
+                cart: true 
+            }
+        }) 
+        return user 
+    }
     async uploadImages(file: Express.Multer.File) {
         try {
             if (!file) throw new BadRequestException('File is required');

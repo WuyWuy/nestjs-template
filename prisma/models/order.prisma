@@ -7,6 +7,10 @@ model Order {
     status       OrderStatus
     orderFoods   OrderFood[]
     payments     Payment[]
+    voucherId    Int?
+    voucher      Voucher?    @relation(fields: [voucherId], references: [id])
+    userId       Int
+    user         User        @relation(fields: [userId], references: [id])
 }
 
 model OrderFood {

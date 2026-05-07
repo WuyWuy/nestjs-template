@@ -2,7 +2,7 @@ model Payment {
     id            Int           @id @default(autoincrement())
     orderId       Int
     method        PaymentMethod
-    amount        Float
+    amount        Decimal 
     paymentStatus PaymentStatus
     createdAt     DateTime      @default(now())
     order         Order         @relation(fields: [orderId], references: [id])

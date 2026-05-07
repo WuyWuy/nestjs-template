@@ -23,6 +23,7 @@ import { FoodModule } from './modules/food/food.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
 import { CartModule } from './modules/cart/cart.module';
 import { OrderModule } from './modules/order/order.module';
+import { PaymentModule } from './modules/payment/payment.module';
 //Add  e module here
 @Module({
     imports: [
@@ -43,7 +44,8 @@ import { OrderModule } from './modules/order/order.module';
         FoodModule, 
         RestaurantModule, 
         CartModule,
-        OrderModule
+        OrderModule, 
+        PaymentModule //Mot lat sau nho go cai nay ra 
     ],
     controllers: [AppController],
     providers: [

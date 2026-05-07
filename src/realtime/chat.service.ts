@@ -8,7 +8,7 @@ export class ChatService {
     constructor(private readonly prismaService: PrismaService) {}
     async validateConversation(userId: number, conversationId: number) {
 
-        const conversation = await this.prismaService.conversation.findFirst({
+        const conversation = await this.prismaService.client.conversation.findFirst({
             where: { id: conversationId },
         });
         console.log(conversation)
@@ -22,7 +22,7 @@ export class ChatService {
         try {
             const { conversationId, content } = message;
             const conversation =
-                await this.prismaService.conversation.findUnique({
+                await this.prismaService.client.conversation.findUnique({
                     where: { id: conversationId },
                 });
             if (!conversation)
@@ -35,7 +35,7 @@ export class ChatService {
                     'You are not belong to this conversation',
                 );
             //Store data to the database
-            const result = await this.prismaService.message.create({
+            const result = await this.prismaService.client.message.create({
                 data: {
                     senderId,
                     conversationId,

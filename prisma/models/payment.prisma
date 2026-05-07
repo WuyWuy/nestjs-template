@@ -6,5 +6,7 @@ model Payment {
     paymentStatus PaymentStatus
     createdAt     DateTime      @default(now())
     order         Order         @relation(fields: [orderId], references: [id])
+    deleteAt      DateTime?
+
     @@unique([orderId, method])
 }

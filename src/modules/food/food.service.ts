@@ -11,11 +11,10 @@ export class FoodService
     {
         try 
         {
-            const foods = await this.prismaService.food.findMany({
+            const foods = await this.prismaService.client.food.findMany({
                 take : limit, 
                 skip : offset, 
                 where: {
-                    deleteAt: null, 
                     name: {
                         contains: name, 
                         mode: 'insensitive'
@@ -24,7 +23,6 @@ export class FoodService
                 select: {
                     id : true, 
                     name : true, 
-                    code : true, 
                     description: true, 
                     price: true, 
                     image: true, 
@@ -51,8 +49,8 @@ export class FoodService
     {
         try 
         {
-            const food = await this.prismaService.food.findFirst({
-                where : { id  , deleteAt : null}, 
+            const food = await this.prismaService.client.food.findFirst({
+                where : { id }, 
                 select : {
                     id : true, 
                     name : true, 

@@ -193,11 +193,11 @@ async function seedRestaurants(businessUser: any) {
     }
 
     const restaurants = [
-        { code: 'REST001', name: 'Pizza Palace', phone: '0901111111', addressId: addresses[0].id },
-        { code: 'REST002', name: 'Burger Heaven', phone: '0902222222', addressId: addresses[1].id },
-        { code: 'REST003', name: 'Pasta Magic', phone: '0903333333', addressId: addresses[2].id },
-        { code: 'REST004', name: 'Sushi Dreams', phone: '0904444444', addressId: addresses[3].id },
-        { code: 'REST005', name: 'Sweet Desserts', phone: '0905555555', addressId: addresses[4].id },
+        { name: 'Pizza Palace', phone: '0901111111', addressId: addresses[0].id },
+        { name: 'Burger Heaven', phone: '0902222222', addressId: addresses[1].id },
+        { name: 'Pasta Magic', phone: '0903333333', addressId: addresses[2].id },
+        { name: 'Sushi Dreams', phone: '0904444444', addressId: addresses[3].id },
+        { name: 'Sweet Desserts', phone: '0905555555', addressId: addresses[4].id },
     ];
 
     const createdRestaurants = await Promise.all(
@@ -229,16 +229,16 @@ async function seedFoods(menus: any[]) {
     }
 
     const foods = [
-        { code: 'FOOD001', name: 'Margherita Pizza', categoryId: categories[0].id, price: 12.99, description: 'Classic pizza with tomato and cheese' },
-        { code: 'FOOD002', name: 'Pepperoni Pizza', categoryId: categories[0].id, price: 14.99, description: 'Spicy pepperoni pizza' },
-        { code: 'FOOD003', name: 'Classic Burger', categoryId: categories[1].id, price: 9.99, description: 'Juicy beef burger with lettuce and tomato' },
-        { code: 'FOOD004', name: 'Bacon Burger', categoryId: categories[1].id, price: 11.99, description: 'Burger with crispy bacon' },
-        { code: 'FOOD005', name: 'Spaghetti Carbonara', categoryId: categories[2].id, price: 13.99, description: 'Traditional Italian pasta with creamy sauce' },
-        { code: 'FOOD006', name: 'Penne Alfredo', categoryId: categories[2].id, price: 12.99, description: 'Creamy pasta with parmesan cheese' },
-        { code: 'FOOD007', name: 'California Roll', categoryId: categories[3].id, price: 10.99, description: 'Fresh sushi roll with avocado and crab' },
-        { code: 'FOOD008', name: 'Spicy Tuna Roll', categoryId: categories[3].id, price: 11.99, description: 'Spicy tuna sushi roll' },
-        { code: 'FOOD009', name: 'Chocolate Cake', categoryId: categories[4].id, price: 6.99, description: 'Rich chocolate cake with frosting' },
-        { code: 'FOOD010', name: 'Cheesecake', categoryId: categories[4].id, price: 7.99, description: 'Creamy New York style cheesecake' },
+        { name: 'Margherita Pizza', categoryId: categories[0].id, price: 12.99, description: 'Classic pizza with tomato and cheese' },
+        { name: 'Pepperoni Pizza', categoryId: categories[0].id, price: 14.99, description: 'Spicy pepperoni pizza' },
+        { name: 'Classic Burger', categoryId: categories[1].id, price: 9.99, description: 'Juicy beef burger with lettuce and tomato' },
+        { name: 'Bacon Burger', categoryId: categories[1].id, price: 11.99, description: 'Burger with crispy bacon' },
+        { name: 'Spaghetti Carbonara', categoryId: categories[2].id, price: 13.99, description: 'Traditional Italian pasta with creamy sauce' },
+        { name: 'Penne Alfredo', categoryId: categories[2].id, price: 12.99, description: 'Creamy pasta with parmesan cheese' },
+        { name: 'California Roll', categoryId: categories[3].id, price: 10.99, description: 'Fresh sushi roll with avocado and crab' },
+        { name: 'Spicy Tuna Roll', categoryId: categories[3].id, price: 11.99, description: 'Spicy tuna sushi roll' },
+        { name: 'Chocolate Cake', categoryId: categories[4].id, price: 6.99, description: 'Rich chocolate cake with frosting' },
+        { name: 'Cheesecake', categoryId: categories[4].id, price: 7.99, description: 'Creamy New York style cheesecake' },
     ];
 
     const createdFoods: any[] = [];
@@ -332,12 +332,12 @@ async function seedOrders(businessUser: any, customer1: any, customer2: any, res
     console.log('🌱 Seeding orders...');
 5
     const orders = [
-        { code: 'ORDER001', restaurantId: restaurants[0].id, totalPrice: 32.37, status: OrderStatus.DELIVERED, userId: customer1.id, voucherId: vouchers[0].id },
-        { code: 'ORDER002', restaurantId: restaurants[1].id, totalPrice: 21.48, status: OrderStatus.DELIVERED, userId: customer1.id, voucherId: vouchers[1].id },
-        { code: 'ORDER003', restaurantId: restaurants[2].id, totalPrice: 26.98, status: OrderStatus.CONFIRMED, userId: customer2.id },
-        { code: 'ORDER004', restaurantId: restaurants[3].id, totalPrice: 20.68, status: OrderStatus.PREPARING, userId: customer2.id, voucherId: vouchers[2].id },
-        { code: 'ORDER005', restaurantId: restaurants[0].id, totalPrice: 29.97, status: OrderStatus.DELIVERING, userId: customer1.id },
-        { code: 'ORDER006', restaurantId: restaurants[4].id, totalPrice: 13.23, status: OrderStatus.PENDING, userId: customer2.id, voucherId: vouchers[3].id },
+        { restaurantId: restaurants[0].id, totalPrice: 32.37, status: OrderStatus.DELIVERED, userId: customer1.id, voucherId: vouchers[0].id },
+        { restaurantId: restaurants[1].id, totalPrice: 21.48, status: OrderStatus.DELIVERED, userId: customer1.id, voucherId: vouchers[1].id },
+        { restaurantId: restaurants[2].id, totalPrice: 26.98, status: OrderStatus.CONFIRMED, userId: customer2.id },
+        { restaurantId: restaurants[3].id, totalPrice: 20.68, status: OrderStatus.PREPARING, userId: customer2.id, voucherId: vouchers[2].id },
+        { restaurantId: restaurants[0].id, totalPrice: 29.97, status: OrderStatus.DELIVERING, userId: customer1.id },
+        { restaurantId: restaurants[4].id, totalPrice: 13.23, status: OrderStatus.PENDING, userId: customer2.id, voucherId: vouchers[3].id },
     ];
 
     const createdOrders = await Promise.all(

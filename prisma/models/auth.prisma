@@ -4,6 +4,7 @@ model OTP {
     userId    Int
     type      OTPType
     createdAt DateTime  @default(now())
+    deleteAt  DateTime?
     usedAt    DateTime?
     expiresAt DateTime
 }
@@ -17,6 +18,7 @@ model Identity {
     accessToken    String?
     createdAt      DateTime     @default(now())
     updatedAt      DateTime     @updatedAt
+    deleteAt       DateTime?
 
     @@unique([provider, providerUserId])
     @@unique([userId, provider])

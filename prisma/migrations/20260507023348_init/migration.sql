@@ -33,6 +33,7 @@ CREATE TABLE "Address" (
     "longitude" DOUBLE PRECISION,
     "fullText" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Address_pkey" PRIMARY KEY ("id")
 );
@@ -55,6 +56,7 @@ CREATE TABLE "OTP" (
     "userId" INTEGER NOT NULL,
     "type" "OTPType" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleteAt" TIMESTAMP(3),
     "usedAt" TIMESTAMP(3),
     "expiresAt" TIMESTAMP(3) NOT NULL,
 
@@ -91,6 +93,7 @@ CREATE TABLE "AuthToken" (
 CREATE TABLE "Cart" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Cart_pkey" PRIMARY KEY ("id")
 );
@@ -101,7 +104,7 @@ CREATE TABLE "CartItem" (
     "cartId" INTEGER NOT NULL,
     "foodId" INTEGER NOT NULL,
     "quantity" INTEGER NOT NULL,
-    "deletedAt" TIMESTAMP(3),
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "CartItem_pkey" PRIMARY KEY ("id")
 );
@@ -126,6 +129,7 @@ CREATE TABLE "Conversation" (
     "sellerId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
 );
@@ -138,6 +142,7 @@ CREATE TABLE "Message" (
     "content" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
 );
@@ -149,6 +154,7 @@ CREATE TABLE "Device" (
     "platform" TEXT NOT NULL,
     "userId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Device_pkey" PRIMARY KEY ("id")
 );
@@ -156,7 +162,6 @@ CREATE TABLE "Device" (
 -- CreateTable
 CREATE TABLE "Food" (
     "id" SERIAL NOT NULL,
-    "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL DEFAULT '',
     "categoryId" INTEGER NOT NULL,
@@ -182,7 +187,8 @@ CREATE TABLE "Ingredient" (
 -- CreateTable
 CREATE TABLE "FoodIngredient" (
     "foodId" INTEGER NOT NULL,
-    "ingredientId" INTEGER NOT NULL
+    "ingredientId" INTEGER NOT NULL,
+    "deleteAt" TIMESTAMP(3)
 );
 
 -- CreateTable
@@ -202,6 +208,7 @@ CREATE TABLE "Notification" (
     "userId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL,
     "readAt" TIMESTAMP(3),
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
@@ -209,12 +216,12 @@ CREATE TABLE "Notification" (
 -- CreateTable
 CREATE TABLE "Order" (
     "id" SERIAL NOT NULL,
-    "code" TEXT NOT NULL,
     "restaurantId" INTEGER NOT NULL,
     "totalPrice" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "status" "OrderStatus" NOT NULL,
     "voucherId" INTEGER,
     "userId" INTEGER NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
 );
@@ -229,6 +236,7 @@ CREATE TABLE "OrderFood" (
     "longitude" DOUBLE PRECISION,
     "fullText" TEXT,
     "price" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "OrderFood_pkey" PRIMARY KEY ("id")
 );
@@ -241,6 +249,7 @@ CREATE TABLE "Payment" (
     "amount" DOUBLE PRECISION NOT NULL,
     "paymentStatus" "PaymentStatus" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
 );
@@ -248,7 +257,6 @@ CREATE TABLE "Payment" (
 -- CreateTable
 CREATE TABLE "Restaurant" (
     "id" SERIAL NOT NULL,
-    "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "image" TEXT NOT NULL DEFAULT '',
     "phone" TEXT NOT NULL,
@@ -296,6 +304,7 @@ CREATE TABLE "UserRole" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "role" "Role" NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "UserRole_pkey" PRIMARY KEY ("id")
 );
@@ -356,9 +365,6 @@ CREATE INDEX "Message_senderId_idx" ON "Message"("senderId");
 CREATE UNIQUE INDEX "Device_deviceToken_key" ON "Device"("deviceToken");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Food_code_key" ON "Food"("code");
-
--- CreateIndex
 CREATE INDEX "Food_categoryId_idx" ON "Food"("categoryId");
 
 -- CreateIndex
@@ -374,13 +380,7 @@ CREATE UNIQUE INDEX "FoodIngredient_foodId_ingredientId_key" ON "FoodIngredient"
 CREATE UNIQUE INDEX "Menu_restaurantId_key" ON "Menu"("restaurantId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Order_code_key" ON "Order"("code");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Payment_orderId_method_key" ON "Payment"("orderId", "method");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Restaurant_code_key" ON "Restaurant"("code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Restaurant_phone_key" ON "Restaurant"("phone");

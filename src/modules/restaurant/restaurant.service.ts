@@ -11,9 +11,8 @@ export class RestaurantService
     {    
         try 
         {
-            const restaurants = await this.prismaService.restaurant.findMany({
+            const restaurants = await this.prismaService.client.restaurant.findMany({
                 where: {
-                    deleteAt : null, 
                     approved: true, 
                     name: {
                         contains : name,  
@@ -28,7 +27,6 @@ export class RestaurantService
                     id : true, 
                     name : true,  
                     image: true, 
-                    code : true, 
                     phone : true, 
                 }, 
                 take : limit, 
@@ -47,10 +45,9 @@ export class RestaurantService
     {
         try 
         {
-            const menu = await this.prismaService.menu.findUnique({
+            const menu = await this.prismaService.client.menu.findUnique({
                 where: {
                     restaurantId, 
-                    deleteAt: null, 
                     restaurant: {
                         deleteAt : null 
                     }
@@ -60,7 +57,6 @@ export class RestaurantService
                         select: {
                             description: true,  
                             id: true, 
-                            code: true, 
                             price: true, 
                             image : true, 
                             name : true, 
@@ -83,10 +79,9 @@ export class RestaurantService
         try 
         {
             
-            const response = await this.prismaService.restaurant.findFirst({
+            const response = await this.prismaService.client.restaurant.findFirst({
                 where: {
                     id : restaurantId, 
-                    deleteAt: null, 
                     approved: true, 
                 }, 
                 select: {

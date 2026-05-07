@@ -1,6 +1,5 @@
 model Order {
     id           Int         @id @default(autoincrement())
-    code         String      @unique
     restaurantId Int
     restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
     totalPrice   Decimal     @default(0)
@@ -11,17 +10,19 @@ model Order {
     voucher      Voucher?    @relation(fields: [voucherId], references: [id])
     userId       Int
     user         User        @relation(fields: [userId], references: [id])
+    deleteAt     DateTime?
 }
 
 model OrderFood {
-    id        Int     @id @default(autoincrement())
+    id        Int       @id @default(autoincrement())
     orderId   Int
-    order     Order   @relation(fields: [orderId], references: [id])
+    order     Order     @relation(fields: [orderId], references: [id])
     foodId    Int
-    food      Food    @relation(fields: [foodId], references: [id])
+    food      Food      @relation(fields: [foodId], references: [id])
     quantity  Int
     latitude  Float?
     longitude Float?
     fullText  String?
-    price     Decimal @default(0)
+    price     Decimal   @default(0)
+    deleteAt  DateTime?
 }

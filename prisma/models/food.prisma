@@ -1,6 +1,5 @@
 model Food {
     id              Int              @id @default(autoincrement())
-    code            String           @unique
     name            String
     description     String           @default("") @db.Text
     categoryId      Int
@@ -32,6 +31,7 @@ model FoodIngredient {
     ingredientId Int
     food         Food       @relation(fields: [foodId], references: [id])
     ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+    deleteAt     DateTime?
 
     @@unique([foodId, ingredientId])
     @@index([ingredientId])
@@ -39,7 +39,7 @@ model FoodIngredient {
 
 model Menu {
     id           Int        @id @default(autoincrement())
-    foods         Food[]
+    foods        Food[]
     restaurantId Int        @unique
     restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
     deleteAt     DateTime?

@@ -6,4 +6,5 @@ model Notification {
     user      User      @relation(fields: [userId], references: [id])
     createdAt DateTime
     readAt    DateTime?
+    deleteAt  DateTime?
 }

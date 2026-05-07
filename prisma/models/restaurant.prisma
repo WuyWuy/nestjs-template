@@ -1,6 +1,5 @@
 model Restaurant {
     id        Int                @id @default(autoincrement())
-    code      String             @unique
     name      String
     image     String             @default("")
     phone     String             @unique

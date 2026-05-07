@@ -21,12 +21,12 @@ export class ConversationService
     async createConversation(userId : number , data : CreateConversationDto) 
     {
         const customer = await this.userService.getUserById(userId) 
-        const seller = await this.userService.getUserById(userId) 
+        const seller = await this.userService.getUserById(data.sellerId) 
         if (!customer || !seller) 
             throw new BadRequestException("user not found") 
         try 
         {   
-            const result = await this.prismaService.$transaction(async (tx) => {
+            const result = await this.prismaService.transaction(async (tx) => {
                 const conversation = await tx.conversation.create({
                     data: {
                         orderId: data.orderId, 
@@ -45,7 +45,7 @@ export class ConversationService
     }
     async getAllUserConversation(userId : number) 
     {
-        const result = await this.prismaService.conversation.findMany({
+        const result = await this.prismaService.client.conversation.findMany({
             where: {
                 OR: [
                     {sellerId : userId}, 
@@ -58,14 +58,14 @@ export class ConversationService
     async getConversationByOrderId(userId : number , orderId : number , limit : number = 20, offset : number = 0) 
     {
         try {
-            const conversation = await this.prismaService.conversation.findFirst({
+            const conversation = await this.prismaService.client.conversation.findFirst({
                 where: {
                     orderId
                 }
             }) 
             if (!conversation) 
                 throw new BadRequestException("conversation not found") 
-            let messages = await this.prismaService.message.findMany({
+            let messages = await this.prismaService.client.message.findMany({
                 where: {
                     conversationId : conversation.id 
                 }, 

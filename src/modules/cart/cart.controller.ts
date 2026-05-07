@@ -1,10 +1,10 @@
-import { Body, Controller, DefaultValuePipe, Get, ParseIntPipe, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, DefaultValuePipe, Delete, Get, Param, ParseIntPipe, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { CartService } from "./cart.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Role } from "@prisma/client";
 import { RolesGuard } from "@/bases/guards/role.guard";
 import { Roles } from "@/bases/decorators/role.decorators";
-import { Request } from "express";
+import type { Request } from "express";
 import { CreateCartItemDto } from "./dto/cart.dto";
 
 @Roles(Role.CUSTOMER)
@@ -17,8 +17,8 @@ export class CartController
     ) { }
     @Get() 
     async getCartProducts(
-        @Query("limit" , ParseIntPipe , new DefaultValuePipe(10)) limit: number, 
-        @Query("offset" , ParseIntPipe , new DefaultValuePipe(0)) offset: number 
+        @Query("limit" , new DefaultValuePipe(10) , ParseIntPipe) limit: number, 
+        @Query("offset" , new DefaultValuePipe(0) , ParseIntPipe) offset: number 
     ) 
     {
         const response = await this.cartService.getAllProducts(limit , offset) 
@@ -30,7 +30,16 @@ export class CartController
         @Body() createCartItem : CreateCartItemDto
     ) 
     {
-        console.log(req) 
-        console.log(createCartItem) 
+        const userId = (req.user as any).id 
+        console.log(userId) 
+        const cartItem = await this.cartService.pushCartItem(Number(userId) , createCartItem)  
+        return cartItem
+    }
+    @Delete("/:cartItemId") 
+    async deleteCartItem(
+        @Param("cartItemId" , ParseIntPipe) cartItemId : number 
+    ) 
+    {
+        return (await this.cartService.deleteCartById(Number(cartItemId))) 
     }
 }

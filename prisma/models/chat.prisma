@@ -1,17 +1,17 @@
 model Conversation {
-    id         Int      @id @default(autoincrement())
-    orderId    Int      @unique 
+    id         Int       @id @default(autoincrement())
+    orderId    Int       @unique
     customerId Int
     sellerId   Int
-    customer   User     @relation("CustomerConversations", fields: [customerId], references: [id])
-    seller     User     @relation("SellerConversations", fields: [sellerId], references: [id])
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
-
-    messages Message[]
+    customer   User      @relation("CustomerConversations", fields: [customerId], references: [id])
+    seller     User      @relation("SellerConversations", fields: [sellerId], references: [id])
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
+    deleteAt   DateTime?
+    messages   Message[]
 
     @@unique([orderId, customerId, sellerId])
-    @@index([customerId]) 
+    @@index([customerId])
     @@index([sellerId])
 }
 
@@ -22,9 +22,10 @@ model Message {
     senderId       Int
     sender         User         @relation("ChatMessages", fields: [senderId], references: [id])
     content        String       @db.Text
-    
-    createdAt      DateTime     @default(now())
-    updatedAt      DateTime     @updatedAt
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    deleteAt  DateTime?
 
     @@index([senderId])
 }

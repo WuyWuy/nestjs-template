@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { CreateAddressDto } from './dto/address.dto';
 import { PrismaService } from '@/prisma/prisma.service';
+import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
 
 @Injectable()
 export class AddressService {
@@ -9,7 +9,7 @@ export class AddressService {
 
     async findAddress(
         address: CreateAddressDto,
-        db: Prisma.TransactionClient | PrismaService = this.prismaService,
+        db: TransactionClientExtended | PrismaService = this.prismaService,
     ) {
         const existsAddress = await db.address.findFirst({
             where: {
@@ -30,7 +30,7 @@ export class AddressService {
 
     async createAddress(
         address: CreateAddressDto,
-        db: Prisma.TransactionClient | PrismaService = this.prismaService,
+        db: TransactionClientExtended | PrismaService = this.prismaService,
     ) {
         try {
             const existsAddress = await this.findAddress(address, db);

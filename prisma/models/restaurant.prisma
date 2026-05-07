@@ -10,7 +10,7 @@ model Restaurant {
     owner     User               @relation(fields: [ownerId], references: [id])
     createdAt DateTime           @default(now())
     deleteAt  DateTime?
-    menus     Menu?
+    foods     Food[]
     ratings   RestaurantRating[]
     orders    Order[]
 }

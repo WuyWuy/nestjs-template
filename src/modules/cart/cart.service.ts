@@ -25,6 +25,7 @@ export class CartService {
                         food: {
                             select: {
                                 name: true,
+                                restaurantId : true , 
                                 price: true,
                                 category: true,
                             },

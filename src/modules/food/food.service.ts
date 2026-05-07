@@ -20,19 +20,11 @@ export class FoodService
                         mode: 'insensitive'
                     }
                 }, 
-                select: {
-                    id : true, 
-                    name : true, 
-                    description: true, 
-                    price: true, 
-                    image: true, 
-                    rating : true, 
-                    menuId : true, 
-                    label : true, 
+                include: {
                     category : {
                         select: {
-                            name : true, 
                             id : true, 
+                            name : true, 
                         }
                     }
                 }
@@ -51,26 +43,13 @@ export class FoodService
         {
             const food = await this.prismaService.client.food.findFirst({
                 where : { id }, 
-                select : {
-                    id : true, 
-                    name : true, 
-                    price : true, 
-                    image : true, 
-                    rating : true, 
-                    label : true, 
+                include : {
                     category: {
                         select: {
                             id : true, 
                             name : true 
                         }
                     }, 
-                    menu : {
-                        select: {
-                            restaurant : {
-                                select : { name : true }
-                            }
-                        }
-                    },  
                     foodIngredients: {
                         select: {
                             ingredient : {
@@ -85,10 +64,6 @@ export class FoodService
                 throw new NotFoundException("Food not found") 
             const takeFood = {
                 ...food, 
-                menu : {
-                    restaurant : food.menu.restaurant, 
-                    
-                }, 
                 foodIngredients : food.foodIngredients.map((ingredient) => {
                 return {...ingredient.ingredient}
             })

@@ -6,15 +6,14 @@ model Food {
     category        Category         @relation(fields: [categoryId], references: [id])
     price           Decimal          @default(0)
     image           String           @default("")
-    menu            Menu             @relation(fields: [menuId], references: [id])
     deleteAt        DateTime?
     label           String           @default("")
     rating          Int              @default(0)
-    menuId          Int
     orderFoods      OrderFood[]
     cartItems       CartItem[]
     foodIngredients FoodIngredient[]
-
+    restaurantId    Int
+    restaurant      Restaurant       @relation(fields: [restaurantId], references: [id])
     @@index([categoryId])
     @@index([price])
 }
@@ -35,12 +34,4 @@ model FoodIngredient {
 
     @@unique([foodId, ingredientId])
     @@index([ingredientId])
-}
-
-model Menu {
-    id           Int        @id @default(autoincrement())
-    foods        Food[]
-    restaurantId Int        @unique
-    restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
-    deleteAt     DateTime?
 }

@@ -8,6 +8,7 @@ model Address {
     deleteAt    DateTime?
     restaurants Restaurant[]
     userAddress UserAddress[]
+    orders      Order[]
 }
 
 //Mot nguoi se co nhieu loai dia chi ==== Them 1 bang de lien ket giua nguoi va dia chi 

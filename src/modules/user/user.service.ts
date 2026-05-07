@@ -22,7 +22,7 @@ export class UserService {
     //__________________________HELPER 
     async findById(userId : number) 
     {
-        const user = await this.prismaService.user.findFirst({
+        const user = await this.prismaService.client.user.findFirst({
             where : {
                 id : userId
             }, 
@@ -45,9 +45,8 @@ export class UserService {
     }
     async getAllUsers() {
         try {
-            const customers = await this.prismaService.user.findMany({
+            const customers = await this.prismaService.client.user.findMany({
                 where: {
-                    deleteAt: null,
                     userRoles: {
                         some: {
                             role: 'CUSTOMER',
@@ -70,7 +69,7 @@ export class UserService {
     //Xem lại giao diện như thế nào sau đó mới xử lí logic tương đương
     async deleteCustomerAccount(id: number) {
         try {
-            const result = await this.prismaService.$transaction(async (tx) => {
+            const result = await this.prismaService.transaction(async (tx) => {
                 const response = await tx.user.update({
                     where: {
                         id,
@@ -91,8 +90,8 @@ export class UserService {
         try {
             const user = await this.getUserById(id);
             if (!user) throw new BadRequestException('customer not found');
-            const customer = await this.prismaService.user.findFirst({
-                where: { id, deleteAt: null },
+            const customer = await this.prismaService.client.user.findFirst({
+                where: { id },
                 select: {
                     name: true,
                     email: true,
@@ -120,7 +119,7 @@ export class UserService {
         try {
             const user = await this.getUserById(id);
             if (!user) throw new BadRequestException('user not found');
-            const result = await this.prismaService.$transaction(async (tx) => {
+            const result = await this.prismaService.transaction(async (tx) => {
                 let avatar = user.avatar;
                 if (file) {
                     avatar = await this.minioService.uploadFile(file);
@@ -141,10 +140,9 @@ export class UserService {
         }
     }
     async getUserById(id: number) {
-        const user = await this.prismaService.user.findFirst({
+        const user = await this.prismaService.client.user.findFirst({
             where: {
                 id,
-                deleteAt: null,
             },
         });
         return user;
@@ -155,11 +153,10 @@ export class UserService {
         return await this.minioService.getFileUrl(avatar);
     }
     private async getUserAddressOrThrow(id: number, userId: number) {
-        const userAddress = await this.prismaService.userAddress.findFirst({
+        const userAddress = await this.prismaService.client.userAddress.findFirst({
             where: {
                 id,
                 userId,
-                deleteAt: null,
             },
         });
         if (!userAddress) {
@@ -173,7 +170,7 @@ export class UserService {
         try {
             const user = await this.getUserById(userId);
             if (!user) throw new UnauthorizedException('user not found');
-            const result = await this.prismaService.$transaction(async (tx) => {
+            const result = await this.prismaService.transaction(async (tx) => {
                 const crAddress = await this.addressService.createAddress(
                     address.address,
                     tx,
@@ -197,7 +194,7 @@ export class UserService {
         try {
             const user = await this.getUserById(userId);
             if (!user) throw new UnauthorizedException('user not found');
-            const addresses = await this.prismaService.userAddress.findMany({
+            const addresses = await this.prismaService.client.userAddress.findMany({
                 where: { userId , deleteAt: null },
                 select: {
                     title: true,
@@ -217,7 +214,7 @@ export class UserService {
     ) {
         try {
             await this.getUserAddressOrThrow(id, userId);
-            const result = await this.prismaService.$transaction(async (tx) => {
+            const result = await this.prismaService.transaction(async (tx) => {
                 const updateData: any = {};
                 if (updateAddress.title) updateData.title = updateAddress.title;
                 if (updateAddress.address) {
@@ -252,7 +249,7 @@ export class UserService {
     {
         try 
         {
-            const result = await this.prismaService.userAddress.findFirst({
+            const result = await this.prismaService.client.userAddress.findFirst({
                 where : {id  , userId, deleteAt: null}, 
                 select: {
                     id: true,
@@ -275,7 +272,7 @@ export class UserService {
         try 
         {
             await this.getUserAddressOrThrow(id, userId);
-            const result = await this.prismaService.userAddress.update({
+            const result = await this.prismaService.client.userAddress.update({
                 where: {
                     id
                 }, 

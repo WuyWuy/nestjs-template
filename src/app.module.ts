@@ -21,6 +21,9 @@ import { ChatService } from './realtime/chat.service';
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { FoodModule } from './modules/food/food.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
+import { CartModule } from './modules/cart/cart.module';
+import { OrderModule } from './modules/order/order.module';
+import { PaymentModule } from './modules/payment/payment.module';
 //Add  e module here
 @Module({
     imports: [
@@ -39,7 +42,10 @@ import { RestaurantModule } from './modules/restaurant/restaurant.module';
         AddressModule, 
         ConversationModule, 
         FoodModule, 
-        RestaurantModule
+        RestaurantModule, 
+        CartModule,
+        OrderModule, 
+        PaymentModule //Mot lat sau nho go cai nay ra 
     ],
     controllers: [AppController],
     providers: [

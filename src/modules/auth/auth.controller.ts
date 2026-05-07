@@ -7,13 +7,16 @@ import {
     // HttpStatus,
     Post,
     Query,
-    Req,
     UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterData, SocialLoginData } from './dto/auth.dto';
-import { LocalAuthGuard } from './local-auth.guard';
-import type { Request } from 'express';
+import {
+    ForgotPasswordData,
+    LoginData,
+    RegisterData,
+    ResetEmailData,
+    SocialLoginData,
+} from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('auth')
@@ -30,19 +33,16 @@ export class AuthController {
         return responseData;
     }
     @Post('login')
-    @UseGuards(LocalAuthGuard)
-    async login(@Req() req: Request) {
-        const user = req.user as any;
-        const responseData = await this.authService.login(user);
-        return responseData;
+    async login(@Body() data: LoginData) {
+        return await this.authService.loginLocal(data);
     }
     @Post("reset-email") 
     @UseGuards(JwtAuthGuard)
     async resetEmail(
-        @Req() req : Request 
+        @Body() data: ResetEmailData,
     )
     {
-        const {phone , password } = req.body 
+        const {phone , password } = data
         if (!phone || !password) 
             throw new BadRequestException("Invalid body") 
         const responseData = await this.authService.changeEmail(phone , password) 
@@ -59,7 +59,7 @@ export class AuthController {
     }
     @Post("forgot-password") 
     async forgotPassword(
-        @Body() data : { email : string }
+        @Body() data: ForgotPasswordData,
     )
     {
         const email = data.email 

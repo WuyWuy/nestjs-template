@@ -5,11 +5,10 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { RegisterData } from './dto/auth.dto';
+import { LoginData, RegisterData } from './dto/auth.dto';
 import {
     AuthProvider,
     OTPType,
-    Prisma as PrismaClientType,
     Role,
     TokenType,
 } from '@prisma/client';
@@ -30,6 +29,7 @@ import { generatePassword } from '@/utilis/rnadomPassword';
 import { EmailService } from '../email/email.service';
 import { APP_NAME } from '@/bases/commons/constants/app.constant';
 import axios from 'axios' 
+import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
 
 type SocialProfile = {
     provider: AuthProvider;
@@ -52,13 +52,14 @@ export class AuthService {
         // private readonly twilioService: TwilioService,
     ) {}
     async validateUser(phone: string, password: string) {
-        const user = await this.prismaService.user.findFirst({
+        const user = await this.prismaService.client.user.findFirst({
             where: { phone, active: true },
         });
         if (user) {
             const results = await Bun.password.verify(password, user.password);
+            console.log("Validate result: " , results) 
             if (results) {
-                await this.prismaService.identity.upsert({
+                await this.prismaService.client.identity.upsert({
                     where: {
                         userId_provider: {
                             userId: user.id,
@@ -80,11 +81,10 @@ export class AuthService {
     }
     async register(registerData: RegisterData) {
         try {
-            const results = await this.prismaService.$transaction(
+            const results = await this.prismaService.transaction(
                 async (tx) => {
                     let user = await tx.user.findFirst({
                         where: {
-                            deleteAt: null,
                             OR: [
                                 {
                                     phone: registerData.phone,
@@ -159,10 +159,8 @@ export class AuthService {
                     }
                     //Create otp
                     await tx.oTP.deleteMany({
-                        where: {
-                            userId: user.id,
-                            type: OTPType.VERIFY_OTP, //Use for verify register
-                        },
+                        userId: user.id,
+                        type: OTPType.VERIFY_OTP, //Use for verify register
                     });
                     const otp = generateOtp();
                     await tx.oTP.create({
@@ -195,7 +193,7 @@ export class AuthService {
     async verify(otp: string) {
         try {
             const hashedOtp = hashing(otp);
-            const storeOtp = await this.prismaService.oTP.findFirst({
+            const storeOtp = await this.prismaService.client.oTP.findFirst({
                 where: {
                     otp: hashedOtp,
                     expiresAt: {
@@ -205,7 +203,7 @@ export class AuthService {
             });
             if (!storeOtp) throw new BadRequestException('Invalid Otp Code');
             if (!storeOtp.usedAt) {
-                await this.prismaService.user.update({
+                await this.prismaService.client.user.update({
                     where: {
                         id: storeOtp.userId,
                     },
@@ -213,7 +211,7 @@ export class AuthService {
                         active: true,
                     },
                 });
-                await this.prismaService.oTP.update({
+                await this.prismaService.client.oTP.update({
                     where: {
                         id: storeOtp.id,
                     },
@@ -239,11 +237,18 @@ export class AuthService {
             throw err;
         }
     }
+    async loginLocal(data: LoginData) {
+        const user = await this.validateUser(data.phone, data.password);
+        
+        if (!user) {
+            throw new BadRequestException('Phone or password is incorrect');
+        }
+        return await this.buildAuthResponse(user.id);
+    }
     private async buildAuthResponse(userId: number) {
-        const user = await this.prismaService.user.findFirst({
+        const user = await this.prismaService.client.user.findFirst({
             where: {
                 id: userId,
-                deleteAt: null,
             },
             select: {
                 id: true,
@@ -257,7 +262,7 @@ export class AuthService {
         });
         if (!user) throw new BadRequestException('User Not Found');
 
-        const userRoles = await this.prismaService.userRole.findMany({
+        const userRoles = await this.prismaService.client.userRole.findMany({
             where: {
                 userId: user.id,
             },
@@ -311,7 +316,7 @@ export class AuthService {
         return `${provider.toLowerCase()}-${safeId}@social.local`;
     }
     private async ensureDefaultRole(
-        tx: PrismaClientType.TransactionClient,
+        tx: TransactionClientExtended,
         userId: number,
     ) {
         const userRole = await tx.userRole.findFirst({
@@ -330,7 +335,7 @@ export class AuthService {
         }
     }
     private async resolveSocialLogin(profile: SocialProfile) {
-        const userId = await this.prismaService.$transaction(async (tx) => {
+        const userId = await this.prismaService.transaction(async (tx) => {
             const existingIdentity = await tx.identity.findUnique({
                 where: {
                     provider_providerUserId: {
@@ -369,8 +374,7 @@ export class AuthService {
             const matchedUser = profile.email
                 ? await tx.user.findFirst({
                       where: {
-                          email: profile.email,
-                          deleteAt: null,
+                          email: profile.email 
                       },
                   })
                 : null;
@@ -474,7 +478,7 @@ export class AuthService {
     }
     async changeEmail(phone: string, password: string) {
         try {
-            const user = await this.prismaService.user.findFirst({
+            const user = await this.prismaService.client.user.findFirst({
                 where: { phone },
             });
             console.log(user) 
@@ -487,7 +491,7 @@ export class AuthService {
             const otp = generateOtp();
             const hashOtp = hashing(otp);
             //Calling twilio
-            await this.prismaService.oTP.create({
+            await this.prismaService.client.oTP.create({
                 data: {
                     otp: hashOtp,
                     type: OTPType.RESET_EMAIL_OTP,
@@ -508,7 +512,7 @@ export class AuthService {
     async verifyChangeEmail(email: string, otp: string) {
         try {
             const hashedOtp = hashing(otp);
-            const existsOtp = await this.prismaService.oTP.findFirst({
+            const existsOtp = await this.prismaService.client.oTP.findFirst({
                 where: {
                     otp: hashedOtp,
                     type: OTPType.RESET_EMAIL_OTP,
@@ -518,7 +522,7 @@ export class AuthService {
             if (!existsOtp) throw new BadRequestException('OTP Invalid');
             if (existsOtp.expiresAt < new Date())
                 throw new BadRequestException('OTP has been expired');
-            await this.prismaService.user.update({
+            await this.prismaService.client.user.update({
                 data: { email },
                 where: {
                     id: existsOtp.userId,
@@ -536,7 +540,7 @@ export class AuthService {
     {
         try 
         {
-            const user = await this.prismaService.user.findFirst({
+            const user = await this.prismaService.client.user.findFirst({
                 where: {
                     email 
                 }
@@ -550,7 +554,7 @@ export class AuthService {
                     algorithm : 'bcrypt'
                 }
             ) 
-            await this.prismaService.user.update({
+            await this.prismaService.client.user.update({
                 data: {
                     password : hashPassword
                 }, 

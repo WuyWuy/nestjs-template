@@ -1,6 +1,5 @@
 model Restaurant {
     id        Int                @id @default(autoincrement())
-    code      String             @unique
     name      String
     image     String             @default("")
     phone     String             @unique
@@ -11,7 +10,7 @@ model Restaurant {
     owner     User               @relation(fields: [ownerId], references: [id])
     createdAt DateTime           @default(now())
     deleteAt  DateTime?
-    menus     Menu?
+    foods     Food[]
     ratings   RestaurantRating[]
     orders    Order[]
 }

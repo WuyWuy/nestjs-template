@@ -1,8 +1,9 @@
 model Cart {
-    id           Int @id @default(autoincrement())
-    userId     Int        @unique
-    user       User       @relation(fields: [userId], references: [id])
-    cartItems  CartItem[]
+    id        Int        @id @default(autoincrement())
+    userId    Int        @unique
+    user      User       @relation(fields: [userId], references: [id])
+    deleteAt  DateTime?
+    cartItems CartItem[]
 }
 
 model CartItem {
@@ -10,7 +11,7 @@ model CartItem {
     cartId    Int
     foodId    Int
     quantity  Int
-    deletedAt DateTime?
+    deleteAt DateTime?
 
     cart Cart @relation(fields: [cartId], references: [id])
     food Food @relation(fields: [foodId], references: [id])

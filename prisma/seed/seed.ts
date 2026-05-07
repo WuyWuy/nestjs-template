@@ -1,4 +1,12 @@
-import { PrismaClient, Role, OrderStatus, PaymentMethod, PaymentStatus, VoucherType, VoucherStatus } from '@prisma/client';
+import {
+    PrismaClient,
+    Role,
+    OrderStatus,
+    PaymentMethod,
+    PaymentStatus,
+    VoucherType,
+    VoucherStatus,
+} from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const prisma = new PrismaClient({
@@ -55,7 +63,10 @@ async function seedCategories() {
     console.log('🌱 Seeding categories...');
 
     const categories = [
-        { name: 'Pizza', description: 'Delicious Italian pizzas with various toppings' },
+        {
+            name: 'Pizza',
+            description: 'Delicious Italian pizzas with various toppings',
+        },
         { name: 'Burger', description: 'Classic and gourmet burgers' },
         { name: 'Pasta', description: 'Traditional Italian pasta dishes' },
         { name: 'Sushi', description: 'Fresh sushi and rolls' },
@@ -171,10 +182,26 @@ async function seedUsers() {
         await prisma.userAddress.createMany({
             data: [
                 { userId: admin.id, addressId: addresses[0].id, title: 'Home' },
-                { userId: business.id, addressId: addresses[0].id, title: 'Business' },
-                { userId: customer1.id, addressId: addresses[1].id, title: 'Home' },
-                { userId: customer1.id, addressId: addresses[2].id, title: 'Office' },
-                { userId: customer2.id, addressId: addresses[1].id, title: 'Home' },
+                {
+                    userId: business.id,
+                    addressId: addresses[0].id,
+                    title: 'Business',
+                },
+                {
+                    userId: customer1.id,
+                    addressId: addresses[1].id,
+                    title: 'Home',
+                },
+                {
+                    userId: customer1.id,
+                    addressId: addresses[2].id,
+                    title: 'Office',
+                },
+                {
+                    userId: customer2.id,
+                    addressId: addresses[1].id,
+                    title: 'Home',
+                },
             ],
             skipDuplicates: true,
         });
@@ -193,11 +220,31 @@ async function seedRestaurants(businessUser: any) {
     }
 
     const restaurants = [
-        { code: 'REST001', name: 'Pizza Palace', phone: '0901111111', addressId: addresses[0].id },
-        { code: 'REST002', name: 'Burger Heaven', phone: '0902222222', addressId: addresses[1].id },
-        { code: 'REST003', name: 'Pasta Magic', phone: '0903333333', addressId: addresses[2].id },
-        { code: 'REST004', name: 'Sushi Dreams', phone: '0904444444', addressId: addresses[3].id },
-        { code: 'REST005', name: 'Sweet Desserts', phone: '0905555555', addressId: addresses[4].id },
+        {
+            name: 'Pizza Palace',
+            phone: '0901111111',
+            addressId: addresses[0].id,
+        },
+        {
+            name: 'Burger Heaven',
+            phone: '0902222222',
+            addressId: addresses[1].id,
+        },
+        {
+            name: 'Pasta Magic',
+            phone: '0903333333',
+            addressId: addresses[2].id,
+        },
+        {
+            name: 'Sushi Dreams',
+            phone: '0904444444',
+            addressId: addresses[3].id,
+        },
+        {
+            name: 'Sweet Desserts',
+            phone: '0905555555',
+            addressId: addresses[4].id,
+        },
     ];
 
     const createdRestaurants = await Promise.all(
@@ -216,9 +263,7 @@ async function seedRestaurants(businessUser: any) {
     return createdRestaurants;
 }
 
-
-
-async function seedFoods(menus: any[]) {
+async function seedFoods(restaurants: any[]) {
     console.log('🌱 Seeding foods...');
 
     const categories = await prisma.category.findMany();
@@ -229,40 +274,90 @@ async function seedFoods(menus: any[]) {
     }
 
     const foods = [
-        { code: 'FOOD001', name: 'Margherita Pizza', categoryId: categories[0].id, price: 12.99, description: 'Classic pizza with tomato and cheese' },
-        { code: 'FOOD002', name: 'Pepperoni Pizza', categoryId: categories[0].id, price: 14.99, description: 'Spicy pepperoni pizza' },
-        { code: 'FOOD003', name: 'Classic Burger', categoryId: categories[1].id, price: 9.99, description: 'Juicy beef burger with lettuce and tomato' },
-        { code: 'FOOD004', name: 'Bacon Burger', categoryId: categories[1].id, price: 11.99, description: 'Burger with crispy bacon' },
-        { code: 'FOOD005', name: 'Spaghetti Carbonara', categoryId: categories[2].id, price: 13.99, description: 'Traditional Italian pasta with creamy sauce' },
-        { code: 'FOOD006', name: 'Penne Alfredo', categoryId: categories[2].id, price: 12.99, description: 'Creamy pasta with parmesan cheese' },
-        { code: 'FOOD007', name: 'California Roll', categoryId: categories[3].id, price: 10.99, description: 'Fresh sushi roll with avocado and crab' },
-        { code: 'FOOD008', name: 'Spicy Tuna Roll', categoryId: categories[3].id, price: 11.99, description: 'Spicy tuna sushi roll' },
-        { code: 'FOOD009', name: 'Chocolate Cake', categoryId: categories[4].id, price: 6.99, description: 'Rich chocolate cake with frosting' },
-        { code: 'FOOD010', name: 'Cheesecake', categoryId: categories[4].id, price: 7.99, description: 'Creamy New York style cheesecake' },
+        {
+            name: 'Margherita Pizza',
+            categoryId: categories[0].id,
+            price: 12.99,
+            description: 'Classic pizza with tomato and cheese',
+        },
+        {
+            name: 'Pepperoni Pizza',
+            categoryId: categories[0].id,
+            price: 14.99,
+            description: 'Spicy pepperoni pizza',
+        },
+        {
+            name: 'Classic Burger',
+            categoryId: categories[1].id,
+            price: 9.99,
+            description: 'Juicy beef burger with lettuce and tomato',
+        },
+        {
+            name: 'Bacon Burger',
+            categoryId: categories[1].id,
+            price: 11.99,
+            description: 'Burger with crispy bacon',
+        },
+        {
+            name: 'Spaghetti Carbonara',
+            categoryId: categories[2].id,
+            price: 13.99,
+            description: 'Traditional Italian pasta with creamy sauce',
+        },
+        {
+            name: 'Penne Alfredo',
+            categoryId: categories[2].id,
+            price: 12.99,
+            description: 'Creamy pasta with parmesan cheese',
+        },
+        {
+            name: 'California Roll',
+            categoryId: categories[3].id,
+            price: 10.99,
+            description: 'Fresh sushi roll with avocado and crab',
+        },
+        {
+            name: 'Spicy Tuna Roll',
+            categoryId: categories[3].id,
+            price: 11.99,
+            description: 'Spicy tuna sushi roll',
+        },
+        {
+            name: 'Chocolate Cake',
+            categoryId: categories[4].id,
+            price: 6.99,
+            description: 'Rich chocolate cake with frosting',
+        },
+        {
+            name: 'Cheesecake',
+            categoryId: categories[4].id,
+            price: 7.99,
+            description: 'Creamy New York style cheesecake',
+        },
     ];
 
     const createdFoods: any[] = [];
 
-    // 👉 chia đều foods cho menus
-    const foodsPerMenu = Math.ceil(foods.length / menus.length);
+    // 👉 Distribute foods evenly among restaurants
+    const foodsPerRestaurant = Math.ceil(foods.length / restaurants.length);
 
-    for (let i = 0; i < menus.length; i++) {
-        const menu = menus[i];
-        const startIdx = i * foodsPerMenu;
-        const endIdx = startIdx + foodsPerMenu;
+    for (let i = 0; i < restaurants.length; i++) {
+        const restaurant = restaurants[i];
+        const startIdx = i * foodsPerRestaurant;
+        const endIdx = startIdx + foodsPerRestaurant;
 
         for (let j = startIdx; j < endIdx && j < foods.length; j++) {
             const food = await prisma.food.create({
                 data: {
                     ...foods[j],
-                    menuId: menu.id, // ✅ QUAN TRỌNG
+                    restaurantId: restaurant.id,
                 },
             });
             createdFoods.push(food);
         }
     }
 
-    // link ingredients (giữ nguyên)
+    // link ingredients
     if (ingredients.length > 0) {
         await prisma.foodIngredient.createMany({
             data: [
@@ -281,33 +376,46 @@ async function seedFoods(menus: any[]) {
     console.log(`✅ Seeded ${createdFoods.length} foods`);
     return createdFoods;
 }
-async function seedMenus(restaurants: any[]) {
-    console.log('🌱 Seeding menus (1 restaurant = 1 menu)...');
-
-    const menus = await Promise.all(
-        restaurants.map((restaurant) =>
-            prisma.menu.create({
-                data: {
-                    restaurantId: restaurant.id,
-                    
-                },
-            }),
-        ),
-    );
-
-    console.log(`✅ Seeded ${menus.length} menus`);
-    return menus;
-}
 
 async function seedVouchers() {
     console.log('🌱 Seeding vouchers...');
 
     const vouchers = [
-        { name: 'Summer Discount 10%', description: 'Get 10% off on all orders', sale: 10, type: VoucherType.PERCENT, status: VoucherStatus.APPLYING },
-        { name: 'Save $5', description: 'Flat $5 discount', sale: 5, type: VoucherType.MONEY, status: VoucherStatus.APPLYING },
-        { name: 'Flash Sale 20%', description: 'Limited time 20% off', sale: 20, type: VoucherType.PERCENT, status: VoucherStatus.APPLYING },
-        { name: 'Weekend Special', description: '$10 off on weekends', sale: 10, type: VoucherType.MONEY, status: VoucherStatus.APPLYING },
-        { name: 'New User Bonus', description: 'First order 15% discount', sale: 15, type: VoucherType.PERCENT, status: VoucherStatus.ENDED },
+        {
+            name: 'Summer Discount 10%',
+            description: 'Get 10% off on all orders',
+            sale: 10,
+            type: VoucherType.PERCENT,
+            status: VoucherStatus.APPLYING,
+        },
+        {
+            name: 'Save $5',
+            description: 'Flat $5 discount',
+            sale: 5,
+            type: VoucherType.MONEY,
+            status: VoucherStatus.APPLYING,
+        },
+        {
+            name: 'Flash Sale 20%',
+            description: 'Limited time 20% off',
+            sale: 20,
+            type: VoucherType.PERCENT,
+            status: VoucherStatus.APPLYING,
+        },
+        {
+            name: 'Weekend Special',
+            description: '$10 off on weekends',
+            sale: 10,
+            type: VoucherType.MONEY,
+            status: VoucherStatus.APPLYING,
+        },
+        {
+            name: 'New User Bonus',
+            description: 'First order 15% discount',
+            sale: 15,
+            type: VoucherType.PERCENT,
+            status: VoucherStatus.ENDED,
+        },
     ];
 
     const createdVouchers = await Promise.all(
@@ -328,38 +436,82 @@ async function seedVouchers() {
     return createdVouchers;
 }
 
-async function seedOrders(businessUser: any, customer1: any, customer2: any, restaurants: any[], vouchers: any[]) {
+async function seedOrders(
+    businessUser: any,
+    customer1: any,
+    customer2: any,
+    restaurants: any[],
+    vouchers: any[],
+) {
     console.log('🌱 Seeding orders...');
-5
-    const orders = [
-        { code: 'ORDER001', restaurantId: restaurants[0].id, totalPrice: 32.37, status: OrderStatus.DELIVERED, userId: customer1.id, voucherId: vouchers[0].id },
-        { code: 'ORDER002', restaurantId: restaurants[1].id, totalPrice: 21.48, status: OrderStatus.DELIVERED, userId: customer1.id, voucherId: vouchers[1].id },
-        { code: 'ORDER003', restaurantId: restaurants[2].id, totalPrice: 26.98, status: OrderStatus.CONFIRMED, userId: customer2.id },
-        { code: 'ORDER004', restaurantId: restaurants[3].id, totalPrice: 20.68, status: OrderStatus.PREPARING, userId: customer2.id, voucherId: vouchers[2].id },
-        { code: 'ORDER005', restaurantId: restaurants[0].id, totalPrice: 29.97, status: OrderStatus.DELIVERING, userId: customer1.id },
-        { code: 'ORDER006', restaurantId: restaurants[4].id, totalPrice: 13.23, status: OrderStatus.PENDING, userId: customer2.id, voucherId: vouchers[3].id },
-    ];
 
+    const addresses = await prisma.address.findMany();
+
+    const orders = [
+        {
+            restaurantId: restaurants[0].id,
+            totalPrice: 32.37,
+            status: OrderStatus.DELIVERED,
+            userId: customer1.id,
+            voucherId: vouchers[0].id,
+            addressId: addresses[0].id,
+        },
+        {
+            restaurantId: restaurants[1].id,
+            totalPrice: 21.48,
+            status: OrderStatus.DELIVERED,
+            userId: customer1.id,
+            voucherId: vouchers[1].id,
+            addressId: addresses[1].id,
+        },
+        {
+            restaurantId: restaurants[2].id,
+            totalPrice: 26.98,
+            status: OrderStatus.CONFIRMED,
+            userId: customer2.id,
+            addressId: addresses[2].id,
+        },
+        {
+            restaurantId: restaurants[3].id,
+            totalPrice: 20.68,
+            status: OrderStatus.PREPARING,
+            userId: customer2.id,
+            voucherId: vouchers[2].id,
+            addressId: addresses[3].id,
+        },
+        {
+            restaurantId: restaurants[0].id,
+            totalPrice: 29.97,
+            status: OrderStatus.DELIVERING,
+            userId: customer1.id,
+            addressId: addresses[0].id,
+        },
+        {
+            restaurantId: restaurants[4].id,
+            totalPrice: 13.23,
+            status: OrderStatus.PENDING,
+            userId: customer2.id,
+            voucherId: vouchers[3].id,
+            addressId: addresses[4].id,
+        },
+    ];
     const createdOrders = await Promise.all(
         orders.map((order) => prisma.order.create({ data: order })),
     );
 
-    console.log(`✅ Seeded 6 orders with voucher usage`);
+    console.log(`✅ Seeded 6 orders with voucher usage and addresses`);
     return createdOrders;
 }
 
 async function seedOrderFoods(orders: any[], foods: any[]) {
     console.log('🌱 Seeding order foods...');
 
-    await prisma.address.findMany();
     const orderFoods = [
         {
             orderId: orders[0].id,
             foodId: foods[0].id,
             quantity: 2,
             price: 12.99,
-            latitude: 10.7769,
-            longitude: 106.7009,
             fullText: '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh',
         },
         {
@@ -367,8 +519,6 @@ async function seedOrderFoods(orders: any[], foods: any[]) {
             foodId: foods[1].id,
             quantity: 1,
             price: 14.99,
-            latitude: 10.7769,
-            longitude: 106.7009,
             fullText: '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh',
         },
         {
@@ -376,8 +526,6 @@ async function seedOrderFoods(orders: any[], foods: any[]) {
             foodId: foods[2].id,
             quantity: 2,
             price: 9.99,
-            latitude: 10.7725,
-            longitude: 106.698,
             fullText: '45 Le Loi, Ben Thanh, District 1, Ho Chi Minh',
         },
         {
@@ -385,8 +533,6 @@ async function seedOrderFoods(orders: any[], foods: any[]) {
             foodId: foods[4].id,
             quantity: 2,
             price: 13.99,
-            latitude: 16.0678,
-            longitude: 108.2208,
             fullText: '12 Tran Phu, Hai Chau, Da Nang',
         },
         {
@@ -394,8 +540,6 @@ async function seedOrderFoods(orders: any[], foods: any[]) {
             foodId: foods[6].id,
             quantity: 2,
             price: 10.99,
-            latitude: 16.0515,
-            longitude: 108.2478,
             fullText: '88 Vo Nguyen Giap, Ngu Hanh Son, Da Nang',
         },
         {
@@ -403,8 +547,6 @@ async function seedOrderFoods(orders: any[], foods: any[]) {
             foodId: foods[3].id,
             quantity: 1,
             price: 11.99,
-            latitude: 10.7769,
-            longitude: 106.7009,
             fullText: '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh',
         },
         {
@@ -412,8 +554,6 @@ async function seedOrderFoods(orders: any[], foods: any[]) {
             foodId: foods[9].id,
             quantity: 2,
             price: 7.99,
-            latitude: 16.4637,
-            longitude: 107.5909,
             fullText: '7 Hung Vuong, Hue',
         },
     ];
@@ -429,12 +569,42 @@ async function seedPayments(orders: any[]) {
     console.log('🌱 Seeding payments...');
 
     const payments = [
-        { orderId: orders[0].id, method: PaymentMethod.CASH, amount: 35.97, paymentStatus: PaymentStatus.DONE },
-        { orderId: orders[1].id, method: PaymentMethod.MOMO, amount: 23.98, paymentStatus: PaymentStatus.DONE },
-        { orderId: orders[2].id, method: PaymentMethod.CASH, amount: 26.98, paymentStatus: PaymentStatus.SOLVING },
-        { orderId: orders[3].id, method: PaymentMethod.MOMO, amount: 22.98, paymentStatus: PaymentStatus.SOLVING },
-        { orderId: orders[4].id, method: PaymentMethod.CASH, amount: 29.97, paymentStatus: PaymentStatus.DONE },
-        { orderId: orders[5].id, method: PaymentMethod.MOMO, amount: 14.98, paymentStatus: PaymentStatus.SOLVING },
+        {
+            orderId: orders[0].id,
+            method: PaymentMethod.CASH,
+            amount: 35.97,
+            paymentStatus: PaymentStatus.DONE,
+        },
+        {
+            orderId: orders[1].id,
+            method: PaymentMethod.MOMO,
+            amount: 23.98,
+            paymentStatus: PaymentStatus.DONE,
+        },
+        {
+            orderId: orders[2].id,
+            method: PaymentMethod.CASH,
+            amount: 26.98,
+            paymentStatus: PaymentStatus.SOLVING,
+        },
+        {
+            orderId: orders[3].id,
+            method: PaymentMethod.MOMO,
+            amount: 22.98,
+            paymentStatus: PaymentStatus.SOLVING,
+        },
+        {
+            orderId: orders[4].id,
+            method: PaymentMethod.CASH,
+            amount: 29.97,
+            paymentStatus: PaymentStatus.DONE,
+        },
+        {
+            orderId: orders[5].id,
+            method: PaymentMethod.MOMO,
+            amount: 14.98,
+            paymentStatus: PaymentStatus.SOLVING,
+        },
     ];
 
     await prisma.payment.createMany({
@@ -444,16 +614,45 @@ async function seedPayments(orders: any[]) {
     console.log(`✅ Seeded 6 payments`);
 }
 
-async function seedConversations(businessUser: any, customer1: any, customer2: any, orders: any[]) {
+async function seedConversations(
+    businessUser: any,
+    customer1: any,
+    customer2: any,
+    orders: any[],
+) {
     console.log('🌱 Seeding conversations...');
 
     const conversations = [
-        { orderId: orders[0].id, customerId: customer1.id, sellerId: businessUser.id },
-        { orderId: orders[1].id, customerId: customer1.id, sellerId: businessUser.id },
-        { orderId: orders[2].id, customerId: customer2.id, sellerId: businessUser.id },
-        { orderId: orders[3].id, customerId: customer2.id, sellerId: businessUser.id },
-        { orderId: orders[4].id, customerId: customer1.id, sellerId: businessUser.id },
-        { orderId: orders[5].id, customerId: customer2.id, sellerId: businessUser.id },
+        {
+            orderId: orders[0].id,
+            customerId: customer1.id,
+            sellerId: businessUser.id,
+        },
+        {
+            orderId: orders[1].id,
+            customerId: customer1.id,
+            sellerId: businessUser.id,
+        },
+        {
+            orderId: orders[2].id,
+            customerId: customer2.id,
+            sellerId: businessUser.id,
+        },
+        {
+            orderId: orders[3].id,
+            customerId: customer2.id,
+            sellerId: businessUser.id,
+        },
+        {
+            orderId: orders[4].id,
+            customerId: customer1.id,
+            sellerId: businessUser.id,
+        },
+        {
+            orderId: orders[5].id,
+            customerId: customer2.id,
+            sellerId: businessUser.id,
+        },
     ];
 
     const createdConversations = await Promise.all(
@@ -464,22 +663,75 @@ async function seedConversations(businessUser: any, customer1: any, customer2: a
     return createdConversations;
 }
 
-async function seedMessages(conversations: any[], businessUser: any, customer1: any, customer2: any) {
+async function seedMessages(
+    conversations: any[],
+    businessUser: any,
+    customer1: any,
+    customer2: any,
+) {
     console.log('🌱 Seeding messages...');
 
     const messages = [
-        { conversationId: conversations[0].id, senderId: customer1.id, content: 'When will my order arrive?' },
-        { conversationId: conversations[0].id, senderId: businessUser.id, content: 'It will be there in 30 minutes' },
-        { conversationId: conversations[1].id, senderId: customer1.id, content: 'Can I add extra cheese?' },
-        { conversationId: conversations[1].id, senderId: businessUser.id, content: 'Sure, no problem!' },
-        { conversationId: conversations[2].id, senderId: customer2.id, content: 'Is it fresh?' },
-        { conversationId: conversations[2].id, senderId: businessUser.id, content: 'Yes, made fresh today' },
-        { conversationId: conversations[3].id, senderId: customer2.id, content: 'Any discounts available?' },
-        { conversationId: conversations[3].id, senderId: businessUser.id, content: 'Subscribe for 10% off' },
-        { conversationId: conversations[4].id, senderId: customer1.id, content: 'Thank you!' },
-        { conversationId: conversations[4].id, senderId: businessUser.id, content: 'You are welcome!' },
-        { conversationId: conversations[5].id, senderId: customer2.id, content: 'Great food!' },
-        { conversationId: conversations[5].id, senderId: businessUser.id, content: 'Thanks for your order!' },
+        {
+            conversationId: conversations[0].id,
+            senderId: customer1.id,
+            content: 'When will my order arrive?',
+        },
+        {
+            conversationId: conversations[0].id,
+            senderId: businessUser.id,
+            content: 'It will be there in 30 minutes',
+        },
+        {
+            conversationId: conversations[1].id,
+            senderId: customer1.id,
+            content: 'Can I add extra cheese?',
+        },
+        {
+            conversationId: conversations[1].id,
+            senderId: businessUser.id,
+            content: 'Sure, no problem!',
+        },
+        {
+            conversationId: conversations[2].id,
+            senderId: customer2.id,
+            content: 'Is it fresh?',
+        },
+        {
+            conversationId: conversations[2].id,
+            senderId: businessUser.id,
+            content: 'Yes, made fresh today',
+        },
+        {
+            conversationId: conversations[3].id,
+            senderId: customer2.id,
+            content: 'Any discounts available?',
+        },
+        {
+            conversationId: conversations[3].id,
+            senderId: businessUser.id,
+            content: 'Subscribe for 10% off',
+        },
+        {
+            conversationId: conversations[4].id,
+            senderId: customer1.id,
+            content: 'Thank you!',
+        },
+        {
+            conversationId: conversations[4].id,
+            senderId: businessUser.id,
+            content: 'You are welcome!',
+        },
+        {
+            conversationId: conversations[5].id,
+            senderId: customer2.id,
+            content: 'Great food!',
+        },
+        {
+            conversationId: conversations[5].id,
+            senderId: businessUser.id,
+            content: 'Thanks for your order!',
+        },
     ];
 
     await prisma.message.createMany({
@@ -489,13 +741,15 @@ async function seedMessages(conversations: any[], businessUser: any, customer1: 
     console.log(`✅ Seeded 12 messages`);
 }
 
-async function seedCarts(customer1: any, customer2: any, restaurants: any[], foods: any[]) {
+async function seedCarts(
+    customer1: any,
+    customer2: any,
+    restaurants: any[],
+    foods: any[],
+) {
     console.log('🌱 Seeding carts...');
 
-    const carts = [
-        { userId: customer1.id},
-        { userId: customer2.id},
-    ];
+    const carts = [{ userId: customer1.id }, { userId: customer2.id }];
 
     const createdCarts = await Promise.all(
         carts.map((cart) => prisma.cart.create({ data: cart })),
@@ -532,20 +786,40 @@ async function main() {
 
             const users = await seedUsers();
             const restaurants = await seedRestaurants(users.business);
-            const menus = await seedMenus(restaurants);
-            const foods = await seedFoods(menus);
+            const foods = await seedFoods(restaurants);
 
             // Seed vouchers before orders
             const vouchers = await seedVouchers();
 
-            const orders = await seedOrders(users.business, users.customer1, users.customer2, restaurants, vouchers);
+            const orders = await seedOrders(
+                users.business,
+                users.customer1,
+                users.customer2,
+                restaurants,
+                vouchers,
+            );
             await seedOrderFoods(orders, foods);
             await seedPayments(orders);
 
-            const conversations = await seedConversations(users.business, users.customer1, users.customer2, orders);
-            await seedMessages(conversations, users.business, users.customer1, users.customer2);
+            const conversations = await seedConversations(
+                users.business,
+                users.customer1,
+                users.customer2,
+                orders,
+            );
+            await seedMessages(
+                conversations,
+                users.business,
+                users.customer1,
+                users.customer2,
+            );
 
-            await seedCarts(users.customer1, users.customer2, restaurants, foods);
+            await seedCarts(
+                users.customer1,
+                users.customer2,
+                restaurants,
+                foods,
+            );
         });
 
         console.log('🎉 Seeding completed successfully');

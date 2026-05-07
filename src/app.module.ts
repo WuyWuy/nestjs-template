@@ -22,6 +22,7 @@ import { ConversationModule } from './modules/conversation/conversation.module';
 import { FoodModule } from './modules/food/food.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
 import { CartModule } from './modules/cart/cart.module';
+import { OrderModule } from './modules/order/order.module';
 //Add  e module here
 @Module({
     imports: [
@@ -41,7 +42,8 @@ import { CartModule } from './modules/cart/cart.module';
         ConversationModule, 
         FoodModule, 
         RestaurantModule, 
-        CartModule
+        CartModule,
+        OrderModule
     ],
     controllers: [AppController],
     providers: [

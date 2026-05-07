@@ -2,12 +2,15 @@ import {
     IsArray,
     IsInt,
     IsOptional,
-    ValidateNested,
-    IsNumber,
-    IsString,
     Min,
+    ValidateNested,
+    ValidateIf,
+    ArrayMinSize,
+    IsString,
 } from 'class-validator';
+
 import { Type } from 'class-transformer';
+import { CreateAddressDto } from '@/modules/address/dto/address.dto';
 
 class CreateOrderFoodDto {
     @IsInt()
@@ -16,19 +19,11 @@ class CreateOrderFoodDto {
     @IsInt()
     @Min(1)
     quantity: number;
-
-    @IsOptional()
-    @IsNumber()
-    latitude?: number;
-
-    @IsOptional()
-    @IsNumber()
-    longitude?: number;
-
-    @IsOptional()
-    @IsString()
-    fullText?: string;
+    @IsOptional() 
+    @IsString() 
+    fullText : string = ""; 
 }
+
 
 export class CreateOrderDto {
     @IsInt()
@@ -38,10 +33,25 @@ export class CreateOrderDto {
     @IsInt()
     voucherId?: number;
 
+    // ===== Address =====
+
+    // User selects saved address
+    @ValidateIf((o) => !o.customAddress)
     @IsInt()
-    userId: number;
+    @IsOptional()
+    savedAddressId?: number;
+
+    // User enters custom address
+    @ValidateIf((o) => !o.savedAddressId)
+    @ValidateNested()
+    @Type(() => CreateAddressDto)
+    @IsOptional()
+    customAddress?: CreateAddressDto;
+
+    // ===== Foods =====
 
     @IsArray()
+    @ArrayMinSize(1)
     @ValidateNested({ each: true })
     @Type(() => CreateOrderFoodDto)
     orderFoods: CreateOrderFoodDto[];

@@ -133,6 +133,12 @@ export class AuthService {
                                 ),
                             },
                         });
+                        //Create a new cart 
+                        await tx.cart.create({
+                            data: {
+                                userId : user.id, 
+                            }
+                        })
                     } else {
                         await tx.identity.upsert({
                             where: {

@@ -1,4 +1,4 @@
-import { Controller, Get, ParseIntPipe, Query , DefaultValuePipe, Param } from "@nestjs/common";
+import { Controller, Get, ParseIntPipe, Query , DefaultValuePipe, Param, Post } from "@nestjs/common";
 import { FoodService } from "./food.service";
 
 @Controller("food") 
@@ -25,5 +25,9 @@ export class FoodController
         const food = await this.foodService.getFoodDetail(id) 
         return food 
     }
-    
+    @Post("/add-to-cart") 
+    async addFoodToCart() 
+    {
+        
+    }
 }

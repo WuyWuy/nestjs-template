@@ -1,4 +1,4 @@
-import { PrismaClient, Role, OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
+import { PrismaClient, Role, OrderStatus, PaymentMethod, PaymentStatus, VoucherType, VoucherStatus } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const prisma = new PrismaClient({
@@ -299,23 +299,52 @@ async function seedMenus(restaurants: any[]) {
     return menus;
 }
 
-async function seedOrders(businessUser: any, customer1: any, customer2: any, restaurants: any[]) {
-    console.log('🌱 Seeding orders...');
+async function seedVouchers() {
+    console.log('🌱 Seeding vouchers...');
 
+    const vouchers = [
+        { name: 'Summer Discount 10%', description: 'Get 10% off on all orders', sale: 10, type: VoucherType.PERCENT, status: VoucherStatus.APPLYING },
+        { name: 'Save $5', description: 'Flat $5 discount', sale: 5, type: VoucherType.MONEY, status: VoucherStatus.APPLYING },
+        { name: 'Flash Sale 20%', description: 'Limited time 20% off', sale: 20, type: VoucherType.PERCENT, status: VoucherStatus.APPLYING },
+        { name: 'Weekend Special', description: '$10 off on weekends', sale: 10, type: VoucherType.MONEY, status: VoucherStatus.APPLYING },
+        { name: 'New User Bonus', description: 'First order 15% discount', sale: 15, type: VoucherType.PERCENT, status: VoucherStatus.ENDED },
+    ];
+
+    const createdVouchers = await Promise.all(
+        vouchers.map((voucher) =>
+            prisma.voucher.create({
+                data: {
+                    name: voucher.name,
+                    description: voucher.description,
+                    sale: voucher.sale,
+                    type: voucher.type,
+                    status: voucher.status,
+                },
+            }),
+        ),
+    );
+
+    console.log(`✅ Seeded 5 vouchers`);
+    return createdVouchers;
+}
+
+async function seedOrders(businessUser: any, customer1: any, customer2: any, restaurants: any[], vouchers: any[]) {
+    console.log('🌱 Seeding orders...');
+5
     const orders = [
-        { code: 'ORDER001', restaurantId: restaurants[0].id, totalPrice: 35.97, status: OrderStatus.DELIVERED },
-        { code: 'ORDER002', restaurantId: restaurants[1].id, totalPrice: 23.98, status: OrderStatus.DELIVERED },
-        { code: 'ORDER003', restaurantId: restaurants[2].id, totalPrice: 26.98, status: OrderStatus.CONFIRMED },
-        { code: 'ORDER004', restaurantId: restaurants[3].id, totalPrice: 22.98, status: OrderStatus.PREPARING },
-        { code: 'ORDER005', restaurantId: restaurants[0].id, totalPrice: 29.97, status: OrderStatus.DELIVERING },
-        { code: 'ORDER006', restaurantId: restaurants[4].id, totalPrice: 14.98, status: OrderStatus.PENDING },
+        { code: 'ORDER001', restaurantId: restaurants[0].id, totalPrice: 32.37, status: OrderStatus.DELIVERED, userId: customer1.id, voucherId: vouchers[0].id },
+        { code: 'ORDER002', restaurantId: restaurants[1].id, totalPrice: 21.48, status: OrderStatus.DELIVERED, userId: customer1.id, voucherId: vouchers[1].id },
+        { code: 'ORDER003', restaurantId: restaurants[2].id, totalPrice: 26.98, status: OrderStatus.CONFIRMED, userId: customer2.id },
+        { code: 'ORDER004', restaurantId: restaurants[3].id, totalPrice: 20.68, status: OrderStatus.PREPARING, userId: customer2.id, voucherId: vouchers[2].id },
+        { code: 'ORDER005', restaurantId: restaurants[0].id, totalPrice: 29.97, status: OrderStatus.DELIVERING, userId: customer1.id },
+        { code: 'ORDER006', restaurantId: restaurants[4].id, totalPrice: 13.23, status: OrderStatus.PENDING, userId: customer2.id, voucherId: vouchers[3].id },
     ];
 
     const createdOrders = await Promise.all(
         orders.map((order) => prisma.order.create({ data: order })),
     );
 
-    console.log(`✅ Seeded 6 orders`);
+    console.log(`✅ Seeded 6 orders with voucher usage`);
     return createdOrders;
 }
 
@@ -400,12 +429,12 @@ async function seedPayments(orders: any[]) {
     console.log('🌱 Seeding payments...');
 
     const payments = [
-        { orderId: orders[0].id, method: PaymentMethod.CASH, amount: 35.97, status: PaymentStatus.DONE },
-        { orderId: orders[1].id, method: PaymentMethod.MOMO, amount: 23.98, status: PaymentStatus.DONE },
-        { orderId: orders[2].id, method: PaymentMethod.ZALOPAY, amount: 26.98, status: PaymentStatus.SOLVING },
-        { orderId: orders[3].id, method: PaymentMethod.BANK, amount: 22.98, status: PaymentStatus.SOLVING },
-        { orderId: orders[4].id, method: PaymentMethod.CASH, amount: 29.97, status: PaymentStatus.DONE },
-        { orderId: orders[5].id, method: PaymentMethod.MOMO, amount: 14.98, status: PaymentStatus.SOLVING },
+        { orderId: orders[0].id, method: PaymentMethod.CASH, amount: 35.97, paymentStatus: PaymentStatus.DONE },
+        { orderId: orders[1].id, method: PaymentMethod.MOMO, amount: 23.98, paymentStatus: PaymentStatus.DONE },
+        { orderId: orders[2].id, method: PaymentMethod.CASH, amount: 26.98, paymentStatus: PaymentStatus.SOLVING },
+        { orderId: orders[3].id, method: PaymentMethod.MOMO, amount: 22.98, paymentStatus: PaymentStatus.SOLVING },
+        { orderId: orders[4].id, method: PaymentMethod.CASH, amount: 29.97, paymentStatus: PaymentStatus.DONE },
+        { orderId: orders[5].id, method: PaymentMethod.MOMO, amount: 14.98, paymentStatus: PaymentStatus.SOLVING },
     ];
 
     await prisma.payment.createMany({
@@ -464,8 +493,8 @@ async function seedCarts(customer1: any, customer2: any, restaurants: any[], foo
     console.log('🌱 Seeding carts...');
 
     const carts = [
-        { userId: customer1.id, restaurantId: restaurants[0].id },
-        { userId: customer2.id, restaurantId: restaurants[1].id },
+        { userId: customer1.id},
+        { userId: customer2.id},
     ];
 
     const createdCarts = await Promise.all(
@@ -503,12 +532,13 @@ async function main() {
 
             const users = await seedUsers();
             const restaurants = await seedRestaurants(users.business);
-
-            // 🔥 NEW FLOW
             const menus = await seedMenus(restaurants);
             const foods = await seedFoods(menus);
 
-            const orders = await seedOrders(users.business, users.customer1, users.customer2, restaurants);
+            // Seed vouchers before orders
+            const vouchers = await seedVouchers();
+
+            const orders = await seedOrders(users.business, users.customer1, users.customer2, restaurants, vouchers);
             await seedOrderFoods(orders, foods);
             await seedPayments(orders);
 

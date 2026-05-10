@@ -1,8 +1,11 @@
+//Build with Kha An and Claude Code => Dev sắp thất nghiệp rồi nhé 
+//Một mình 1 thằng 1 AI vẫn xử đc thì tuyển thêm làm mịa gì? 
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateOrderDto } from './dto/order.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AddressService } from '../address/address.service';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, PaymentMethod, Prisma, VoucherType } from '@prisma/client';
+import { PaymentService } from '../payment/payment.service';
 type FoodType = {
     name: string;
     id: number;
@@ -20,15 +23,53 @@ export class OrderService {
     constructor(
         private prismaService: PrismaService,
         private addressService: AddressService,
+        private paymentService : PaymentService
     ) {}
     //____________________HELPER
-    
-    async validateFood(foods : FoodType[]) 
-    {
-        for (let i  = 0; i < foods.length - 1; ++i) 
-            if (foods[i].restaurantId !== foods[i + 1].restaurantId)
-                return false 
-        return true 
+
+    /**
+     * Validate that all foods belong to the same restaurant.
+     * Throws error if foods are from different restaurants.
+     */
+    private validateFoodsFromSameRestaurant(foods: FoodType[]) {
+        if (foods.length === 0) {
+            throw new BadRequestException('No foods provided');
+        }
+        const firstRestaurantId = foods[0].restaurantId;
+        for (const food of foods) {
+            if (food.restaurantId !== firstRestaurantId) {
+                throw new BadRequestException(
+                    "All foods must belong to the same restaurant",
+                );
+            }
+        }
+    }
+
+    /**
+     * Calculate discount amount based on fixed money discount.
+     * Returns final price after discount (minimum 0).
+     */
+    private calculateMoneyDiscount(
+        totalPrice: Prisma.Decimal,
+        discountAmount: number,
+    ): number {
+        return Math.max(0, Number(totalPrice) - discountAmount);
+    }
+
+    /**
+     * Calculate discount amount based on percentage discount.
+     * Input: percentage as whole number (e.g., 20 = 20%) or decimal (e.g., 0.2 = 20%)
+     * Returns final price after discount (minimum 0).
+     */
+    private calculatePercentDiscount(
+        totalPrice: Prisma.Decimal,
+        discountPercent: number,
+    ): number {
+        // Normalize percentage to decimal (0-1)
+        const normalizedPercent =
+            discountPercent > 1 ? discountPercent / 100 : discountPercent;
+        const discountAmount = Number(totalPrice) * normalizedPercent;
+        return Math.max(0, Math.floor(Number(totalPrice) - discountAmount));
     }
     //_________________Business Logic 
     async createOrder(userId: number, data: CreateOrderDto) {
@@ -37,50 +78,62 @@ export class OrderService {
                 let totalPrice = new Prisma.Decimal(0);
                 let voucherId: number | undefined;
                 let address = null;
-                let realAddressId : number 
+                let realAddressId: number;
+                let saleOff = 0;
+                let voucherType: VoucherType | undefined; 
 
-                if (data.customAddress)
-                {
+                if (data.customAddress) {
                     address = await this.addressService.createAddress(
-                        data.customAddress, 
-                        tx  //Transactional Variable  
+                        data.customAddress,
+                        tx, // Transactional client
                     );
-                    realAddressId = address.id 
-                }
-                else {
-                    address =
-                        await tx.userAddress.findFirst({
-                            where: {
-                                id: data.savedAddressId,
-                            },
-                        });
-                    if (!address || address.userId != userId)
+                    realAddressId = address.id;
+                } else {
+                    address = await tx.userAddress.findFirst({
+                        where: {
+                            id: data.savedAddressId,
+                        },
+                    });
+                    if (!address || address.userId !== userId) {
                         throw new BadRequestException(
-                            "This is not user's address",
+                            "This address does not belong to the user",
                         );
-                    realAddressId = address.addressId
-                    
+                    }
+                    realAddressId = address.addressId;
                 }
-                if (!address) throw new BadRequestException("Don't know address");
+
+                if (!address) {
+                    throw new BadRequestException("Address is required");
+                }
                 
                 //______ Checking order voucher
-
                 if (data.voucherId) {
-                    const v = await tx.voucher.findFirst(
-                        {
-                            where: { id: data.voucherId },
+                    const v = await tx.voucher.findFirst({
+                        where: {
+                            id: data.voucherId,
+                            deleteAt: null, // Only use non-deleted vouchers
                         },
-                    );
-                    if (!v) throw new BadRequestException('Voucher not found');
+                    });
+                    if (!v) {
+                        throw new BadRequestException(
+                            'Voucher not found or has been deleted',
+                        );
+                    }
                     voucherId = v.id;
+                    saleOff = v.sale;
+                    voucherType = v.type;
                 }
                 //______Checking restaurant
-                const restaurant =
-                    await tx.restaurant.findFirst({
-                        where: { id: data.restaurantId },
-                    });
+                const restaurant = await tx.restaurant.findFirst({
+                    where: {
+                        id: data.restaurantId,
+                        deleteAt: null, // Only allow active restaurants
+                    },
+                });
                 if (!restaurant)
-                    throw new BadRequestException('Restaurant not found');
+                    throw new BadRequestException(
+                        'Restaurant not found or has been deleted',
+                    );
                 //______ Create snapshot order data
                 const orderData = {
                     restaurantId: data.restaurantId,
@@ -112,15 +165,15 @@ export class OrderService {
                         id: {
                             in: foodIds,
                         },
+                        deleteAt: null, // Only allow non-deleted foods
                     },
                 });
-                if (!this.validateFood(foods)) 
-                    throw new BadRequestException("Foods don't belong to the same restaurant") 
-                if (foodIds.length != foods.length)
+                if (foodIds.length !== foods.length)
                     throw new BadRequestException(
-                        'Some food invalid in the array',
+                        'Some foods not found or have been deleted',
                     );
-                //____________Checking is food in the same restaurant: 
+                //____________Validate all foods from same restaurant
+                this.validateFoodsFromSameRestaurant(foods); 
                 const orderFoodData = foods.map((food) => {
                     const orderFood = orderFoodMap.get(food.id);
                     if (!orderFood) {
@@ -140,25 +193,55 @@ export class OrderService {
                     };
                 });
 
-                // _________ Calculate total price
+                
                 await tx.orderFood.createMany({
                     data: orderFoodData,
                 });
+                // ==================== CALCULATE FINAL PRICE WITH DISCOUNT ====================
+                let finalPrice = Math.ceil(Number(totalPrice));
+
+                if (saleOff && voucherType) {
+                    if (voucherType === VoucherType.MONEY) {
+                        finalPrice = this.calculateMoneyDiscount(totalPrice, saleOff);
+                    } else if (voucherType === VoucherType.PERCENT) {
+                        finalPrice = this.calculatePercentDiscount(totalPrice, saleOff);
+                    }
+                }
+
+                // ==================== UPDATE ORDER WITH FINAL PRICE ====================
                 await tx.order.update({
                     where: { id: order.id },
                     data: {
-                        totalPrice,
+                        totalPrice: finalPrice,
                     },
                 });
-                //Calling API in order store the payment
+                // ==================== PAYMENT CREATION ====================
+                let paymentInformation = {};
+                if (data.paymentMethod === PaymentMethod.MOMO) {
+                    paymentInformation = await this.paymentService.createMoMoPayment(
+                        order.id,
+                        finalPrice,
+                        tx,
+                    );
+                } else if (data.paymentMethod === PaymentMethod.CASH) {
+                    paymentInformation =
+                        await this.paymentService.createCashPayment(
+                            order.id,
+                            finalPrice,
+                            tx,
+                        );
+                } else {
+                    throw new BadRequestException('Invalid payment method');
+                }
                 return {
                     order,
                     orderFoodData,
+                    paymentInformation,
                 };
             });
-            return result
+            return result;
         } catch (err) {
-            console.log('create order error', err);
+            console.error('Create order error:', err);
             throw err;
         }
     }

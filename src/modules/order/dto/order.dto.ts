@@ -7,10 +7,12 @@ import {
     ValidateIf,
     ArrayMinSize,
     IsString,
+    IsEnum,
 } from 'class-validator';
 
 import { Type } from 'class-transformer';
 import { CreateAddressDto } from '@/modules/address/dto/address.dto';
+import { PaymentMethod } from '@prisma/client';
 
 class CreateOrderFoodDto {
     @IsInt()
@@ -55,4 +57,6 @@ export class CreateOrderDto {
     @ValidateNested({ each: true })
     @Type(() => CreateOrderFoodDto)
     orderFoods: CreateOrderFoodDto[];
+    @IsEnum(PaymentMethod)
+    paymentMethod : PaymentMethod
 }

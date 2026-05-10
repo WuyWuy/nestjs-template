@@ -2,7 +2,7 @@ model Voucher {
     id          Int           @id @default(autoincrement())
     name        String
     description String        @default("")
-    sale        Decimal
+    sale        Float  
     type        VoucherType
     status      VoucherStatus
     deleteAt    DateTime?

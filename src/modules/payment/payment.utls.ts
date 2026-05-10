@@ -67,6 +67,12 @@ export async function getMomoPayUrl(
             }
         }
     );
-    // console.log(response) 
-    return response.data.payUrl 
+    const data = response.data 
+    // if (data.resultCode == 0) -- Give it to the production because test so result code always 0 
+    //     return {
+    //         message: "Giao dịch không thành công"
+    //     }
+    return {
+        ...data 
+    }
 }

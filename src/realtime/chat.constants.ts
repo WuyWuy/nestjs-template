@@ -1,8 +1,8 @@
-export const ChatStatus =  {
-    SUCCESS: 'success', 
-    ERROR: 'error'
-}
+export const ChatStatus = {
+    SUCCESS: 'success',
+    ERROR: 'error',
+};
 export enum ChatResponseBody {
-    CONTENT = 'content', 
-    STATUS = 'status'
+    CONTENT = 'content',
+    STATUS = 'status',
 }

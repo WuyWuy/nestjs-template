@@ -36,21 +36,21 @@ import { PaymentModule } from './modules/payment/payment.module';
         TwilioModule, //Sending SmS
         DeviceModule,
         NotificationModule,
-        EmailModule, 
-        MinioModule, 
-        UserModule, 
-        AddressModule, 
-        ConversationModule, 
-        FoodModule, 
-        RestaurantModule, 
+        EmailModule,
+        MinioModule,
+        UserModule,
+        AddressModule,
+        ConversationModule,
+        FoodModule,
+        RestaurantModule,
         CartModule,
-        OrderModule, 
-        PaymentModule //Mot lat sau nho go cai nay ra 
+        OrderModule,
+        PaymentModule, //Mot lat sau nho go cai nay ra
     ],
     controllers: [AppController],
     providers: [
-        ChatGateway, 
-        ChatService, 
+        ChatGateway,
+        ChatService,
         AppService,
         {
             provide: APP_FILTER,

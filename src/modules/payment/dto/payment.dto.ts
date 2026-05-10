@@ -2,9 +2,11 @@ import {
     IsDecimal,
     IsEnum,
     IsInt,
+    IsNotEmpty,
+    IsString,
 } from 'class-validator';
 
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod, PaymentStatus } from '@prisma/client';
 
 export class CreatePaymentDto {
     @IsInt()
@@ -15,4 +17,11 @@ export class CreatePaymentDto {
 
     @IsDecimal()
     amount: string;
+}
+export class CheckingPaymentDto {
+    @IsString()
+    @IsNotEmpty()
+    momoOrderId: string;
+    @IsEnum(PaymentStatus)
+    status: PaymentStatus;
 }

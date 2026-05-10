@@ -19,18 +19,17 @@ export class UserService {
         private readonly minioService: MinioService,
         private readonly addressService: AddressService,
     ) {}
-    //__________________________HELPER 
-    async findById(userId : number) 
-    {
+    //__________________________HELPER
+    async findById(userId: number) {
         const user = await this.prismaService.client.user.findFirst({
-            where : {
-                id : userId
-            }, 
+            where: {
+                id: userId,
+            },
             include: {
-                cart: true 
-            }
-        }) 
-        return user 
+                cart: true,
+            },
+        });
+        return user;
     }
     async uploadImages(file: Express.Multer.File) {
         try {
@@ -153,12 +152,13 @@ export class UserService {
         return await this.minioService.getFileUrl(avatar);
     }
     private async getUserAddressOrThrow(id: number, userId: number) {
-        const userAddress = await this.prismaService.client.userAddress.findFirst({
-            where: {
-                id,
-                userId,
-            },
-        });
+        const userAddress =
+            await this.prismaService.client.userAddress.findFirst({
+                where: {
+                    id,
+                    userId,
+                },
+            });
         if (!userAddress) {
             throw new BadRequestException(
                 'This address not belong to this user or was deleted',
@@ -194,13 +194,14 @@ export class UserService {
         try {
             const user = await this.getUserById(userId);
             if (!user) throw new UnauthorizedException('user not found');
-            const addresses = await this.prismaService.client.userAddress.findMany({
-                where: { userId , deleteAt: null },
-                select: {
-                    title: true,
-                    address: true,
-                },
-            });
+            const addresses =
+                await this.prismaService.client.userAddress.findMany({
+                    where: { userId, deleteAt: null },
+                    select: {
+                        title: true,
+                        address: true,
+                    },
+                });
             return addresses;
         } catch (err) {
             console.log('get all address error', err);
@@ -218,10 +219,11 @@ export class UserService {
                 const updateData: any = {};
                 if (updateAddress.title) updateData.title = updateAddress.title;
                 if (updateAddress.address) {
-                    const addressRecord = await this.addressService.createAddress(
-                        updateAddress.address,
-                        tx,
-                    );
+                    const addressRecord =
+                        await this.addressService.createAddress(
+                            updateAddress.address,
+                            tx,
+                        );
                     updateData.addressId = addressRecord.id;
                 }
                 if (!Object.keys(updateData).length) {
@@ -245,49 +247,40 @@ export class UserService {
             throw err;
         }
     }
-    async getUserAddressById(id : number , userId : number) 
-    {
-        try 
-        {
-            const result = await this.prismaService.client.userAddress.findFirst({
-                where : {id  , userId, deleteAt: null}, 
-                select: {
-                    id: true,
-                    title: true,
-                    address: true 
-                }
-            })
-            if (!result) 
-                throw new BadRequestException("User Address not found") 
-            return result 
-        }
-        catch (err) 
-        {
-            console.log("get user's address by id error" , err) 
-            throw err 
+    async getUserAddressById(id: number, userId: number) {
+        try {
+            const result =
+                await this.prismaService.client.userAddress.findFirst({
+                    where: { id, userId, deleteAt: null },
+                    select: {
+                        id: true,
+                        title: true,
+                        address: true,
+                    },
+                });
+            if (!result)
+                throw new BadRequestException('User Address not found');
+            return result;
+        } catch (err) {
+            console.log("get user's address by id error", err);
+            throw err;
         }
     }
-    async deleteUserAddress(id : number , userId : number) 
-    {
-        try 
-        {
+    async deleteUserAddress(id: number, userId: number) {
+        try {
             await this.getUserAddressOrThrow(id, userId);
             const result = await this.prismaService.client.userAddress.update({
                 where: {
-                    id
-                }, 
-                data : {
-                    deleteAt : new Date(Date.now()) 
-                } 
-
-            })  
-            return result 
-        } 
-        catch (err) 
-        {
-            console.log("delete user's address error" , err) 
-            throw err 
+                    id,
+                },
+                data: {
+                    deleteAt: new Date(Date.now()),
+                },
+            });
+            return result;
+        } catch (err) {
+            console.log("delete user's address error", err);
+            throw err;
         }
     }
-
 }

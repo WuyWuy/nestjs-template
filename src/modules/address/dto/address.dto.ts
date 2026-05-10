@@ -8,7 +8,7 @@ export class CreateAddressDto {
     @IsNumber()
     longitude: number;
     @IsString()
-    @IsOptional() 
+    @IsOptional()
     fullText: string;
 }
 export class FindAddressDto {

@@ -12,7 +12,7 @@ import {
 
 import { Type } from 'class-transformer';
 import { CreateAddressDto } from '@/modules/address/dto/address.dto';
-import { PaymentMethod } from '@prisma/client';
+import { OrderStatus, PaymentMethod } from '@prisma/client';
 
 class CreateOrderFoodDto {
     @IsInt()
@@ -58,4 +58,10 @@ export class CreateOrderDto {
     orderFoods: CreateOrderFoodDto[];
     @IsEnum(PaymentMethod)
     paymentMethod: PaymentMethod;
+}
+
+export class UpdateOrderStatus 
+{
+    @IsEnum(OrderStatus) 
+    status : OrderStatus
 }

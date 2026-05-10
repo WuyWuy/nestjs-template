@@ -2,16 +2,18 @@ import {
     Body,
     Controller,
     DefaultValuePipe,
+    Delete,
     Get,
     Param,
     ParseIntPipe,
+    Patch,
     Post,
     Query,
     Req,
     UseGuards,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
-import { CreateOrderDto } from './dto/order.dto';
+import { CreateOrderDto, UpdateOrderStatus } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '@/bases/guards/role.guard';
 import { Roles } from '@/bases/decorators/role.decorators';
@@ -57,5 +59,22 @@ export class OrderController {
             orderId,
         );
         return response;
+    }
+    @Delete('/:orderId')
+    async deleteOrder(
+        @Param('orderId', ParseIntPipe) orderId: number,
+        @Req() req: Request,
+    ) {
+        const userId = (req.user as any).id;
+        return await this.orderSerivce.deleteOrderById(Number(userId) , orderId)
+    }
+    @Patch('/:orderId')
+    async updateOrderStatus(
+        @Param('orderId', ParseIntPipe) orderId: number,
+        @Req() req: Request,
+        @Body() data : UpdateOrderStatus
+    ) {
+        const userId = (req.user as any).id;
+        return await this.orderSerivce.updateOrderStatus(Number(userId) , orderId , data)
     }
 }

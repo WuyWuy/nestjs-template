@@ -245,4 +245,64 @@ export class OrderService {
             throw err;
         }
     }
+    async getAllOrders(limit : number , offset : number) 
+    {
+        try 
+        {
+            let orders = await this.prismaService.client.order.findMany({
+                
+                select : {
+                    id : true, 
+                    totalPrice : true, 
+                    status : true, 
+                    restaurant : {
+                        select: { id : true , name : true }
+                    }, 
+                    orderFoods: {
+                        select: {
+                            quantity: true, 
+                            food : { select: { id : true , name : true }}
+                        }
+                    }, 
+                    voucher: {
+                        select: {
+                        
+                            name : true, 
+                        }
+                    }, 
+                    payments: {
+                        select: {
+                            paymentStatus : true, 
+                            method : true 
+                        }
+                    }, 
+                
+                }, 
+                take : limit, 
+                skip : offset
+            })
+
+            const result = orders.map((order) => {
+                return {
+                    ...order, 
+                    orderFoods: order.orderFoods.map((orderFood) => {
+                        return {
+                            id : orderFood.food.id, 
+                            name : orderFood.food.name, 
+                            quantity : orderFood.quantity
+                        }
+                    }), 
+                    payments: order.payments[0], 
+                    voucher: order.voucher?.name
+                }
+            })
+            console.log("Ham lay du lieu:")
+            return result 
+        } 
+        catch (err) 
+        {
+            console.log("Get all payment error" , err) 
+            throw err 
+        }
+    }
 }

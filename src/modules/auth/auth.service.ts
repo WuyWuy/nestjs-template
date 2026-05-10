@@ -1,17 +1,9 @@
 import { PrismaService } from '@/prisma/prisma.service';
-import {
-    BadRequestException,
-    Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { LoginData, RegisterData } from './dto/auth.dto';
-import {
-    AuthProvider,
-    OTPType,
-    Role,
-    TokenType,
-} from '@prisma/client';
+import { AuthProvider, OTPType, Role, TokenType } from '@prisma/client';
 import { generateOtp } from '@/utilis/ranomOtp';
 import {
     RESET_EMAIL_OTP_LIVE_TIME,
@@ -28,7 +20,7 @@ import { TwilioService } from '../twilio/twilio.service';
 import { generatePassword } from '@/utilis/rnadomPassword';
 import { EmailService } from '../email/email.service';
 import { APP_NAME } from '@/bases/commons/constants/app.constant';
-import axios from 'axios' 
+import axios from 'axios';
 import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
 
 type SocialProfile = {
@@ -48,7 +40,7 @@ export class AuthService {
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
         private readonly twilioService: TwilioService,
-        private readonly emailService : EmailService
+        private readonly emailService: EmailService,
         // private readonly twilioService: TwilioService,
     ) {}
     async validateUser(phone: string, password: string) {
@@ -57,7 +49,7 @@ export class AuthService {
         });
         if (user) {
             const results = await Bun.password.verify(password, user.password);
-            console.log("Validate result: " , results) 
+            console.log('Validate result: ', results);
             if (results) {
                 await this.prismaService.client.identity.upsert({
                     where: {
@@ -81,109 +73,105 @@ export class AuthService {
     }
     async register(registerData: RegisterData) {
         try {
-            const results = await this.prismaService.transaction(
-                async (tx) => {
-                    let user = await tx.user.findFirst({
-                        where: {
-                            OR: [
-                                {
-                                    phone: registerData.phone,
-                                },
-                                {
-                                    email: registerData.email,
-                                },
-                            ],
-                        },
-                    });
-                    if (user && user.active)
-                        throw new BadRequestException(
-                            'Use has been register. Please login',
-                        );
-                    if (!user) {
-                        const hashedPassword = await Bun.password.hash(
-                            registerData.password,
+            const results = await this.prismaService.transaction(async (tx) => {
+                let user = await tx.user.findFirst({
+                    where: {
+                        OR: [
                             {
-                                cost: 10,
-                                algorithm: 'bcrypt',
-                            },
-                        );
-                        user = await tx.user.create({
-                            data: {
-                                active: false,
-                                name: registerData.name,
-                                email: registerData.email,
-                                birthday: new Date(registerData.birthday),
-                                password: hashedPassword,
                                 phone: registerData.phone,
                             },
-                        });
-                        //Creating Role
-                        await tx.userRole.create({
-                            data: {
-                                userId: user.id,
-                                role: Role.CUSTOMER, //Default is the customer
+                            {
+                                email: registerData.email,
                             },
-                        });
-                        await tx.identity.create({
-                            data: {
-                                userId: user.id,
-                                provider: AuthProvider.LOCAL,
-                                providerUserId: this.getLocalProviderUserId(
-                                    user.id,
-                                ),
-                            },
-                        });
-                        //Create a new cart 
-                        await tx.cart.create({
-                            data: {
-                                userId : user.id, 
-                            }
-                        })
-                    } else {
-                        await tx.identity.upsert({
-                            where: {
-                                userId_provider: {
-                                    userId: user.id,
-                                    provider: AuthProvider.LOCAL,
-                                },
-                            },
-                            create: {
-                                userId: user.id,
-                                provider: AuthProvider.LOCAL,
-                                providerUserId: this.getLocalProviderUserId(
-                                    user.id,
-                                ),
-                            },
-                            update: {},
-                        });
-                    }
-                    //Create otp
-                    await tx.oTP.deleteMany({
-                        userId: user.id,
-                        type: OTPType.VERIFY_OTP, //Use for verify register
-                    });
-                    const otp = generateOtp();
-                    await tx.oTP.create({
+                        ],
+                    },
+                });
+                if (user && user.active)
+                    throw new BadRequestException(
+                        'Use has been register. Please login',
+                    );
+                if (!user) {
+                    const hashedPassword = await Bun.password.hash(
+                        registerData.password,
+                        {
+                            cost: 10,
+                            algorithm: 'bcrypt',
+                        },
+                    );
+                    user = await tx.user.create({
                         data: {
-                            otp: hashing(otp),
+                            active: false,
+                            name: registerData.name,
+                            email: registerData.email,
+                            birthday: new Date(registerData.birthday),
+                            password: hashedPassword,
+                            phone: registerData.phone,
+                        },
+                    });
+                    //Creating Role
+                    await tx.userRole.create({
+                        data: {
                             userId: user.id,
-                            type: OTPType.VERIFY_OTP,
-                            expiresAt: new Date(
-                                Date.now() + VERIFY_OTP_LIVE_TIME,
+                            role: Role.CUSTOMER, //Default is the customer
+                        },
+                    });
+                    await tx.identity.create({
+                        data: {
+                            userId: user.id,
+                            provider: AuthProvider.LOCAL,
+                            providerUserId: this.getLocalProviderUserId(
+                                user.id,
                             ),
                         },
                     });
+                    //Create a new cart
+                    await tx.cart.create({
+                        data: {
+                            userId: user.id,
+                        },
+                    });
+                } else {
+                    await tx.identity.upsert({
+                        where: {
+                            userId_provider: {
+                                userId: user.id,
+                                provider: AuthProvider.LOCAL,
+                            },
+                        },
+                        create: {
+                            userId: user.id,
+                            provider: AuthProvider.LOCAL,
+                            providerUserId: this.getLocalProviderUserId(
+                                user.id,
+                            ),
+                        },
+                        update: {},
+                    });
+                }
+                //Create otp
+                await tx.oTP.deleteMany({
+                    userId: user.id,
+                    type: OTPType.VERIFY_OTP, //Use for verify register
+                });
+                const otp = generateOtp();
+                await tx.oTP.create({
+                    data: {
+                        otp: hashing(otp),
+                        userId: user.id,
+                        type: OTPType.VERIFY_OTP,
+                        expiresAt: new Date(Date.now() + VERIFY_OTP_LIVE_TIME),
+                    },
+                });
 
-                    return {
-                        otp,
-                        id: user.id,
-                        birthday: user.birthday,
-                        name: user.name,
-                        phone: user.phone,
-                        email: user.email,
-                    };
-                },
-            );
+                return {
+                    otp,
+                    id: user.id,
+                    birthday: user.birthday,
+                    name: user.name,
+                    phone: user.phone,
+                    email: user.email,
+                };
+            });
             return results;
         } catch (err) {
             console.log('Register Error: ', err);
@@ -239,7 +227,7 @@ export class AuthService {
     }
     async loginLocal(data: LoginData) {
         const user = await this.validateUser(data.phone, data.password);
-        
+
         if (!user) {
             throw new BadRequestException('Phone or password is incorrect');
         }
@@ -374,7 +362,7 @@ export class AuthService {
             const matchedUser = profile.email
                 ? await tx.user.findFirst({
                       where: {
-                          email: profile.email 
+                          email: profile.email,
                       },
                   })
                 : null;
@@ -436,7 +424,9 @@ export class AuthService {
 
         return await this.buildAuthResponse(userId);
     }
-    private async getFacebookProfile(accessToken: string): Promise<SocialProfile> {
+    private async getFacebookProfile(
+        accessToken: string,
+    ): Promise<SocialProfile> {
         const { data } = await axios.get('https://graph.facebook.com/me', {
             params: {
                 fields: 'id,name,email,picture',
@@ -455,7 +445,9 @@ export class AuthService {
             avatar: data.picture?.data?.url || '',
         };
     }
-    private async getGoogleProfile(accessToken: string): Promise<SocialProfile> {
+    private async getGoogleProfile(
+        accessToken: string,
+    ): Promise<SocialProfile> {
         const { data } = await axios.get(
             'https://www.googleapis.com/oauth2/v3/userinfo',
             {
@@ -481,7 +473,7 @@ export class AuthService {
             const user = await this.prismaService.client.user.findFirst({
                 where: { phone },
             });
-            console.log(user) 
+            console.log(user);
             if (!user) throw new BadRequestException('User Not Found');
             if (phone.startsWith('0')) {
                 phone = phone.replace('0', '84');
@@ -536,58 +528,51 @@ export class AuthService {
             throw err;
         }
     }
-    async forgotPassword(email : string) 
-    {
-        try 
-        {
+    async forgotPassword(email: string) {
+        try {
             const user = await this.prismaService.client.user.findFirst({
                 where: {
-                    email 
-                }
-            }) 
-            if (!user) 
-                throw new BadRequestException("Email has not been registered") 
-            const defaultPassword = generatePassword() 
-            const hashPassword = await Bun.password.hash(
-                defaultPassword , {
-                    cost : 10, 
-                    algorithm : 'bcrypt'
-                }
-            ) 
+                    email,
+                },
+            });
+            if (!user)
+                throw new BadRequestException('Email has not been registered');
+            const defaultPassword = generatePassword();
+            const hashPassword = await Bun.password.hash(defaultPassword, {
+                cost: 10,
+                algorithm: 'bcrypt',
+            });
             await this.prismaService.client.user.update({
                 data: {
-                    password : hashPassword
-                }, 
+                    password: hashPassword,
+                },
                 where: {
-                    id : user.id 
-                }
-            })
-            //send email 
-            await this.emailService.forgotPasswordEmail(`[${APP_NAME}] RESET YOUR PASSWORD` , user.email , defaultPassword) 
-            console.log("Email has been sent successfully") 
+                    id: user.id,
+                },
+            });
+            //send email
+            await this.emailService.forgotPasswordEmail(
+                `[${APP_NAME}] RESET YOUR PASSWORD`,
+                user.email,
+                defaultPassword,
+            );
+            console.log('Email has been sent successfully');
             return {
-                defaultPassword 
-            }
-        } 
-        catch (err) 
-        {
-            console.log("Reset password to default error" , err) 
-            throw err 
+                defaultPassword,
+            };
+        } catch (err) {
+            console.log('Reset password to default error', err);
+            throw err;
         }
-
     }
 
-    async fbLogin(code : string) 
-    {
-        try 
-        {
+    async fbLogin(code: string) {
+        try {
             const profile = await this.getFacebookProfile(code);
             return await this.resolveSocialLogin(profile);
-        } 
-        catch (err) 
-        {
-            console.log("Login facebook error: ", err) 
-            throw err 
+        } catch (err) {
+            console.log('Login facebook error: ', err);
+            throw err;
         }
     }
     async googleLogin(accessToken: string) {

@@ -19,9 +19,9 @@ export class CreatePaymentDto {
     amount: string;
 }
 export class CheckingPaymentDto {
-    @IsString() 
-    @IsNotEmpty() 
-    momoOrderId : string; 
-    @IsEnum(PaymentStatus) 
-    status : PaymentStatus
+    @IsString()
+    @IsNotEmpty()
+    momoOrderId: string;
+    @IsEnum(PaymentStatus)
+    status: PaymentStatus;
 }

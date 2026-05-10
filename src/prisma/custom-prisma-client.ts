@@ -45,10 +45,5 @@ export class PrismaClientExtended extends PrismaClient {
 export type CustomPrismaClient = ReturnType<typeof customPrismaClient>;
 export type TransactionClientExtended = Omit<
     CustomPrismaClient,
-    | '$connect'
-    | '$disconnect'
-    | '$on'
-    | '$transaction'
-    | '$use'
-    | '$extends'
+    '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
 >;

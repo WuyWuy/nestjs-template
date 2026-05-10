@@ -7,16 +7,18 @@ import { WsException } from '@nestjs/websockets';
 export class ChatService {
     constructor(private readonly prismaService: PrismaService) {}
     async validateConversation(userId: number, conversationId: number) {
-
-        const conversation = await this.prismaService.client.conversation.findFirst({
-            where: { id: conversationId },
-        });
-        console.log(conversation)
-        if (!conversation) 
-            throw new WsException("Conversation not found") 
-        if (conversation.customerId !== userId && conversation.sellerId !== userId) 
-            throw new WsException("Forbidden") 
-        return conversation
+        const conversation =
+            await this.prismaService.client.conversation.findFirst({
+                where: { id: conversationId },
+            });
+        console.log(conversation);
+        if (!conversation) throw new WsException('Conversation not found');
+        if (
+            conversation.customerId !== userId &&
+            conversation.sellerId !== userId
+        )
+            throw new WsException('Forbidden');
+        return conversation;
     }
     async storeDbAndEmitMessage(senderId: number, message: ChatMessage) {
         try {

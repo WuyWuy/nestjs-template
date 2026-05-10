@@ -21,11 +21,10 @@ class CreateOrderFoodDto {
     @IsInt()
     @Min(1)
     quantity: number;
-    @IsOptional() 
-    @IsString() 
-    fullText : string = ""; 
+    @IsOptional()
+    @IsString()
+    fullText: string = '';
 }
-
 
 export class CreateOrderDto {
     @IsInt()
@@ -58,5 +57,5 @@ export class CreateOrderDto {
     @Type(() => CreateOrderFoodDto)
     orderFoods: CreateOrderFoodDto[];
     @IsEnum(PaymentMethod)
-    paymentMethod : PaymentMethod
+    paymentMethod: PaymentMethod;
 }

@@ -357,10 +357,9 @@ export class OrderService {
                 }),
                 payments: order?.payments[0],
                 voucher: order?.voucher?.name,
-            }; 
-            return result
-        } 
-        catch (err) {
+            };
+            return result;
+        } catch (err) {
             console.log('Get all payment error', err);
             throw err;
         }

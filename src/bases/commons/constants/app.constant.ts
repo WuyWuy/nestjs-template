@@ -1,1 +1,1 @@
-export const APP_NAME = 'BETA DELIVERY'
+export const APP_NAME = 'BETA DELIVERY';

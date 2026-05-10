@@ -125,7 +125,11 @@ export class PaymentService {
             );
             return payUrl;
         } catch (err) {
-            console.error('Failed to create MoMo payment for order:', orderId, err);
+            console.error(
+                'Failed to create MoMo payment for order:',
+                orderId,
+                err,
+            );
             throw err;
         }
     }
@@ -156,7 +160,11 @@ export class PaymentService {
             );
             return payment;
         } catch (err) {
-            console.error('Failed to create cash payment for order:', orderId, err);
+            console.error(
+                'Failed to create cash payment for order:',
+                orderId,
+                err,
+            );
             throw err;
         }
     }
@@ -191,7 +199,11 @@ export class PaymentService {
             });
             return result;
         } catch (err) {
-            console.error('Failed to check/update payment for order:', orderId, err);
+            console.error(
+                'Failed to check/update payment for order:',
+                orderId,
+                err,
+            );
             throw err;
         }
     }

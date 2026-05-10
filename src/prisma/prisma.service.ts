@@ -4,7 +4,10 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClientExtended } from './custom-prisma-client';
 
 @Injectable()
-export class PrismaService extends PrismaClientExtended implements OnModuleInit {
+export class PrismaService
+    extends PrismaClientExtended
+    implements OnModuleInit
+{
     constructor() {
         const adapter = new PrismaPg({
             connectionString: process.env.DATABASE_URL,

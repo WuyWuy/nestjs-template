@@ -5,20 +5,20 @@ export async function getMomoPayUrl(
     partnerCode: string,
     accessKey: string,
     secretKey: string,
-    money: Prisma.Decimal | number, 
+    money: Prisma.Decimal | number,
     order: number,
 ) {
-    console.log("partnerCode"  , partnerCode) 
-    console.log("accessKey " , accessKey) 
-    console.log("secretKey" , secretKey)
-    
+    console.log('partnerCode', partnerCode);
+    console.log('accessKey ', accessKey);
+    console.log('secretKey', secretKey);
+
     var requestId = partnerCode + new Date().getTime();
-    var orderId = requestId + "-" + order 
+    var orderId = requestId + '-' + order;
     var orderInfo = 'Pay order with Momo';
     var redirectUrl = 'https://momo.vn/return'; //Url momo se return ve sau khi thanh toan thanh cong
     var ipnUrl = 'http://localhost:4000/api/payment/check-payment'; //Url ma Momo se goi ve ben backend de tien hanh cap nhat database sau khi thanh toan thanh cong
     // var ipnUrl = redirectUrl = "https://webhook.site/454e7b77-f177-4ece-8236-ddf1c26ba7f8";
-    var amount = money.toString()
+    var amount = money.toString();
     var requestType = 'captureWallet';
     var extraData = ''; //pass empty value if your merchant does not have stores
     var rawSignature =
@@ -61,18 +61,20 @@ export async function getMomoPayUrl(
         lang: 'en',
     });
     const response = await axios.post(
-        'https://test-payment.momo.vn/v2/gateway/api/create', requestBody , {
+        'https://test-payment.momo.vn/v2/gateway/api/create',
+        requestBody,
+        {
             headers: {
-                'Content-Type' : 'application/json'
-            }
-        }
+                'Content-Type': 'application/json',
+            },
+        },
     );
-    const data = response.data 
-    // if (data.resultCode == 0) -- Give it to the production because test so result code always 0 
+    const data = response.data;
+    // if (data.resultCode == 0) -- Give it to the production because test so result code always 0
     //     return {
     //         message: "Giao dịch không thành công"
     //     }
     return {
-        ...data 
-    }
+        ...data,
+    };
 }

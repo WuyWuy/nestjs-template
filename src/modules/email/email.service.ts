@@ -5,7 +5,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 export class EmailService {
     constructor(private readonly mailerService: MailerService) {}
 
-    getTemplate() : any {
+    getTemplate(): any {
         return {
             forgotPassword: {
                 path: 'forgotPassword', // no .hbs needed here
@@ -16,12 +16,12 @@ export class EmailService {
 
     async forgotPasswordEmail(
         subject: string,
-        to : string, 
-        defaultPassword : string 
+        to: string,
+        defaultPassword: string,
     ) {
         try {
             await this.mailerService.sendMail({
-                to, 
+                to,
                 subject,
                 template: 'forgotPassword',
                 context: {

@@ -1,10 +1,15 @@
-//Build with Kha An and Claude Code => Dev sắp thất nghiệp rồi nhé 
-//Một mình 1 thằng 1 AI vẫn xử đc thì tuyển thêm làm mịa gì? 
+//Build with Kha An and Claude Code => Dev sắp thất nghiệp rồi nhé
+//Một mình 1 thằng 1 AI vẫn xử đc thì tuyển thêm làm mịa gì?
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateOrderDto } from './dto/order.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AddressService } from '../address/address.service';
-import { OrderStatus, PaymentMethod, Prisma, VoucherType } from '@prisma/client';
+import {
+    OrderStatus,
+    PaymentMethod,
+    Prisma,
+    VoucherType,
+} from '@prisma/client';
 import { PaymentService } from '../payment/payment.service';
 type FoodType = {
     name: string;
@@ -17,13 +22,13 @@ type FoodType = {
     label: string;
     rating: number;
     restaurantId: number;
-}
+};
 @Injectable()
 export class OrderService {
     constructor(
         private prismaService: PrismaService,
         private addressService: AddressService,
-        private paymentService : PaymentService
+        private paymentService: PaymentService,
     ) {}
     //____________________HELPER
 
@@ -39,7 +44,7 @@ export class OrderService {
         for (const food of foods) {
             if (food.restaurantId !== firstRestaurantId) {
                 throw new BadRequestException(
-                    "All foods must belong to the same restaurant",
+                    'All foods must belong to the same restaurant',
                 );
             }
         }
@@ -71,7 +76,7 @@ export class OrderService {
         const discountAmount = Number(totalPrice) * normalizedPercent;
         return Math.max(0, Math.floor(Number(totalPrice) - discountAmount));
     }
-    //_________________Business Logic 
+    //_________________Business Logic
     async createOrder(userId: number, data: CreateOrderDto) {
         try {
             const result = await this.prismaService.transaction(async (tx) => {
@@ -80,7 +85,7 @@ export class OrderService {
                 let address = null;
                 let realAddressId: number;
                 let saleOff = 0;
-                let voucherType: VoucherType | undefined; 
+                let voucherType: VoucherType | undefined;
 
                 if (data.customAddress) {
                     address = await this.addressService.createAddress(
@@ -96,16 +101,16 @@ export class OrderService {
                     });
                     if (!address || address.userId !== userId) {
                         throw new BadRequestException(
-                            "This address does not belong to the user",
+                            'This address does not belong to the user',
                         );
                     }
                     realAddressId = address.addressId;
                 }
 
                 if (!address) {
-                    throw new BadRequestException("Address is required");
+                    throw new BadRequestException('Address is required');
                 }
-                
+
                 //______ Checking order voucher
                 if (data.voucherId) {
                     const v = await tx.voucher.findFirst({
@@ -173,7 +178,7 @@ export class OrderService {
                         'Some foods not found or have been deleted',
                     );
                 //____________Validate all foods from same restaurant
-                this.validateFoodsFromSameRestaurant(foods); 
+                this.validateFoodsFromSameRestaurant(foods);
                 const orderFoodData = foods.map((food) => {
                     const orderFood = orderFoodMap.get(food.id);
                     if (!orderFood) {
@@ -193,7 +198,6 @@ export class OrderService {
                     };
                 });
 
-                
                 await tx.orderFood.createMany({
                     data: orderFoodData,
                 });
@@ -202,9 +206,15 @@ export class OrderService {
 
                 if (saleOff && voucherType) {
                     if (voucherType === VoucherType.MONEY) {
-                        finalPrice = this.calculateMoneyDiscount(totalPrice, saleOff);
+                        finalPrice = this.calculateMoneyDiscount(
+                            totalPrice,
+                            saleOff,
+                        );
                     } else if (voucherType === VoucherType.PERCENT) {
-                        finalPrice = this.calculatePercentDiscount(totalPrice, saleOff);
+                        finalPrice = this.calculatePercentDiscount(
+                            totalPrice,
+                            saleOff,
+                        );
                     }
                 }
 
@@ -218,11 +228,12 @@ export class OrderService {
                 // ==================== PAYMENT CREATION ====================
                 let paymentInformation = {};
                 if (data.paymentMethod === PaymentMethod.MOMO) {
-                    paymentInformation = await this.paymentService.createMoMoPayment(
-                        order.id,
-                        finalPrice,
-                        tx,
-                    );
+                    paymentInformation =
+                        await this.paymentService.createMoMoPayment(
+                            order.id,
+                            finalPrice,
+                            tx,
+                        );
                 } else if (data.paymentMethod === PaymentMethod.CASH) {
                     paymentInformation =
                         await this.paymentService.createCashPayment(
@@ -245,64 +256,113 @@ export class OrderService {
             throw err;
         }
     }
-    async getAllOrders(limit : number , offset : number) 
-    {
-        try 
-        {
+    async getAllOrders(userId: number, limit: number, offset: number) {
+        try {
+            console.log(userId);
             let orders = await this.prismaService.client.order.findMany({
-                
-                select : {
-                    id : true, 
-                    totalPrice : true, 
-                    status : true, 
-                    restaurant : {
-                        select: { id : true , name : true }
-                    }, 
+                where: {
+                    userId,
+                },
+                select: {
+                    id: true,
+                    totalPrice: true,
+                    status: true,
+                    restaurant: {
+                        select: { id: true, name: true },
+                    },
                     orderFoods: {
                         select: {
-                            quantity: true, 
-                            food : { select: { id : true , name : true }}
-                        }
-                    }, 
+                            quantity: true,
+                            food: { select: { id: true, name: true } },
+                        },
+                    },
                     voucher: {
                         select: {
-                        
-                            name : true, 
-                        }
-                    }, 
+                            name: true,
+                        },
+                    },
                     payments: {
                         select: {
-                            paymentStatus : true, 
-                            method : true 
-                        }
-                    }, 
-                
-                }, 
-                take : limit, 
-                skip : offset
-            })
+                            paymentStatus: true,
+                            method: true,
+                        },
+                    },
+                },
+                take: limit,
+                skip: offset,
+            });
 
             const result = orders.map((order) => {
                 return {
-                    ...order, 
+                    ...order,
                     orderFoods: order.orderFoods.map((orderFood) => {
                         return {
-                            id : orderFood.food.id, 
-                            name : orderFood.food.name, 
-                            quantity : orderFood.quantity
-                        }
-                    }), 
-                    payments: order.payments[0], 
-                    voucher: order.voucher?.name
-                }
-            })
-            console.log("Ham lay du lieu:")
-            return result 
+                            id: orderFood.food.id,
+                            name: orderFood.food.name,
+                            quantity: orderFood.quantity,
+                        };
+                    }),
+                    payments: order.payments[0],
+                    voucher: order.voucher?.name,
+                };
+            });
+            console.log('Ham lay du lieu:');
+            return result;
+        } catch (err) {
+            console.log('Get all payment error', err);
+            throw err;
+        }
+    }
+    async getOrderDetail(userId: number, orderId: number) {
+        try {
+            const order = await this.prismaService.client.order.findFirst({
+                where: {
+                    userId,
+                    id: orderId,
+                },
+                select: {
+                    id: true,
+                    totalPrice: true,
+                    status: true,
+                    restaurant: {
+                        select: { id: true, name: true },
+                    },
+                    orderFoods: {
+                        select: {
+                            quantity: true,
+                            food: { select: { id: true, name: true } },
+                        },
+                    },
+                    voucher: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                    payments: {
+                        select: {
+                            paymentStatus: true,
+                            method: true,
+                        },
+                    },
+                },
+            });
+            const result = {
+                ...order,
+                orderFoods: order?.orderFoods.map((orderFood) => {
+                    return {
+                        id: orderFood.food.id,
+                        name: orderFood.food.name,
+                        quantity: orderFood.quantity,
+                    };
+                }),
+                payments: order?.payments[0],
+                voucher: order?.voucher?.name,
+            }; 
+            return result
         } 
-        catch (err) 
-        {
-            console.log("Get all payment error" , err) 
-            throw err 
+        catch (err) {
+            console.log('Get all payment error', err);
+            throw err;
         }
     }
 }

@@ -200,19 +200,23 @@ async function seedRestaurants(businessUser: any) {
         { code: 'REST005', name: 'Sweet Desserts', phone: '0905555555', addressId: addresses[4].id },
     ];
 
-    const createdRestaurants = await Promise.all(
-        restaurants.map((rest) =>
-            prisma.restaurant.create({
-                data: {
-                    ...rest,
-                    ownerId: businessUser.id,
-                    approved: true,
-                },
-            }),
-        ),
-    );
+    // Use createMany with skipDuplicates to avoid failing when a code already exists
+    await prisma.restaurant.createMany({
+        data: restaurants.map((rest) => ({
+            ...rest,
+            ownerId: businessUser.id,
+            approved: true,
+        })),
+        skipDuplicates: true,
+    });
 
-    console.log(`✅ Seeded 5 restaurants`);
+    const createdRestaurants = await prisma.restaurant.findMany({
+        where: {
+            code: { in: restaurants.map((r) => r.code) },
+        },
+    });
+
+    console.log(`✅ Seeded ${createdRestaurants.length} restaurants`);
     return createdRestaurants;
 }
 
@@ -284,12 +288,28 @@ async function seedFoods(menus: any[]) {
 async function seedMenus(restaurants: any[]) {
     console.log('🌱 Seeding menus (1 restaurant = 1 menu)...');
 
+    if (!Array.isArray(restaurants) || restaurants.length === 0) {
+        throw new Error('No restaurants provided to seedMenus');
+    }
+
+    const processed = restaurants
+        .map((r) => ({
+            ...r,
+            _id: r && (typeof r.id === 'bigint' ? Number(r.id) : r.id),
+        }))
+        .filter((r) => r && typeof r._id === 'number');
+
+    if (processed.length !== restaurants.length) {
+        console.warn('Some restaurants are missing numeric `id` and will be skipped:', restaurants);
+    }
+
+    console.log('Processed restaurants for menus:', processed.map((r) => ({ code: r.code, _id: r._id })));
+
     const menus = await Promise.all(
-        restaurants.map((restaurant) =>
+        processed.map((restaurant) =>
             prisma.menu.create({
                 data: {
-                    restaurantId: restaurant.id,
-                    
+                    restaurantId: restaurant._id,
                 },
             }),
         ),
@@ -503,6 +523,13 @@ async function main() {
 
             const users = await seedUsers();
             const restaurants = await seedRestaurants(users.business);
+            // Ensure DB columns match current Prisma models: drop legacy Menu.foodId if present
+            try {
+                await prisma.$executeRawUnsafe('ALTER TABLE "Menu" DROP COLUMN IF EXISTS "foodId";');
+                console.log('Adjusted DB: dropped legacy Menu.foodId column if it existed');
+            } catch (e) {
+                console.warn('Could not adjust DB schema automatically:', e);
+            }
 
             // 🔥 NEW FLOW
             const menus = await seedMenus(restaurants);

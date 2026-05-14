@@ -32,8 +32,7 @@ export class UserController {
         const results = await this.userService.uploadImages(file);
         return results;
     }
-    @Roles(Role.ADMIN)
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard)
     @Get()
     async getAllCustomers() {
         const responseData = await this.userService.getAllUsers();

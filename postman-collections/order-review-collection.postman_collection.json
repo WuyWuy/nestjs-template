@@ -1,0 +1,100 @@
+{
+  "info": {
+    "name": "Order & Review Testing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection to test order status update and restaurant reviews. Import into Postman and set environment variable `base_url` (default http://localhost:3000). Uses `token` env var set after login."
+  },
+  "item": [
+    {
+      "name": "Login (get token)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": "{{base_url}}/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "try {",
+              "  const json = pm.response.json();",
+              "  if (json.accessToken) { pm.environment.set('token', json.accessToken); }",
+              "  pm.test('login returned token', () => pm.expect(json).to.have.property('accessToken'));",
+              "} catch (e) { pm.test('response is json', () => { throw e; }); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get pending & preparing orders (restaurant)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "{{base_url}}/orders/restaurant/pending-preparing?limit=20&offset=0"
+      }
+    },
+    {
+      "name": "Update order status",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"DELIVERING\"\n}"
+        },
+        "url": "{{base_url}}/orders/:orderId/status"
+      },
+      "variable": [
+        { "key": "orderId", "value": "1" }
+      ]
+    },
+    {
+      "name": "Create review for restaurant",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"vote\": 5,\n  \"comment\": \"Rất ngon, phục vụ tốt!\"\n}"
+        },
+        "url": "{{base_url}}/restaurant/reviews/:restaurantId"
+      },
+      "variable": [
+        { "key": "restaurantId", "value": "1" }
+      ]
+    },
+    {
+      "name": "Get restaurant reviews",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/restaurant/reviews/:restaurantId?limit=10&offset=0"
+      },
+      "variable": [
+        { "key": "restaurantId", "value": "1" }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "phone", "value": "0901234567" },
+    { "key": "password", "value": "password123" }
+  ]
+}

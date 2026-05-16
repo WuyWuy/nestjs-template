@@ -8,6 +8,7 @@ import { LoggingInterceptor } from './bases/interceptors/logging.interceptos';
 import { TransformInterceptor } from './bases/interceptors/transform.interceptor';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
+import { join } from 'path';
 import { AuthModule } from './modules/auth/auth.module';
 import { TwilioModule } from './modules/twilio/twilio.module';
 import { DeviceModule } from './modules/device/device.module';
@@ -31,6 +32,7 @@ import { PaymentModule } from './modules/payment/payment.module';
         PrismaModule,
         ConfigModule.forRoot({
             isGlobal: true,
+            envFilePath: [join(__dirname, '..', '.env'), join(__dirname, '..', 'env')],
         }),
         AuthModule,
         TwilioModule, //Sending SmS

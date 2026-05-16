@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as Minio from 'minio';
 import { ConfigService } from '@nestjs/config';
 import type { Express } from 'express';
 
 @Injectable()
-export class MinioService {
+export class MinioService implements OnModuleInit {
     private minioClient: Minio.Client;
     private bucketName: string;
     constructor(private readonly configService: ConfigService) {
@@ -16,6 +16,21 @@ export class MinioService {
             secretKey: this.configService.get('MINIO_SECRET_KEY'),
         });
         this.bucketName = this.configService.get('MINIO_BUCKET') as string;
+    }
+    // IMPORTANT:
+    // - Environment variables expected:
+    //   MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET, MINIO_USE_SSL
+    // - Bucket auto-creation: onModuleInit will attempt to create the configured
+    //   bucket if it does not exist. In production you may prefer to provision
+    //   the bucket ahead of time and remove auto-create behavior.
+    // - Errors during bucket creation are logged but do not crash the app.
+    async onModuleInit() {
+        try {
+            await this.createBucketIfNotExists();
+        } catch (err) {
+            // don't crash the whole app on bucket creation failure, just log
+            console.error('Minio bucket check/create failed:', err?.message || err);
+        }
     }
     async createBucketIfNotExists() {
         const bucketExists = await this.minioClient.bucketExists(

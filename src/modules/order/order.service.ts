@@ -11,6 +11,7 @@ import {
     VoucherType,
 } from '@prisma/client';
 import { PaymentService } from '../payment/payment.service';
+import { NotificationService } from '../notification/notification.service';
 type FoodType = {
     name: string;
     id: number;
@@ -29,6 +30,7 @@ export class OrderService {
         private prismaService: PrismaService,
         private addressService: AddressService,
         private paymentService: PaymentService,
+        private notificationService: NotificationService,
     ) {}
     //____________________HELPER
 
@@ -361,6 +363,221 @@ export class OrderService {
             return result;
         } catch (err) {
             console.log('Get all payment error', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Lấy danh sách đơn hàng của một nhà hàng với 2 trạng thái:
+     * - PENDING: đơn mới tạo, chưa xử lý xong
+     * - PREPARING: đơn đang được bếp chuẩn bị
+     *
+     * Hàm này dùng cho màn hình quản lý đơn của chủ nhà hàng.
+     * 
+     * @param restaurantId - ID nhà hàng
+     * @param limit - Số đơn trên mỗi trang (mặc định 20)
+     * @param offset - Vị trí bắt đầu (dùng cho phân trang)
+     * @returns Object chứa danh sách đơn hàng và thông tin phân trang
+     */
+    async getPendingAndPreparingOrders(
+        restaurantId: number,
+        limit: number = 20,
+        offset: number = 0,
+    ) {
+        try {
+            // 1️⃣ Lấy danh sách đơn hàng theo điều kiện:
+            // - Thuộc nhà hàng cụ thể
+            // - Trạng thái là PENDING hoặc PREPARING
+            // - Chưa bị xóa mềm (deleteAt = null)
+            const orders = await this.prismaService.client.order.findMany({
+                where: {
+                    restaurantId,
+                    status: {
+                        in: [OrderStatus.PENDING, OrderStatus.PREPARING],
+                    },
+                    deleteAt: null,
+                },
+                select: {
+                    id: true,
+                    totalPrice: true,
+                    status: true,
+                    // Thông tin khách hàng
+                    user: {
+                        select: { id: true, name: true, phone: true },
+                    },
+                    // Địa chỉ giao hàng
+                    address: {
+                        select: {
+                            id: true,
+                            title: true,
+                            latitude: true,
+                            longitude: true,
+                            fullText: true,
+                            updatedAt: true,
+                        },
+                    },
+                    // Danh sách các món ăn trong đơn
+                    orderFoods: {
+                        select: {
+                            id: true,
+                            quantity: true,
+                            price: true,
+                            fullText: true,
+                            food: { select: { id: true, name: true, image: true } },
+                        },
+                    },
+                    // Thông tin thanh toán
+                    payments: {
+                        select: {
+                            paymentStatus: true,
+                            method: true,
+                        },
+                    },
+                    createdAt: true,
+                },
+                orderBy: {
+                    // 2️⃣ Sắp xếp theo thời gian tạo (cũ nhất trước)
+                    // Để chủ nhà hàng xử lý đơn theo thứ tự FIFO
+                    createdAt: 'asc',
+                },
+                // 3️⃣ Phân trang
+                take: limit,
+                skip: offset,
+            });
+
+            // 4️⃣ Tinh gọn dữ liệu trả về cho FE render nhanh hơn
+            const result = orders.map((order) => {
+                return {
+                    id: order.id,
+                    totalPrice: order.totalPrice,
+                    status: order.status,
+                    user: order.user,
+                    address: order.address,
+                    orderFoods: order.orderFoods.map((orderFood) => {
+                        return {
+                            id: orderFood.id,
+                            quantity: orderFood.quantity,
+                            price: orderFood.price,
+                            fullText: orderFood.fullText,
+                            food: orderFood.food,
+                        };
+                    }),
+                    payment: order.payments[0], // Lấy thông tin thanh toán đầu tiên
+                    createdAt: order.createdAt,
+                };
+            });
+
+            // 5️⃣ Đếm tổng số đơn để FE tính toán pagination
+            const total = await this.prismaService.client.order.count({
+                where: {
+                    restaurantId,
+                    status: {
+                        in: [OrderStatus.PENDING, OrderStatus.PREPARING],
+                    },
+                    deleteAt: null,
+                },
+            });
+
+            // 6️⃣ Trả về danh sách đơn và thông tin phân trang
+            return {
+                data: result,
+                pagination: {
+                    total, // Tổng số đơn hàng
+                    limit, // Số đơn trên trang
+                    offset, // Vị trí hiện tại
+                },
+            };
+        } catch (err) {
+            console.log('Get pending and preparing orders error', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Cập nhật trạng thái đơn hàng (PREPARING ➔ DELIVERING)
+     * và gửi push notification cho khách hàng
+     * 
+     * @param restaurantId - ID nhà hàng (sở hữu đơn hàng)
+     * @param orderId - ID đơn hàng cần cập nhật
+     * @param newStatus - Trạng thái mới (PENDING, PREPARING, DELIVERING, DELIVERED, CANCELLED, etc.)
+     * @returns Object chứa message và order đã cập nhật
+     */
+    async updateOrderStatus(
+        restaurantId: number,
+        orderId: number,
+        newStatus: OrderStatus,
+    ) {
+        try {
+            // 1️⃣ Tìm đơn hàng theo ID
+            // Điều kiện: đơn hàng tồn tại và chưa bị xóa mềm (deleteAt = null)
+            const order = await this.prismaService.client.order.findFirst({
+                where: {
+                    id: orderId,
+                    deleteAt: null,
+                },
+                include: {
+                    user: true, // Lấy thông tin khách hàng để gửi thông báo
+                },
+            });
+
+            // Nếu đơn hàng không tồn tại, báo lỗi
+            if (!order) {
+                throw new BadRequestException(
+                    'Order not found or has been deleted',
+                );
+            }
+
+            // 2️⃣ Kiểm tra quyền sở hữu
+            // Đảm bảo đơn hàng thuộc nhà hàng của user hiện tại
+            if (order.restaurantId !== restaurantId) {
+                throw new BadRequestException(
+                    'This order does not belong to your restaurant',
+                );
+            }
+
+            // 3️⃣ Cập nhật trạng thái đơn hàng trong database
+            const updatedOrder = await this.prismaService.client.order.update({
+                where: { id: orderId },
+                data: { status: newStatus }, // Thay đổi trạng thái
+                include: {
+                    user: true, // Lấy info khách để tạo thông báo
+                    restaurant: true, // Lấy info nhà hàng
+                },
+            });
+
+            // 4️⃣ Tạo nội dung push notification dựa trên trạng thái mới
+            let notificationTitle = '';
+            let notificationBody = '';
+
+            if (newStatus === OrderStatus.DELIVERING) {
+                notificationTitle = 'Đơn hàng của bạn đang được giao';
+                notificationBody = `Nhà hàng ${updatedOrder.restaurant.name} đang chuẩn bị giao đơn hàng #${orderId}`;
+            } else if (newStatus === OrderStatus.DELIVERED) {
+                notificationTitle = 'Đơn hàng đã được giao thành công';
+                notificationBody = `Cảm ơn bạn đã đặt hàng tại ${updatedOrder.restaurant.name}`;
+            } else if (newStatus === OrderStatus.CANCELLED) {
+                notificationTitle = 'Đơn hàng đã bị hủy';
+                notificationBody = `Đơn hàng #${orderId} từ ${updatedOrder.restaurant.name} đã bị hủy`;
+            }
+
+            // 5️⃣ Gửi push notification cho khách hàng
+            // Thông báo được gửi đến tất cả thiết bị đã đăng ký của khách (qua Firebase)
+            if (notificationTitle && notificationBody) {
+                // Gọi notification service để gửi push notification
+                await this.notificationService.pushNotification(
+                    updatedOrder.userId,
+                    notificationTitle,
+                    notificationBody,
+                );
+            }
+
+            // 6️⃣ Trả về kết quả
+            return {
+                message: `Order status updated to ${newStatus}`,
+                order: updatedOrder,
+            };
+        } catch (err) {
+            console.error('Update order status error:', err);
             throw err;
         }
     }

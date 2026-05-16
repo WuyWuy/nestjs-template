@@ -8,5 +8,6 @@ import { DeviceModule } from '../device/device.module';
     imports: [DeviceModule],
     providers: [FirebaseService, NotificationService],
     controllers: [NotificationController],
+    exports: [NotificationService],
 })
 export class NotificationModule {}

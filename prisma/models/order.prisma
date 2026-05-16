@@ -10,6 +10,7 @@ model Order {
     voucher      Voucher?    @relation(fields: [voucherId], references: [id])
     userId       Int
     user         User        @relation(fields: [userId], references: [id])
+    createdAt    DateTime    @default(now())
     deleteAt     DateTime?
     addressId    Int
     address      Address     @relation(fields: [addressId], references: [id])

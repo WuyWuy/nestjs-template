@@ -1,0 +1,179 @@
+{
+  "info": {
+    "name": "Full API - Auth + Food CRUD",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection: register -> verify -> login -> create/update/get/list/delete food. Includes test scripts to save otp and accessToken into environment variables."
+  },
+  "item": [
+    {
+      "name": "Register (returns otp in dev)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"{{email}}\", \"password\": \"{{password}}\", \"phone\": \"{{phone}}\", \"birthday\": \"1990-01-01\", \"name\": \"{{name}}\" }"
+        },
+        "url": "{{baseUrl}}/api/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "try {",
+              "  const res = pm.response.json();",
+              "  if (res.otp) { pm.environment.set('otp', res.otp); pm.environment.set('userId', res.id || ''); }",
+              "  pm.test('register returns otp or success', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+              "} catch (e) { pm.test('response is json', () => { throw e; }); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verify (use otp)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/auth/verify?otp={{otp}}"
+      }
+    },
+    {
+      "name": "Login (get accessToken)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"phone\": \"{{phone}}\", \"password\": \"{{password}}\"}"
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.accessToken) { pm.environment.set('accessToken', json.accessToken); pm.environment.set('refreshToken', json.refreshToken || ''); pm.environment.set('userId', json.user && json.user.id ? json.user.id : pm.environment.get('userId') || ''); }",
+              "pm.test('accessToken exists', function () { pm.expect(json).to.have.property('accessToken'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Food (form-data)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "name", "value": "Pizza Hải Sản", "type": "text" },
+            { "key": "description", "value": "Món test", "type": "text" },
+            { "key": "categoryId", "value": "{{categoryId}}", "type": "text" },
+            { "key": "price", "value": "120000", "type": "text" },
+            { "key": "label", "value": "hot", "type": "text" },
+            { "key": "restaurantId", "value": "{{restaurantId}}", "type": "text" },
+            { "key": "image", "type": "file", "src": "{{imagePath}}" }
+          ]
+        },
+        "url": "{{baseUrl}}/api/food"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "try {",
+              "  const json = pm.response.json();",
+              "  if (json.id) pm.environment.set('foodId', json.id);",
+              "  else if (json.data && json.data.id) pm.environment.set('foodId', json.data.id);",
+              "  pm.test('created food', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+              "} catch (e) { pm.test('response is json', () => { throw e; }); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Food (form-data)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "name", "value": "Pizza Hải Sản - Updated", "type": "text" },
+            { "key": "price", "value": "130000", "type": "text" },
+            { "key": "image", "type": "file", "src": "{{imagePathNew}}" }
+          ]
+        },
+        "url": "{{baseUrl}}/api/food/{{foodId}}"
+      }
+    },
+    {
+      "name": "Get All Food",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/food?limit=20&offset=0"
+      }
+    },
+    {
+      "name": "Get Food By Id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/food/{{foodId}}"
+      }
+    },
+    {
+      "name": "Get Foods By Restaurant",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/food/restaurant/{{restaurantId}}?limit=20&offset=0"
+      }
+    },
+    {
+      "name": "Delete Food",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}", "type": "text" }
+        ],
+        "url": "{{baseUrl}}/api/food/{{foodId}}"
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "email", "value": "test@example.com" },
+    { "key": "password", "value": "password123" },
+    { "key": "phone", "value": "0901234567" },
+    { "key": "name", "value": "Test User" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "otp", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "foodId", "value": "" },
+    { "key": "restaurantId", "value": "1" },
+    { "key": "categoryId", "value": "1" },
+    { "key": "imagePath", "value": "C:\\path\\to\\image.jpg" },
+    { "key": "imagePathNew", "value": "C:\\path\\to\\new-image.jpg" }
+  ]
+}

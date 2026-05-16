@@ -12,7 +12,7 @@ import {
 
 import { Type } from 'class-transformer';
 import { CreateAddressDto } from '@/modules/address/dto/address.dto';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod, OrderStatus } from '@prisma/client';
 
 class CreateOrderFoodDto {
     @IsInt()
@@ -59,3 +59,24 @@ export class CreateOrderDto {
     @IsEnum(PaymentMethod)
     paymentMethod: PaymentMethod;
 }
+
+/**
+ * DTO dùng để cập nhật trạng thái đơn hàng
+ * 
+ * Các trạng thái hợp lệ:
+ * - PENDING: Chờ xác nhận
+ * - CONFIRMED: Đã xác nhận
+ * - PREPARING: Đang chuẩn bị
+ * - DELIVERING: Đang giao
+ * - DELIVERED: Đã giao thành công
+ * - CANCELLED: Đã hủy
+ */
+export class UpdateOrderStatusDto {
+    /**
+     * Trạng thái mới của đơn hàng
+     * Phải là một trong các giá trị OrderStatus enum
+     */
+    @IsEnum(OrderStatus)
+    status: OrderStatus;
+}
+

@@ -1,0 +1,89 @@
+{
+  "info": {
+    "name": "Food API - Collection",
+    "description": "Requests to test Food CRUD and image upload (ADMIN/BUSINESS)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Food (form-data)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "name", "value": "Pizza Hải Sản", "type": "text" },
+            { "key": "description", "value": "Món test", "type": "text" },
+            { "key": "categoryId", "value": "1", "type": "text" },
+            { "key": "price", "value": "120000", "type": "text" },
+            { "key": "label", "value": "hot", "type": "text" },
+            { "key": "restaurantId", "value": "1", "type": "text" },
+            { "key": "image", "type": "file", "src": "/path/to/image.jpg" }
+          ]
+        },
+        "url": "{{baseUrl}}/api/food"
+      }
+    },
+    {
+      "name": "Update Food (form-data)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "name", "value": "Pizza Hải Sản - updated", "type": "text" },
+            { "key": "price", "value": "130000", "type": "text" },
+            { "key": "image", "type": "file", "src": "/path/to/new-image.jpg" }
+          ]
+        },
+        "url": "{{baseUrl}}/api/food/{{foodId}}"
+      }
+    },
+    {
+      "name": "Get All Food",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/food?limit=20&offset=0"
+      }
+    },
+    {
+      "name": "Get Food By Id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/food/{{foodId}}"
+      }
+    },
+    {
+      "name": "Get Foods By Restaurant",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/food/restaurant/{{restaurantId}}?limit=20&offset=0"
+      }
+    },
+    {
+      "name": "Delete Food",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+        ],
+        "url": "{{baseUrl}}/api/food/{{foodId}}"
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "token", "value": "" },
+    { "key": "foodId", "value": "1" },
+    { "key": "restaurantId", "value": "1" }
+  ]
+}

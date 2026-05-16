@@ -1,0 +1,78 @@
+{
+  "info": {
+    "name": "Orders - Pending and Preparing",
+    "_postman_id": "0a7f9c2a-9b9b-4f0e-8c6a-1d2f3e4b5c6d",
+    "description": "Collection to test GET /orders/restaurant/pending-preparing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "token",
+      "value": "YOUR_JWT_TOKEN_HERE"
+    }
+  ],
+  "item": [
+    {
+      "name": "Get Pending and Preparing Orders",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/orders/restaurant/pending-preparing?limit=20&offset=0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "orders",
+            "restaurant",
+            "pending-preparing"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "20"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200 or 400', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200,400]);",
+              "});",
+              "",
+              "pm.test('Response contains expected shape', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('success');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "response": []
+    }
+  ]
+}

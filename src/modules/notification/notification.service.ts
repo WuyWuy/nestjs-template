@@ -11,6 +11,14 @@ export class NotificationService {
         // private readonly prismaService : PrismaService,
         private readonly deviceService: DeviceService,
     ) {}
+    /**
+     * Gửi push notification tới tất cả thiết bị (device tokens) của một user
+     * - Tìm device token đã đăng ký cho `userId` thông qua `DeviceService`
+     * - Gọi `FirebaseService` để gửi notification cho từng token
+     * @param userId ID người dùng nhận thông báo
+     * @param title Tiêu đề thông báo
+     * @param body Nội dung thông báo
+     */
     async pushNotification(userId: number, title: string, body: string) {
         try {
             const deviceIds =
@@ -36,7 +44,11 @@ export class NotificationService {
             throw err;
         }
     }
-    //App xin quyền nhận thông báo -> Gửi device Token về cho BE lưu trữ. Sau đó sẽ tiến hành push notification
+    // App xin quyền nhận thông báo -> Gửi device Token về cho BE lưu trữ. Sau đó sẽ tiến hành push notification
+    /**
+     * Hàm test gửi notification tới một device token cụ thể (dùng cho dev/test)
+     * @param deviceToken Device token (FCM) để gửi thử
+     */
     async testPushNotification(deviceToken: string) {
         try {
             const payload = {

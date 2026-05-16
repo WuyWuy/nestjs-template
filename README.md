@@ -58,7 +58,7 @@ npm dev
 ```bash
 bun run build 
 bun run start 
-```
+```     
 
 ## 📁 Folder structure
 

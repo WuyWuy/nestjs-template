@@ -1,7 +1,7 @@
 //Build with Kha An and Claude Code => Dev sắp thất nghiệp rồi nhé
 //Một mình 1 thằng 1 AI vẫn xử đc thì tuyển thêm làm mịa gì?
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateOrderDto } from './dto/order.dto';
+import { CreateOrderDto, UpdateOrderStatus } from './dto/order.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AddressService } from '../address/address.service';
 import {
@@ -361,6 +361,41 @@ export class OrderService {
             return result;
         } catch (err) {
             console.log('Get all payment error', err);
+            throw err;
+        }
+    }
+    async deleteOrderById(userId: number, orderId: number) {
+        try {
+            await this.prismaService.client.order.delete({
+                userId,
+                id: orderId,
+            });
+            return {
+                message: 'Delete successfully',
+            };
+        } catch (err) {
+            console.log('Delete order error', err);
+            throw err;
+        }
+    }
+    async updateOrderStatus(
+        userId: number,
+        orderId: number,
+        data: UpdateOrderStatus,
+    ) {
+        try {
+            const order = await this.prismaService.client.order.update({
+                where: {
+                    userId,
+                    id: orderId,
+                },
+                data: {
+                    status: data.status,
+                },
+            });
+            return order 
+        } catch (err) {
+            console.log('Update order status error', err);
             throw err;
         }
     }

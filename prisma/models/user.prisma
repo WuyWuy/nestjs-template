@@ -22,6 +22,7 @@ model User {
     chatMessages          Message[]          @relation("ChatMessages")
     identities            Identity[]
     orders                Order[]
+    auditLogs             AuditLog[]
 }
 
 model UserRole {

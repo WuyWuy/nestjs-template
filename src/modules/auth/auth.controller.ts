@@ -11,8 +11,10 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
+    ChangePasswordData,
     ForgotPasswordData,
     LoginData,
+    RefreshTokenData,
     RegisterData,
     ResetEmailData,
     SocialLoginData,
@@ -35,6 +37,15 @@ export class AuthController {
     @Post('login')
     async login(@Body() data: LoginData) {
         return await this.authService.loginLocal(data);
+    }
+
+    @Post('/refresh')
+    async getAccessToken(@Body() data: RefreshTokenData) {
+        return await this.authService.refreshAccessToken(data.refreshToken);
+    }
+    @Post('change-password')
+    async changePassword(@Body() data: ChangePasswordData) {
+        return await this.authService.changePassword(data);
     }
     @Post('reset-email')
     @UseGuards(JwtAuthGuard)

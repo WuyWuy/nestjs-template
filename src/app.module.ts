@@ -24,7 +24,11 @@ import { RestaurantModule } from './modules/restaurant/restaurant.module';
 import { CartModule } from './modules/cart/cart.module';
 import { OrderModule } from './modules/order/order.module';
 import { PaymentModule } from './modules/payment/payment.module';
-//Add  e module here
+import { CategoryModule } from './modules/category/category.module';
+import { VoucherModule } from './modules/voucher/voucher.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { AdminModule } from './modules/admin/admin.module';
+
 @Module({
     imports: [
         TestModule,
@@ -32,6 +36,7 @@ import { PaymentModule } from './modules/payment/payment.module';
         ConfigModule.forRoot({
             isGlobal: true,
         }),
+        AuditModule,
         AuthModule,
         TwilioModule, //Sending SmS
         DeviceModule,
@@ -46,6 +51,9 @@ import { PaymentModule } from './modules/payment/payment.module';
         CartModule,
         OrderModule,
         PaymentModule, //Mot lat sau nho go cai nay ra
+        CategoryModule,
+        VoucherModule,
+        AdminModule,
     ],
     controllers: [AppController],
     providers: [

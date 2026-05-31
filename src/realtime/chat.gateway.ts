@@ -24,11 +24,16 @@ import { WebSocketExceptionFilter } from './ws-exception.filter';
 import { Server, Socket } from 'socket.io';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { ChatResponseBody, ChatStatus } from './chat.constants';
+import { ChatEvent, ChatResponseBody, ChatStatus } from './chat.constants';
 import { ChatService } from './chat.service';
 
 export interface AuthenticatedSocket extends Socket {
-    user?: any;
+    user?: {
+        id: number;
+        email?: string;
+        roles?: string[];
+        purpose?: string;
+    };
 }
 
 @WebSocketGateway()
@@ -42,10 +47,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     ) {}
     @WebSocketServer()
     server: Server;
-    handleConnection(client: AuthenticatedSocket, ...args: any[]) {
-        //Authentication
-        console.log(args);
-        console.log('Client connected', client.id);
+
+    handleConnection(client: AuthenticatedSocket) {
         const authHeader = client.handshake.headers['authorization'];
         if (authHeader) {
             try {
@@ -53,12 +56,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 const payload = this.jwtService.verify(token, {
                     secret: this.configService.get('ACCESS_SECRET_KEY'),
                 });
-                client.user = payload;
+                client.user = {
+                    id: Number(payload.sub ?? payload.id),
+                    email: payload.email,
+                    roles: payload.roles,
+                    purpose: payload.purpose,
+                };
             } catch (err) {
-                console.log(err);
+                console.log("Chatting err: " , err) 
                 client.emit('exception', {
                     [ChatResponseBody.CONTENT]: 'Unauthorized User',
-                    [ChatResponseBody.STATUS]: 'error',
+                    [ChatResponseBody.STATUS]: ChatStatus.ERROR,
                 });
                 client.disconnect();
             }
@@ -71,37 +79,64 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
     }
     @UsePipes(new ValidationPipe({ transform: true }))
-    @SubscribeMessage('join-room')
+    @SubscribeMessage(ChatEvent.JOIN_ROOM)
     async handJoinRoom(
         @MessageBody() data: JoiNRoomDto,
         @ConnectedSocket() client: AuthenticatedSocket,
     ) {
         const conversation = await this.chatService.validateConversation(
-            client.user.sub,
+            client.user?.id ?? 0,
             data.conversationId,
         );
 
-        if (conversation) client.join(`room-${data.conversationId}`);
+        if (conversation) {
+            client.join(`room-${data.conversationId}`);
+            client.emit(ChatEvent.JOIN_ROOM, {
+                [ChatResponseBody.STATUS]: ChatStatus.SUCCESS,
+                data: {
+                    conversationId: data.conversationId,
+                },
+            });
+        }
     }
-    @SubscribeMessage('text-chat')
+
+    @SubscribeMessage(ChatEvent.LEAVE_ROOM)
+    async handleLeaveRoom(
+        @MessageBody() data: JoiNRoomDto,
+        @ConnectedSocket() client: AuthenticatedSocket,
+    ) {
+        await this.chatService.validateConversation(
+            client.user?.id ?? 0,
+            data.conversationId,
+        );
+        client.leave(`room-${data.conversationId}`);
+        client.emit(ChatEvent.LEAVE_ROOM, {
+            [ChatResponseBody.STATUS]: ChatStatus.SUCCESS,
+            data: {
+                conversationId: data.conversationId,
+            },
+        });
+    }
+
+    @SubscribeMessage(ChatEvent.TEXT_CHAT)
     @UsePipes(new ValidationPipe())
     async handleMessage(
         @ConnectedSocket() client: AuthenticatedSocket,
         @MessageBody() message: ChatMessage,
     ) {
         const conversationId = message.conversationId;
-        const sub = client.user.sub;
         const storeRes = await this.chatService.storeDbAndEmitMessage(
-            Number(sub),
+            Number(client.user?.id ?? 0),
             message,
         );
         if (storeRes)
-            this.server.to(`room-${conversationId}`).emit('text-chat', {
+            this.server.to(`room-${conversationId}`).emit(ChatEvent.TEXT_CHAT, {
                 data: storeRes,
-                [ChatResponseBody.STATUS]: 'success',
+                [ChatResponseBody.STATUS]: ChatStatus.SUCCESS,
             });
     }
+
     handleDisconnect(client: Socket) {
-        console.log('Client disconnected: ', client.id);
+        client.rooms.clear();
     }
 }

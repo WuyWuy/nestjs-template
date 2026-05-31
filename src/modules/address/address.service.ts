@@ -6,22 +6,33 @@ import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
 @Injectable()
 export class AddressService {
     constructor(private readonly prismaService: PrismaService) {}
+    private readonly locationTolerance = 0.000001;
 
     async findAddress(
-        longitude: number,
-        latitude: number,
+        address: CreateAddressDto,
         db: TransactionClientExtended | PrismaService = this.prismaService,
     ) {
         const existsAddress = await db.address.findFirst({
             where: {
-                longitude: {
-                    gte: longitude - 0.0001,
-                    lte: longitude + 0.0001,
+                deleteAt: null,
+                title: {
+                    equals: address.title,
+                    mode: 'insensitive',
                 },
                 latitude: {
-                    gte: latitude - 0.0001,
-                    lte: latitude + 0.0001,
+                    gte: address.latitude - this.locationTolerance,
+                    lte: address.latitude + this.locationTolerance,
                 },
+                longitude: {
+                    gte: address.longitude - this.locationTolerance,
+                    lte: address.longitude + this.locationTolerance,
+                },
+                fullText: address.fullText
+                    ? {
+                          equals: address.fullText,
+                          mode: 'insensitive',
+                      }
+                    : undefined,
             },
         });
         return existsAddress;
@@ -32,11 +43,7 @@ export class AddressService {
         db: TransactionClientExtended | PrismaService = this.prismaService,
     ) {
         try {
-            const existsAddress = await this.findAddress(
-                address.longitude,
-                address.latitude,
-                db,
-            );
+            const existsAddress = await this.findAddress(address, db);
             if (existsAddress) return existsAddress;
 
             const address1 = await db.address.create({
@@ -46,7 +53,7 @@ export class AddressService {
             });
             return address1;
         } catch (err) {
-            console.log('create address error', err);
+            console.log("creating address error: " , err) 
             throw err;
         }
     }

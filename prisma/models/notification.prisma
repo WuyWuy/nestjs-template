@@ -2,9 +2,10 @@ model Notification {
     id        Int       @id @default(autoincrement())
     title     String
     body      String    @db.Text
+    type      NotificationType @default(SYSTEM)
     userId    Int
     user      User      @relation(fields: [userId], references: [id])
-    createdAt DateTime
+    createdAt DateTime  @default(now())
     readAt    DateTime?
     deleteAt  DateTime?
 }

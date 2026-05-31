@@ -12,6 +12,7 @@ import {
     UpdateUserProfileDto,
 } from './dto/user.dto';
 import { AddressService } from '../address/address.service';
+import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
 @Injectable()
 export class UserService {
     constructor(
@@ -151,14 +152,32 @@ export class UserService {
         if (/^https?:\/\//i.test(avatar)) return avatar;
         return await this.minioService.getFileUrl(avatar);
     }
+    private async getUserAddressResponse(
+        id: number,
+        userId: number,
+        db: TransactionClientExtended | PrismaService = this.prismaService,
+    ) {
+        return await db.userAddress.findFirst({
+            where: {
+                id, 
+                userId,
+                deleteAt: null,
+            },
+            select: {
+                id: true,
+                title: true,
+                address: true,
+            },
+        });
+    }
     private async getUserAddressOrThrow(id: number, userId: number) {
-        const userAddress =
-            await this.prismaService.client.userAddress.findFirst({
-                where: {
-                    id,
-                    userId,
-                },
-            });
+        const userAddress = await this.prismaService.client.userAddress.findFirst({
+            where: {
+                id,   //userAddressId 
+                userId,
+                deleteAt: null,
+            },
+        });
         if (!userAddress) {
             throw new BadRequestException(
                 'This address not belong to this user or was deleted',
@@ -182,7 +201,7 @@ export class UserService {
                         userId: userId,
                     },
                 });
-                return respo;
+                return await this.getUserAddressResponse(respo.id, userId, tx);
             });
             return result;
         } catch (err) {
@@ -198,6 +217,7 @@ export class UserService {
                 await this.prismaService.client.userAddress.findMany({
                     where: { userId, deleteAt: null },
                     select: {
+                        id: true,
                         title: true,
                         address: true,
                     },
@@ -209,12 +229,12 @@ export class UserService {
         }
     }
     async updateUserAddress(
-        id: number,
+        addressId: number,
         userId: number,
         updateAddress: UpdateUserAddressDto,
     ) {
         try {
-            await this.getUserAddressOrThrow(id, userId);
+            const userAddress = await this.getUserAddressOrThrow(addressId, userId);
             const result = await this.prismaService.transaction(async (tx) => {
                 const updateData: any = {};
                 if (updateAddress.title) updateData.title = updateAddress.title;
@@ -233,13 +253,14 @@ export class UserService {
                 }
                 const result = await tx.userAddress.update({
                     where: {
-                        id,
+                        id : userAddress.id, 
+                        userId 
                     },
                     data: {
                         ...updateData,
                     },
                 });
-                return result;
+                return await this.getUserAddressResponse(result.id, userId, tx);
             });
             return result;
         } catch (err) {
@@ -269,7 +290,7 @@ export class UserService {
     async deleteUserAddress(id: number, userId: number) {
         try {
             await this.getUserAddressOrThrow(id, userId);
-            const result = await this.prismaService.client.userAddress.update({
+            await this.prismaService.client.userAddress.update({
                 where: {
                     id,
                 },
@@ -277,7 +298,10 @@ export class UserService {
                     deleteAt: new Date(Date.now()),
                 },
             });
-            return result;
+            return {
+                message: 'User address deleted successfully',
+                id,
+            };
         } catch (err) {
             console.log("delete user's address error", err);
             throw err;

@@ -9,6 +9,8 @@ model Food {
     deleteAt        DateTime?
     label           String           @default("")
     rating          Int              @default(0)
+    isAvailable     Boolean          @default(true)
+    updatedAt       DateTime         @updatedAt
     orderFoods      OrderFood[]
     cartItems       CartItem[]
     foodIngredients FoodIngredient[]

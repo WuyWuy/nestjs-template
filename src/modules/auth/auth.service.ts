@@ -2,7 +2,11 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { LoginData, RegisterData } from './dto/auth.dto';
+import {
+    ChangePasswordData,
+    LoginData,
+    RegisterData,
+} from './dto/auth.dto';
 import { AuthProvider, OTPType, Role, TokenType } from '@prisma/client';
 import { generateOtp } from '@/utilis/ranomOtp';
 import {
@@ -30,6 +34,12 @@ type SocialProfile = {
     email?: string;
     name: string;
     avatar: string;
+};
+
+type AuthPayload = {
+    [TokenBody.EMAIL]: string;
+    [TokenBody.SUB]: number;
+    [TokenBody.ROLES]: Role[];
 };
 
 @Injectable()
@@ -233,7 +243,112 @@ export class AuthService {
         }
         return await this.buildAuthResponse(user.id);
     }
-    private async buildAuthResponse(userId: number) {
+    async changePassword(data: ChangePasswordData) {
+        try {
+            const { email, phone, currentPassword, newPassword } = data;
+
+            if (!email && !phone) {
+                throw new BadRequestException('Email or phone is required');
+            }
+
+            if (currentPassword === newPassword) {
+                throw new BadRequestException(
+                    'New password must be different from current password',
+                );
+            }
+
+            const user = await this.prismaService.client.user.findFirst({
+                where: {
+                    ...(email && phone
+                        ? { email, phone }
+                        : email
+                          ? { email }
+                          : { phone }),
+                    active: true,
+                },
+            });
+
+            if (!user) {
+                throw new BadRequestException('User not found');
+            }
+
+            const isCorrectPassword = await Bun.password.verify(
+                currentPassword,
+                user.password,
+            );
+
+            if (!isCorrectPassword) {
+                throw new BadRequestException(
+                    'Current password is incorrect',
+                );
+            }
+
+            const hashedPassword = await Bun.password.hash(newPassword, {
+                cost: 10,
+                algorithm: 'bcrypt',
+            });
+
+            await this.prismaService.transaction(async (tx) => {
+                await tx.user.update({
+                    where: {
+                        id: user.id,
+                    },
+                    data: {
+                        password: hashedPassword,
+                    },
+                });
+
+                await tx.authToken.updateMany({
+                    where: {
+                        userId: user.id,
+                        type: TokenType.REFRESH,
+                        usedAt: null,
+                    },
+                    data: {
+                        usedAt: new Date(),
+                    },
+                });
+            });
+
+            return {
+                message: 'Password changed successfully',
+            };
+        } catch (err) {
+            console.log('Change password error: ', err);
+            throw err;
+        }
+    }
+    private getAccessSecretKey() {
+        const accessSecretKey =
+            this.configService.get<string>('ACCESS_SECRET_KEY');
+        if (!accessSecretKey) {
+            throw new BadRequestException('ACCESS_SECRET_KEY is not configured');
+        }
+        return accessSecretKey;
+    }
+    private getRefreshSecretKey() {
+        const refreshSecretKey =
+            this.configService.get<string>('REFRESH_SECRET_KEY');
+        if (!refreshSecretKey) {
+            throw new BadRequestException(
+                'REFRESH_SECRET_KEY is not configured',
+            );
+        }
+        return refreshSecretKey;
+    }
+    private async getAuthPayload(userId: number): Promise<{
+        user: {
+            id: number;
+            name: string;
+            email: string;
+            phone: string | null;
+            birthday: Date;
+            avatar: string;
+            active: boolean;
+        };
+        roles: Role[];
+        payload: AuthPayload;
+    }> {
         const user = await this.prismaService.client.user.findFirst({
             where: {
                 id: userId,
@@ -259,30 +374,54 @@ export class AuthService {
             },
         });
         const roles = userRoles.map((roleItem) => roleItem.role);
-        const payload = {
-            [TokenBody.EMAIL]: user.email,
-            [TokenBody.SUB]: user.id,
-            [TokenBody.ROLES]: roles,
-        };
-        const accessSecretKey =
-            this.configService.get<string>('ACCESS_SECRET_KEY');
-        const refreshSecretKey =
-            this.configService.get<string>('REFRESH_SECRET_KEY');
 
+        return {
+            user,
+            roles,
+            payload: {
+                [TokenBody.EMAIL]: user.email,
+                [TokenBody.SUB]: user.id,
+                [TokenBody.ROLES]: roles,
+            },
+        };
+    }
+    private async signAuthTokens(payload: AuthPayload) {
         const accessToken = await this.jwtService.signAsync(
             { ...payload, [TokenBody.PURPOSE]: TokenType.ACCESS },
             {
-                secret: accessSecretKey,
+                secret: this.getAccessSecretKey(),
                 expiresIn: ACCESS_TOKEN_LIVE_TIME,
             },
         );
         const refreshToken = await this.jwtService.signAsync(
             { ...payload, [TokenBody.PURPOSE]: TokenType.REFRESH },
             {
-                secret: refreshSecretKey,
+                secret: this.getRefreshSecretKey(),
                 expiresIn: REFRESH_TOKEN_LIVE_TIME,
             },
         );
+
+        return {
+            accessToken,
+            refreshToken,
+        };
+    }
+    private async saveRefreshToken(userId: number, refreshToken: string) {
+        await this.prismaService.client.authToken.create({
+            data: {
+                userId,
+                token: refreshToken,
+                type: TokenType.REFRESH,
+                expiresAt: new Date(
+                    Date.now() + REFRESH_TOKEN_LIVE_TIME * 1000,
+                ),
+            },
+        });
+    }
+    private async buildAuthResponse(userId: number) {
+        const { user, roles, payload } = await this.getAuthPayload(userId);
+        const { accessToken, refreshToken } = await this.signAuthTokens(payload);
+        await this.saveRefreshToken(user.id, refreshToken);
 
         return {
             accessToken,
@@ -292,6 +431,54 @@ export class AuthService {
                 roles,
             },
         };
+    }
+    async refreshAccessToken(refreshToken: string) {
+        try {
+            const payload = await this.jwtService.verifyAsync<{
+                sub: number;
+                email: string;
+                roles: Role[];
+                purpose: TokenType;
+            }>(refreshToken, {
+                secret: this.getRefreshSecretKey(),
+            });
+
+            if (payload.purpose !== TokenType.REFRESH) {
+                throw new BadRequestException('Invalid refresh token purpose');
+            }
+
+            const tokenRecord = await this.prismaService.client.authToken.findFirst({
+                where: {
+                    token: refreshToken,
+                    type: TokenType.REFRESH,
+                    usedAt: null,
+                    expiresAt: {
+                        gte: new Date(),
+                    },
+                },
+            });
+
+            if (!tokenRecord) {
+                throw new BadRequestException('Refresh token is invalid');
+            }
+
+            await this.prismaService.client.authToken.update({
+                where: {
+                    id: tokenRecord.id,
+                },
+                data: {
+                    usedAt: new Date(),
+                },
+            });
+
+            return await this.buildAuthResponse(payload.sub);
+        } catch (err) {
+            if (err instanceof BadRequestException) {
+                throw err;
+            }
+            console.log('Refresh access token error: ', err);
+            throw new BadRequestException('Refresh token is invalid or expired');
+        }
     }
     private getLocalProviderUserId(userId: number) {
         return `local:${userId}`;

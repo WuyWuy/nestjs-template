@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 import { join } from 'path';
 import { EmailService } from './email.service';
+import { EmailController } from './email.controller';
 
 @Global()
 @Module({
@@ -19,12 +20,12 @@ import { EmailService } from './email.service';
                     port: configService.get<number>('EMAIL_PORT'),
                     secure: false,
                     auth: {
-                        user: configService.get<string>('EMAIL_USER'),
-                        pass: configService.get<string>('EMAIL_PASS'),
+                        user: configService.get<string>('EMAIL_USER') || '',
+                        pass: configService.get<string>('EMAIL_PASS') || '',
                     },
                 },
                 defaults: {
-                    from: `"No Reply" <${configService.get<string>('EMAIL_USER')}>`,
+                    from: `"No Reply" <${configService.get<string>('EMAIL_FROM')}>`,
                 },
                 template: {
                     dir: join(__dirname, 'templates'),
@@ -36,6 +37,7 @@ import { EmailService } from './email.service';
             }),
         }),
     ],
+    controllers: [EmailController],   //Using for testing only and will remove in future 
     providers: [EmailService],
     exports: [EmailService],
 })

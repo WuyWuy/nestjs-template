@@ -32,7 +32,17 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
-
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    volumes:
+      - mailpit-data:/data
+    environment:
+      MP_DATA_FILE: /data/mailpit.db
   api:
     container_name: app-be-server
     build:
@@ -59,3 +69,4 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  mailpit-data: 

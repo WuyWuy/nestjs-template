@@ -150,7 +150,7 @@ export class FoodService {
 
         const food = await this.prismaService.client.food.create({
             data: {
-                name: foodPayload.name,
+                name: foodPayload.name as string,
                 description: foodPayload.description ?? '',
                 categoryId: foodPayload.categoryId!,
                 price: foodPayload.price!,

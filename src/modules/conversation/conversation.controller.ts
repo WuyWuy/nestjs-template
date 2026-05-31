@@ -15,20 +15,38 @@ import type { Request } from 'express';
 import { RolesGuard } from '@/bases/guards/role.guard';
 import { Roles } from '@/bases/decorators/role.decorators';
 import { Role } from '@prisma/client';
-import { CreateConversationDto } from './dto/conversation.dto';
+import {
+    ConversationDetailQueryDto,
+    CreateConversationDto,
+} from './dto/conversation.dto';
 
 @Controller('conversation')
 export class ConversationController {
     constructor(private readonly conversationService: ConversationService) {}
-    @Get('/user/:userId')
-    async getAllUsersConversations(
-        @Param('userId', ParseIntPipe) userId: number,
-    ) {
+
+    @UseGuards(JwtAuthGuard)
+    @Get('/me')
+    async getMyConversations(@Req() req: Request) {
+        const userId = Number((req.user as { id?: number })?.id);
         const response = await this.conversationService.getAllUserConversation(
-            Number(userId),
+            userId,
         );
         return response;
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('/user/:userId')
+    async getAllUsersConversations(
+        @Param('userId', ParseIntPipe) userId: number,
+        @Req() req: Request,
+    ) {
+        const requesterId = Number((req.user as { id?: number })?.id);
+        const safeUserId = requesterId === userId ? userId : requesterId;
+        return await this.conversationService.getAllUserConversation(
+            safeUserId,
+        );
+    }
+
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post()
@@ -36,29 +54,45 @@ export class ConversationController {
         @Req() req: Request,
         @Body() createConversation: CreateConversationDto,
     ) {
-        const id = (req.user as any).id;
+        const id = Number((req.user as { id?: number })?.id);
         const response = await this.conversationService.createConversation(
-            Number(id),
+            id,
             createConversation,
         );
         return response;
     }
+
     @UseGuards(JwtAuthGuard)
     @Get('detail')
     async getConversationDetailById(
         @Query('orderId', ParseIntPipe) orderId: number,
-        @Query('limit', ParseIntPipe) limit: number = 20,
-        @Query('offset', ParseIntPipe) offset: number = 0,
+        @Query() query: ConversationDetailQueryDto,
         @Req() req: Request,
     ) {
-        const userId = (req.user as any).id;
+        const userId = Number((req.user as { id?: number })?.id);
         const response =
             await this.conversationService.getConversationByOrderId(
                 userId,
                 orderId,
-                limit,
-                offset,
+                query.limit ?? 20,
+                query.offset ?? 0,
             );
         return response;
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get(':conversationId')
+    async getConversationById(
+        @Param('conversationId', ParseIntPipe) conversationId: number,
+        @Query() query: ConversationDetailQueryDto,
+        @Req() req: Request,
+    ) {
+        const userId = Number((req.user as { id?: number })?.id);
+        return await this.conversationService.getConversationById(
+            userId,
+            conversationId,
+            query.limit ?? 20,
+            query.offset ?? 0,
+        );
     }
 }

@@ -8,20 +8,15 @@ export async function getMomoPayUrl(
     money: Prisma.Decimal | number,
     order: number,
 ) {
-    console.log('partnerCode', partnerCode);
-    console.log('accessKey ', accessKey);
-    console.log('secretKey', secretKey);
-
-    var requestId = partnerCode + new Date().getTime();
-    var orderId = requestId + '-' + order;
-    var orderInfo = 'Pay order with Momo';
-    var redirectUrl = 'https://momo.vn/return'; //Url momo se return ve sau khi thanh toan thanh cong
-    var ipnUrl = 'http://localhost:4000/api/payment/check-payment'; //Url ma Momo se goi ve ben backend de tien hanh cap nhat database sau khi thanh toan thanh cong
-    // var ipnUrl = redirectUrl = "https://webhook.site/454e7b77-f177-4ece-8236-ddf1c26ba7f8";
-    var amount = money.toString();
-    var requestType = 'captureWallet';
-    var extraData = ''; //pass empty value if your merchant does not have stores
-    var rawSignature =
+    const requestId = partnerCode + new Date().getTime();
+    const orderId = requestId + '-' + order;
+    const orderInfo = 'Pay order with Momo';
+    const redirectUrl = 'https://momo.vn/return';
+    const ipnUrl = 'http://localhost:4000/api/payment/check-payment';
+    const amount = money.toString();
+    const requestType = 'captureWallet';
+    const extraData = '';
+    const rawSignature =
         'accessKey=' +
         accessKey +
         '&amount=' +
@@ -42,7 +37,7 @@ export async function getMomoPayUrl(
         requestId +
         '&requestType=' +
         requestType;
-    var signature = crypto
+    const signature = crypto
         .createHmac('sha256', secretKey)
         .update(rawSignature)
         .digest('hex');
@@ -69,12 +64,5 @@ export async function getMomoPayUrl(
             },
         },
     );
-    const data = response.data;
-    // if (data.resultCode == 0) -- Give it to the production because test so result code always 0
-    //     return {
-    //         message: "Giao dịch không thành công"
-    //     }
-    return {
-        ...data,
-    };
+    return response.data;
 }

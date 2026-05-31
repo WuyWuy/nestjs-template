@@ -8,19 +8,19 @@ export class AddressService {
     constructor(private readonly prismaService: PrismaService) {}
 
     async findAddress(
-        longitude: number,
         latitude: number,
+        longitude: number,
         db: TransactionClientExtended | PrismaService = this.prismaService,
     ) {
         const existsAddress = await db.address.findFirst({
             where: {
-                longitude: {
-                    gte: longitude - 0.0001,
-                    lte: longitude + 0.0001,
-                },
                 latitude: {
                     gte: latitude - 0.0001,
                     lte: latitude + 0.0001,
+                },
+                longitude: {
+                    gte: longitude - 0.0001,
+                    lte: longitude + 0.0001,
                 },
             },
         });
@@ -33,8 +33,8 @@ export class AddressService {
     ) {
         try {
             const existsAddress = await this.findAddress(
-                address.longitude,
                 address.latitude,
+                address.longitude,
                 db,
             );
             if (existsAddress) return existsAddress;
@@ -46,7 +46,7 @@ export class AddressService {
             });
             return address1;
         } catch (err) {
-            console.log('create address error', err);
+            console.log("creating address error: " , err) 
             throw err;
         }
     }

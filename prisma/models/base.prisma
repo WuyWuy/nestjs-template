@@ -50,3 +50,11 @@ enum VoucherStatus {
     APPLYING 
     ENDED 
 }
+
+enum NotificationType {
+    SYSTEM
+    ORDER
+    PAYMENT
+    PROMOTION
+    CHAT
+}

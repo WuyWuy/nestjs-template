@@ -8,6 +8,7 @@ import {
     ArrayMinSize,
     IsString,
     IsEnum,
+    IsBoolean,
 } from 'class-validator';
 
 import { Type } from 'class-transformer';
@@ -56,12 +57,39 @@ export class CreateOrderDto {
     @ValidateNested({ each: true })
     @Type(() => CreateOrderFoodDto)
     orderFoods: CreateOrderFoodDto[];
+
+    @IsOptional()
+    @IsString()
+    note?: string = '';
+
     @IsEnum(PaymentMethod)
     paymentMethod: PaymentMethod;
+
+    @IsOptional()
+    @IsBoolean()
+    @Type(() => Boolean)
+    clearCartAfterOrder?: boolean = true;
 }
 
-export class UpdateOrderStatus 
-{
-    @IsEnum(OrderStatus) 
-    status : OrderStatus
+export class UpdateOrderStatus {
+    @IsEnum(OrderStatus)
+    status: OrderStatus;
+}
+
+export class GetOrdersQueryDto {
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    limit?: number = 20;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(0)
+    offset?: number = 0;
+
+    @IsOptional()
+    @IsEnum(OrderStatus)
+    status?: OrderStatus;
 }

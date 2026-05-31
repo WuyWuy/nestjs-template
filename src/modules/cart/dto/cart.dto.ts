@@ -7,6 +7,13 @@ export class CreateCartItemDto {
 
     @IsInt()
     @IsNotEmpty()
+    @Min(1)
+    quantity: number;
+}
+
+export class UpdateCartItemDto {
+    @IsInt()
+    @IsNotEmpty()
     @Min(0)
     quantity: number;
 }

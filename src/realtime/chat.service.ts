@@ -7,11 +7,11 @@ import { WsException } from '@nestjs/websockets';
 export class ChatService {
     constructor(private readonly prismaService: PrismaService) {}
     async validateConversation(userId: number, conversationId: number) {
-        const conversation =
-            await this.prismaService.client.conversation.findFirst({
+        const conversation = await this.prismaService.client.conversation.findFirst(
+            {
                 where: { id: conversationId },
-            });
-        console.log(conversation);
+            },
+        );
         if (!conversation) throw new WsException('Conversation not found');
         if (
             conversation.customerId !== userId &&
@@ -22,11 +22,17 @@ export class ChatService {
     }
     async storeDbAndEmitMessage(senderId: number, message: ChatMessage) {
         try {
-            const { conversationId, content } = message;
-            const conversation =
-                await this.prismaService.client.conversation.findUnique({
+            const { conversationId } = message;
+            const content = message.content.trim();
+            if (!content) {
+                throw new WsException('Message content is required');
+            }
+
+            const conversation = await this.prismaService.client.conversation.findFirst(
+                {
                     where: { id: conversationId },
-                });
+                },
+            );
             if (!conversation)
                 throw new WsException('Conversation is not initialized');
             if (
@@ -43,10 +49,24 @@ export class ChatService {
                     conversationId,
                     content,
                 },
+                select: {
+                    id: true,
+                    conversationId: true,
+                    senderId: true,
+                    content: true,
+                    createdAt: true,
+                    sender: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                },
             });
             return result;
         } catch (err) {
-            console.log('conversation error: ', err);
+            console.log("Store Db And Emit message error" , err) 
             throw err;
         }
     }

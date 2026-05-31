@@ -2,17 +2,24 @@ model Restaurant {
     id        Int                @id @default(autoincrement())
     name      String
     image     String             @default("")
+    coverImage String            @default("")
+    description String           @default("") @db.Text
     phone     String             @unique
     approved  Boolean            @default(false)
+    deliveryFee Decimal          @default(0)
+    minimumOrder Decimal         @default(0)
+    estimatedDeliveryTime Int    @default(20)
     addressId Int
     address   Address            @relation(fields: [addressId], references: [id])
     ownerId   Int
     owner     User               @relation(fields: [ownerId], references: [id])
     createdAt DateTime           @default(now())
+    updatedAt DateTime           @updatedAt
     deleteAt  DateTime?
     foods     Food[]
     ratings   RestaurantRating[]
     orders    Order[]
+    vouchers  Voucher[]
 }
 
 model RestaurantRating {

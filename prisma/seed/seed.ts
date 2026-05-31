@@ -383,6 +383,7 @@ async function seedVouchers() {
     const vouchers = [
         {
             name: 'Summer Discount 10%',
+            code: 'SUMMER10',
             description: 'Get 10% off on all orders',
             sale: 10,
             type: VoucherType.PERCENT,
@@ -390,6 +391,7 @@ async function seedVouchers() {
         },
         {
             name: 'Save $5',
+            code: 'SAVE5',
             description: 'Flat $5 discount',
             sale: 5,
             type: VoucherType.MONEY,
@@ -397,6 +399,7 @@ async function seedVouchers() {
         },
         {
             name: 'Flash Sale 20%',
+            code: 'FLASH20',
             description: 'Limited time 20% off',
             sale: 20,
             type: VoucherType.PERCENT,
@@ -404,6 +407,7 @@ async function seedVouchers() {
         },
         {
             name: 'Weekend Special',
+            code: 'WEEKEND10',
             description: '$10 off on weekends',
             sale: 10,
             type: VoucherType.MONEY,
@@ -411,6 +415,7 @@ async function seedVouchers() {
         },
         {
             name: 'New User Bonus',
+            code: 'NEW15',
             description: 'First order 15% discount',
             sale: 15,
             type: VoucherType.PERCENT,
@@ -423,6 +428,7 @@ async function seedVouchers() {
             prisma.voucher.create({
                 data: {
                     name: voucher.name,
+                    code: voucher.code,
                     description: voucher.description,
                     sale: voucher.sale,
                     type: voucher.type,

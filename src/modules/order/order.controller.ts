@@ -1,7 +1,6 @@
 import {
     Body,
     Controller,
-    DefaultValuePipe,
     Delete,
     Get,
     Param,
@@ -13,7 +12,11 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
-import { CreateOrderDto, UpdateOrderStatus } from './dto/order.dto';
+import {
+    CreateOrderDto,
+    GetOrdersQueryDto,
+    UpdateOrderStatus,
+} from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '@/bases/guards/role.guard';
 import { Roles } from '@/bases/decorators/role.decorators';
@@ -21,60 +24,67 @@ import { Role } from '@prisma/client';
 import type { Request } from 'express';
 
 @Controller('orders')
-@Roles(Role.CUSTOMER)
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class OrderController {
     constructor(private readonly orderSerivce: OrderService) {}
+
+    @Roles(Role.CUSTOMER)
     @Post()
     async createOrder(@Body() data: CreateOrderDto, @Req() req: Request) {
-        const userId = (req.user as any).id;
-        const response = await this.orderSerivce.createOrder(
-            Number(userId),
-            data,
-        );
-        return response;
+        const user = req.user as { id?: number };
+        return await this.orderSerivce.createOrder(Number(user.id), data);
     }
+
     @Get()
-    async getAllUSerPayment(
-        @Req() req: Request,
-        @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-        @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
-    ) {
-        const userId = (req.user as any).id;
-        const response = await this.orderSerivce.getAllOrders(
-            Number(userId),
-            limit,
-            offset,
+    async getAllOrders(@Req() req: Request, @Query() query: GetOrdersQueryDto) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.orderSerivce.getAllOrders(
+            Number(user.id),
+            user.roles ?? [],
+            query.limit ?? 20,
+            query.offset ?? 0,
+            query.status,
         );
-        return response;
     }
+
     @Get('/:orderId')
     async getOrderDetail(
         @Param('orderId', ParseIntPipe) orderId: number,
         @Req() req: Request,
     ) {
-        const userId = (req.user as any).id;
-        const response = await this.orderSerivce.getOrderDetail(
-            Number(userId),
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.orderSerivce.getOrderDetail(
+            Number(user.id),
+            user.roles ?? [],
             orderId,
         );
-        return response;
     }
+
     @Delete('/:orderId')
-    async deleteOrder(
+    async cancelOrder(
         @Param('orderId', ParseIntPipe) orderId: number,
         @Req() req: Request,
     ) {
-        const userId = (req.user as any).id;
-        return await this.orderSerivce.deleteOrderById(Number(userId) , orderId)
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.orderSerivce.deleteOrderById(
+            Number(user.id),
+            user.roles ?? [],
+            orderId,
+        );
     }
+
     @Patch('/:orderId')
     async updateOrderStatus(
         @Param('orderId', ParseIntPipe) orderId: number,
         @Req() req: Request,
-        @Body() data : UpdateOrderStatus
+        @Body() data: UpdateOrderStatus,
     ) {
-        const userId = (req.user as any).id;
-        return await this.orderSerivce.updateOrderStatus(Number(userId) , orderId , data)
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.orderSerivce.updateOrderStatus(
+            Number(user.id),
+            user.roles ?? [],
+            orderId,
+            data,
+        );
     }
 }

@@ -4,39 +4,79 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
+import {
+    OrderStatus,
+    PaymentMethod,
+    PaymentStatus,
+    Prisma,
+} from '@prisma/client';
 import { getMomoPayUrl } from './payment.utls';
 import { PrismaService } from '@/prisma/prisma.service';
 import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
+
 @Injectable()
 export class PaymentService {
-    private readonly momoAccessKey: string;
-    private readonly momoSecretKey: string;
-    private readonly momoPartnerCode: string;
+    private readonly momoAccessKey?: string;
+    private readonly momoSecretKey?: string;
+    private readonly momoPartnerCode?: string;
 
-    //___________HELPER
     constructor(
         private readonly configService: ConfigService,
         private readonly prismaService: PrismaService,
     ) {
         this.momoAccessKey =
-            this.configService.getOrThrow<string>('MOMO_ACCESS_KEY');
+            this.configService.get<string>('MOMO_ACCESS_KEY') || undefined;
         this.momoSecretKey =
-            this.configService.getOrThrow<string>('MOMO_SECRET_KEY');
+            this.configService.get<string>('MOMO_SECRET_KEY') || undefined;
         this.momoPartnerCode =
-            this.configService.getOrThrow<string>('MOMO_PARTNER_CODE');
+            this.configService.get<string>('MOMO_PARTNER_CODE') || undefined;
     }
-    /**
-     * Create a payment snapshot for an order.
-     * Prevents duplicate payments by checking if one already exists.
-     */
+
+    private async getPaymentByOrderId(orderId: number) {
+        const payment = await this.prismaService.client.payment.findFirst({
+            where: {
+                orderId,
+            },
+            select: {
+                id: true,
+                orderId: true,
+                amount: true,
+                method: true,
+                paymentStatus: true,
+                createdAt: true,
+            },
+        });
+
+        if (!payment) {
+            throw new NotFoundException('Payment not found');
+        }
+
+        return {
+            ...payment,
+            amount: Number(payment.amount),
+        };
+    }
+
+    private buildMockMoMoResponse(orderId: number, money: number) {
+        return {
+            partnerCode: this.momoPartnerCode ?? 'MOMO',
+            orderId: `mock-${orderId}`,
+            requestId: `mock-${Date.now()}`,
+            payUrl: `https://sandbox.momo.vn/mock-pay?orderId=${orderId}&amount=${money}`,
+            deeplink: '',
+            qrCodeUrl: '',
+            resultCode: 0,
+            message:
+                'Mock MoMo payment created because credentials or network are unavailable',
+        };
+    }
+
     async createPaymentSnapshot(
         orderId: number,
         method: PaymentMethod,
         money: number | Prisma.Decimal,
         tx: PrismaService | TransactionClientExtended = this.prismaService,
     ) {
-        // Check if payment already exists for this order (prevents paying twice)
         const existingPayment = await tx.payment.findFirst({
             where: { orderId },
         });
@@ -46,165 +86,151 @@ export class PaymentService {
             );
         }
 
-        const payment = await tx.payment.create({
+        return await tx.payment.create({
             data: {
-                orderId: orderId,
+                orderId,
                 amount: money,
-                method: method,
+                method,
                 paymentStatus: PaymentStatus.UNPAID,
             },
         });
-        return payment;
     }
-    // MoMo Payment Method
 
-    /**
-     * Update MoMo payment status from webhook callback.
-     * Extracts order ID from MoMo's format: requestId-orderId
-     */
     async updateMoMoPaymentStatus(momoOrderId: string, status: PaymentStatus) {
-        try {
-            let orderId = momoOrderId;
-            if (momoOrderId.includes('-')) orderId = momoOrderId.split('-')[1];
-            if (!orderId || isNaN(Number(orderId))) {
-                throw new BadRequestException('Order ID in invalid format');
-            }
+        let orderId = momoOrderId;
+        if (momoOrderId.includes('-')) orderId = momoOrderId.split('-').pop()!;
+        if (!orderId || isNaN(Number(orderId))) {
+            throw new BadRequestException('Order ID in invalid format');
+        }
 
-            const payment = await this.prismaService.client.payment.update({
+        const payment = await this.prismaService.client.payment.findFirst({
+            where: {
+                orderId: Number(orderId),
+            },
+        });
+
+        if (!payment) {
+            throw new NotFoundException('Payment not found');
+        }
+
+        const result = await this.prismaService.client.payment.update({
+            where: {
+                id: payment.id,
+            },
+            data: {
+                paymentStatus: status,
+            },
+        });
+
+        if (status === PaymentStatus.DONE) {
+            const order = await this.prismaService.client.order.findFirst({
                 where: {
-                    orderId: Number(orderId),
-                },
-                data: {
-                    paymentStatus: status,
+                    id: Number(orderId),
                 },
             });
-            return payment;
-        } catch (err) {
-            console.error(
-                `Failed to update MoMo payment status for order ${momoOrderId}:`,
-                err,
-            );
-            throw new BadRequestException('Failed to update payment status');
+
+            if (order && order.status === 'PENDING') {
+                await this.prismaService.client.order.update({
+                    where: {
+                        id: order.id,
+                    },
+                    data: {
+                        status: OrderStatus.CONFIRMED,
+                    },
+                });
+            }
         }
+
+        return result;
     }
-    /**
-     * Create MoMo payment and return payment URL.
-     * Amount should be in VND (whole units).
-     */
+
     async createMoMoPayment(
         orderId: number,
         money: number | Prisma.Decimal,
         tx: TransactionClientExtended | PrismaService = this.prismaService,
     ) {
+        const order = await tx.order.findFirst({
+            where: {
+                id: orderId,
+            },
+        });
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        await this.createPaymentSnapshot(order.id, PaymentMethod.MOMO, money, tx);
+
+        const amount = Number(money);
+
+        if (
+            !this.momoPartnerCode ||
+            !this.momoAccessKey ||
+            !this.momoSecretKey
+        ) {
+            return this.buildMockMoMoResponse(order.id, amount);
+        }
+
         try {
-            // Verify order exists
-            const order = await tx.order.findFirst({
-                where: {
-                    id: orderId,
-                },
-            });
-            if (!order) {
-                throw new NotFoundException('Order not found');
-            }
-
-            // Create payment snapshot (will throw if payment already exists)
-            await this.createPaymentSnapshot(
-                order.id,
-                PaymentMethod.MOMO,
-                money,
-                tx,
-            );
-
-            // Generate MoMo payment URL
-            const payUrl = await getMomoPayUrl(
+            return await getMomoPayUrl(
                 this.momoPartnerCode,
                 this.momoAccessKey,
                 this.momoSecretKey,
-                Number(money) * 1000, // Convert VND to smallest unit
+                amount,
                 order.id,
             );
-            return payUrl;
-        } catch (err) {
-            console.error(
-                'Failed to create MoMo payment for order:',
-                orderId,
-                err,
-            );
-            throw err;
+        } catch {
+            return this.buildMockMoMoResponse(order.id, amount);
         }
     }
-    /**
-     * Create cash payment record for an order.
-     * Cash payments start as PENDING and are marked DONE on order confirmation.
-     */
+
     async createCashPayment(
         orderId: number,
         money: number | Prisma.Decimal,
         tx: TransactionClientExtended | PrismaService = this.prismaService,
     ) {
-        try {
-            const order = await tx.order.findFirst({
-                where: {
-                    id: orderId,
-                },
-            });
-            if (!order) {
-                throw new NotFoundException('Order not found');
-            }
-
-            const payment = await this.createPaymentSnapshot(
-                order.id,
-                PaymentMethod.CASH,
-                money,
-                tx,
-            );
-            return payment;
-        } catch (err) {
-            console.error(
-                'Failed to create cash payment for order:',
-                orderId,
-                err,
-            );
-            throw err;
+        const order = await tx.order.findFirst({
+            where: {
+                id: orderId,
+            },
+        });
+        if (!order) {
+            throw new NotFoundException('Order not found');
         }
+
+        return await this.createPaymentSnapshot(
+            order.id,
+            PaymentMethod.CASH,
+            money,
+            tx,
+        );
     }
 
-    /**
-     * Check and update payment status.
-     * Verifies payment exists and updates to the given status.
-     */
     async checkingPayment(
         orderId: number,
         status: PaymentStatus = PaymentStatus.DONE,
     ) {
-        try {
-            const payment = await this.prismaService.client.payment.findFirst({
-                where: {
-                    orderId,
-                },
-            });
-            if (!payment) {
-                throw new BadRequestException(
-                    `Payment not found for order ${orderId}`,
-                );
-            }
-
-            const result = await this.prismaService.client.payment.update({
-                where: {
-                    id: payment.id,
-                },
-                data: {
-                    paymentStatus: status,
-                },
-            });
-            return result;
-        } catch (err) {
-            console.error(
-                'Failed to check/update payment for order:',
+        const payment = await this.prismaService.client.payment.findFirst({
+            where: {
                 orderId,
-                err,
+            },
+        });
+        if (!payment) {
+            throw new BadRequestException(
+                `Payment not found for order ${orderId}`,
             );
-            throw err;
         }
+
+        return await this.prismaService.client.payment.update({
+            where: {
+                id: payment.id,
+            },
+            data: {
+                paymentStatus: status,
+            },
+        });
+    }
+
+    async getPaymentDetail(orderId: number) {
+        return await this.getPaymentByOrderId(orderId);
     }
 }

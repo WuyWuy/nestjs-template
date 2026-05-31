@@ -5,12 +5,12 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
+import { Prisma, Role } from '@prisma/client';
 import {
     CreateRestaurantDto,
     CreateRestaurantRatingDto,
     UpdateRestaurantDto,
 } from './dto/restaurant.dto';
-import { Role } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { MinioService } from '../minio/minio.service';
 import type { Express } from 'express';
@@ -51,10 +51,10 @@ export class RestaurantService {
     private hasRole(roles: string[], role: Role) {
         return roles.includes(role);
     }
-    private async resolveRestaurantImagePayload(
-        data: Partial<CreateRestaurantDto>,
+    private async resolveRestaurantImagePayload<T extends Partial<CreateRestaurantDto>>(
+        data: T,
         files?: RestaurantUploadFiles,
-    ) {
+    ): Promise<T & { image?: string; coverImage?: string }> {
         let image = data.image;
         let coverImage = data.coverImage;
 
@@ -81,23 +81,43 @@ export class RestaurantService {
         roles: string[],
         restaurantId: number,
     ) {
-        if (this.hasRole(roles, Role.ADMIN)) {
-            return;
-        }
-
         const restaurant = await this.prismaService.client.restaurant.findFirst({
             where: {
                 id: restaurantId,
             },
             select: {
+                id: true,
                 ownerId: true,
             },
         });
 
-        if (!restaurant || restaurant.ownerId !== actorId) {
+        if (!restaurant) {
+            throw new NotFoundException('Restaurant not found');
+        }
+
+        if (this.hasRole(roles, Role.ADMIN)) {
+            return;
+        }
+
+        if (restaurant.ownerId !== actorId) {
             throw new ForbiddenException(
                 'You are not allowed to manage this restaurant',
             );
+        }
+    }
+
+    private async assertAddressExists(addressId: number) {
+        const address = await this.prismaService.client.address.findFirst({
+            where: {
+                id: addressId,
+            },
+            select: {
+                id: true,
+            },
+        });
+
+        if (!address) {
+            throw new BadRequestException('Address not found');
         }
     }
 
@@ -508,12 +528,25 @@ export class RestaurantService {
             files,
         );
 
+        await this.assertAddressExists(restaurantPayload.addressId);
+
+        const createData: Prisma.RestaurantUncheckedCreateInput = {
+            name: restaurantPayload.name,
+            phone: restaurantPayload.phone,
+            addressId: restaurantPayload.addressId,
+            description: restaurantPayload.description ?? '',
+            image: restaurantPayload.image ?? '',
+            coverImage: restaurantPayload.coverImage ?? '',
+            deliveryFee: restaurantPayload.deliveryFee ?? 0,
+            minimumOrder: restaurantPayload.minimumOrder ?? 0,
+            estimatedDeliveryTime:
+                restaurantPayload.estimatedDeliveryTime ?? 20,
+            ownerId: actorId,
+            approved: this.hasRole(roles, Role.ADMIN),
+        };
+
         const restaurant = await this.prismaService.client.restaurant.create({
-            data: {
-                ...restaurantPayload,
-                ownerId: actorId,
-                approved: this.hasRole(roles, Role.ADMIN),
-            },
+            data: createData,
         });
 
         await this.auditService.log(
@@ -541,13 +574,52 @@ export class RestaurantService {
             files,
         );
 
+        if (restaurantPayload.addressId !== undefined) {
+            await this.assertAddressExists(restaurantPayload.addressId);
+        }
+
+        const updateData: Prisma.RestaurantUncheckedUpdateInput = {};
+
+        if (restaurantPayload.name !== undefined) {
+            updateData.name = restaurantPayload.name;
+        }
+        if (restaurantPayload.phone !== undefined) {
+            updateData.phone = restaurantPayload.phone;
+        }
+        if (restaurantPayload.addressId !== undefined) {
+            updateData.addressId = restaurantPayload.addressId;
+        }
+        if (restaurantPayload.description !== undefined) {
+            updateData.description = restaurantPayload.description;
+        }
+        if (restaurantPayload.image !== undefined) {
+            updateData.image = restaurantPayload.image;
+        }
+        if (restaurantPayload.coverImage !== undefined) {
+            updateData.coverImage = restaurantPayload.coverImage;
+        }
+        if (restaurantPayload.deliveryFee !== undefined) {
+            updateData.deliveryFee = restaurantPayload.deliveryFee;
+        }
+        if (restaurantPayload.minimumOrder !== undefined) {
+            updateData.minimumOrder = restaurantPayload.minimumOrder;
+        }
+        if (restaurantPayload.estimatedDeliveryTime !== undefined) {
+            updateData.estimatedDeliveryTime =
+                restaurantPayload.estimatedDeliveryTime;
+        }
+
+        if (!Object.keys(updateData).length) {
+            throw new BadRequestException(
+                'No valid restaurant data provided for update',
+            );
+        }
+
         const restaurant = await this.prismaService.client.restaurant.update({
             where: {
                 id: restaurantId,
             },
-            data: {
-                ...restaurantPayload,
-            },
+            data: updateData,
         });
 
         await this.auditService.log(

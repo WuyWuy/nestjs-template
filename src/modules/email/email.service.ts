@@ -35,4 +35,22 @@ export class EmailService {
             throw err;
         }
     }
+    async send(
+        subject : string, template : string, to : string, 
+        context : Record<string , any> 
+    )  
+    {
+        try { 
+            await this.mailerService.sendMail({
+                to, subject, template , context: {
+                    ...context 
+                }
+            })
+            return true 
+        } 
+        catch (err) {
+            console.log("Send email error: " , err) 
+            throw err 
+        }
+    }
 }

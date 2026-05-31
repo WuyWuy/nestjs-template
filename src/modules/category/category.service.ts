@@ -5,18 +5,35 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import type { Express } from 'express';
 import {
     CategoryQueryDto,
     CreateCategoryDto,
     UpdateCategoryDto,
 } from './dto/category.dto';
+import { MinioService } from '../minio/minio.service';
 
 @Injectable()
 export class CategoryService {
     constructor(
         private readonly prismaService: PrismaService,
         private readonly auditService: AuditService,
+        private readonly minioService: MinioService,
     ) {}
+    private async resolveCategoryImagePayload(
+        data: Partial<CreateCategoryDto>,
+        file?: Express.Multer.File,
+    ) {
+        let image = data.image;
+        if (file) {
+            image = await this.minioService.uploadFile(file);
+        }
+
+        return {
+            ...data,
+            image,
+        };
+    }
 
     async getCategories(query: CategoryQueryDto) {
         const categories = await this.prismaService.client.category.findMany({
@@ -93,7 +110,11 @@ export class CategoryService {
         };
     }
 
-    async createCategory(actorId: number, data: CreateCategoryDto) {
+    async createCategory(
+        actorId: number,
+        data: CreateCategoryDto,
+        file?: Express.Multer.File,
+    ) {
         const existsCategory = await this.prismaService.client.category.findFirst({
             where: {
                 name: {
@@ -106,13 +127,17 @@ export class CategoryService {
         if (existsCategory) {
             throw new BadRequestException('Category already exists');
         }
+        const categoryPayload = await this.resolveCategoryImagePayload(
+            data,
+            file,
+        );
 
         const category = await this.prismaService.client.category.create({
             data: {
-                name: data.name,
-                description: data.description,
-                image: data.image ?? '',
-                sortOrder: data.sortOrder ?? 0,
+                name: categoryPayload.name!,
+                description: categoryPayload.description!,
+                image: categoryPayload.image ?? '',
+                sortOrder: categoryPayload.sortOrder ?? 0,
             },
         });
 
@@ -127,7 +152,12 @@ export class CategoryService {
         return category;
     }
 
-    async updateCategory(actorId: number, id: number, data: UpdateCategoryDto) {
+    async updateCategory(
+        actorId: number,
+        id: number,
+        data: UpdateCategoryDto,
+        file?: Express.Multer.File,
+    ) {
         const category = await this.prismaService.client.category.findFirst({
             where: {
                 id,
@@ -137,13 +167,17 @@ export class CategoryService {
         if (!category) {
             throw new NotFoundException('Category not found');
         }
+        const categoryPayload = await this.resolveCategoryImagePayload(
+            data,
+            file,
+        );
 
         const updatedCategory = await this.prismaService.client.category.update({
             where: {
                 id,
             },
             data: {
-                ...data,
+                ...categoryPayload,
             },
         });
 

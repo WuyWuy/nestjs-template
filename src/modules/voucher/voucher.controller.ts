@@ -9,9 +9,12 @@ import {
     Post,
     Query,
     Req,
+    UploadedFile,
     UseGuards,
+    UseInterceptors,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Express, Request } from 'express';
 import { Role } from '@prisma/client';
 import { Roles } from '@/bases/decorators/role.decorators';
 import { RolesGuard } from '@/bases/guards/role.guard';
@@ -51,22 +54,30 @@ export class VoucherController {
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post()
-    async createVoucher(@Req() req: Request, @Body() data: CreateVoucherDto) {
+    @UseInterceptors(FileInterceptor('image'))
+    async createVoucher(
+        @Req() req: Request,
+        @Body() data: CreateVoucherDto,
+        @UploadedFile() file: Express.Multer.File,
+    ) {
         const user = req.user as { id?: number; roles?: string[] };
         return await this.voucherService.createVoucher(
             Number(user.id),
             user.roles ?? [],
             data,
+            file,
         );
     }
 
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch(':id')
+    @UseInterceptors(FileInterceptor('image'))
     async updateVoucher(
         @Req() req: Request,
         @Param('id', ParseIntPipe) id: number,
         @Body() data: UpdateVoucherDto,
+        @UploadedFile() file: Express.Multer.File,
     ) {
         const user = req.user as { id?: number; roles?: string[] };
         return await this.voucherService.updateVoucher(
@@ -74,6 +85,7 @@ export class VoucherController {
             user.roles ?? [],
             id,
             data,
+            file,
         );
     }
 

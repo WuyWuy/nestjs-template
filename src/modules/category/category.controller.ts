@@ -9,9 +9,12 @@ import {
     Post,
     Query,
     Req,
+    UploadedFile,
     UseGuards,
+    UseInterceptors,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Express, Request } from 'express';
 import { Role } from '@prisma/client';
 import { Roles } from '@/bases/decorators/role.decorators';
 import { RolesGuard } from '@/bases/guards/role.guard';
@@ -40,21 +43,33 @@ export class CategoryController {
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post()
-    async createCategory(@Req() req: Request, @Body() data: CreateCategoryDto) {
+    @UseInterceptors(FileInterceptor('image'))
+    async createCategory(
+        @Req() req: Request,
+        @Body() data: CreateCategoryDto,
+        @UploadedFile() file: Express.Multer.File,
+    ) {
         const actorId = Number((req.user as { id?: number })?.id);
-        return await this.categoryService.createCategory(actorId, data);
+        return await this.categoryService.createCategory(actorId, data, file);
     }
 
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch(':id')
+    @UseInterceptors(FileInterceptor('image'))
     async updateCategory(
         @Req() req: Request,
         @Param('id', ParseIntPipe) id: number,
         @Body() data: UpdateCategoryDto,
+        @UploadedFile() file: Express.Multer.File,
     ) {
         const actorId = Number((req.user as { id?: number })?.id);
-        return await this.categoryService.updateCategory(actorId, id, data);
+        return await this.categoryService.updateCategory(
+            actorId,
+            id,
+            data,
+            file,
+        );
     }
 
     @Roles(Role.ADMIN, Role.BUSINESS)

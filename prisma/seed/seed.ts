@@ -1,12 +1,14 @@
 import {
-    PrismaClient,
-    Role,
+    AuthProvider,
     OrderStatus,
     PaymentMethod,
     PaymentStatus,
-    VoucherType,
+    Prisma,
+    PrismaClient,
+    Role,
     VoucherStatus,
-} from '@prisma/client';
+    VoucherType,
+} from '../../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const prisma = new PrismaClient({
@@ -15,825 +17,1188 @@ const prisma = new PrismaClient({
     }),
 });
 
-async function seedAddress() {
-    const addresses = [
-        {
-            title: 'Nguyen Hue',
-            latitude: 10.7769,
-            longitude: 106.7009,
-            fullText: '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh',
-        },
-        {
-            title: 'Le Loi',
-            latitude: 10.7725,
-            longitude: 106.698,
-            fullText: '45 Le Loi, Ben Thanh, District 1, Ho Chi Minh',
-        },
-        {
-            title: 'Tran Phu',
-            latitude: 16.0678,
-            longitude: 108.2208,
-            fullText: '12 Tran Phu, Hai Chau, Da Nang',
-        },
-        {
-            title: 'Vo Nguyen Giap',
-            latitude: 16.0515,
-            longitude: 108.2478,
-            fullText: '88 Vo Nguyen Giap, Ngu Hanh Son, Da Nang',
-        },
-        {
-            title: 'Hung Vuong',
-            latitude: 16.4637,
-            longitude: 107.5909,
-            fullText: '7 Hung Vuong, Hue',
-        },
-    ];
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
-    console.log('🌱 Seeding addresses...');
+const now = new Date();
+const oneDay = 24 * 60 * 60 * 1000;
 
-    await prisma.address.createMany({
-        data: addresses,
-        skipDuplicates: true,
-    });
+const addresses = [
+    {
+        key: 'district-1',
+        title: 'District 1 Hub',
+        latitude: 10.776889,
+        longitude: 106.700806,
+        fullText: '123 Nguyen Hue, Ben Nghe Ward, District 1, Ho Chi Minh City',
+    },
+    {
+        key: 'district-3',
+        title: 'District 3 Home',
+        latitude: 10.786749,
+        longitude: 106.690529,
+        fullText: '45 Vo Van Tan, Ward 6, District 3, Ho Chi Minh City',
+    },
+    {
+        key: 'phu-nhuan',
+        title: 'Phu Nhuan Office',
+        latitude: 10.799055,
+        longitude: 106.680168,
+        fullText: '12 Hoang Van Thu, Ward 9, Phu Nhuan, Ho Chi Minh City',
+    },
+    {
+        key: 'thu-duc',
+        title: 'Thu Duc Stop',
+        latitude: 10.845161,
+        longitude: 106.794357,
+        fullText: '99 Vo Van Ngan, Linh Chieu Ward, Thu Duc City',
+    },
+    {
+        key: 'binh-thanh',
+        title: 'Binh Thanh Corner',
+        latitude: 10.808153,
+        longitude: 106.709572,
+        fullText: '18 Dien Bien Phu, Ward 15, Binh Thanh, Ho Chi Minh City',
+    },
+] as const;
 
-    console.log(`✅ Seeded 5 addresses`);
-}
+const categories = [
+    {
+        name: 'Burger',
+        description: 'Smash burgers, chicken burgers, and comfort food classics.',
+        sortOrder: 1,
+        image: '',
+    },
+    {
+        name: 'Rice',
+        description: 'Rice bowls and grilled protein combos for everyday meals.',
+        sortOrder: 2,
+        image: '',
+    },
+    {
+        name: 'Sushi',
+        description: 'Rolls, nigiri, and light Japanese favorites.',
+        sortOrder: 3,
+        image: '',
+    },
+    {
+        name: 'Noodles',
+        description: 'Warm noodle dishes with bold broth and toppings.',
+        sortOrder: 4,
+        image: '',
+    },
+    {
+        name: 'Dessert',
+        description: 'Sweet add-ons and comfort desserts for finishing a meal.',
+        sortOrder: 5,
+        image: '',
+    },
+] as const;
 
-async function seedCategories() {
-    console.log('🌱 Seeding categories...');
+const ingredients = [
+    { name: 'Beef Patty', icon: 'beef' },
+    { name: 'Cheddar', icon: 'cheese' },
+    { name: 'Cucumber', icon: 'cucumber' },
+    { name: 'Salmon', icon: 'salmon' },
+    { name: 'Egg', icon: 'egg' },
+    { name: 'Seaweed', icon: 'seaweed' },
+    { name: 'Chicken', icon: 'chicken' },
+    { name: 'Chocolate', icon: 'chocolate' },
+] as const;
 
-    const categories = [
-        {
-            name: 'Pizza',
-            description: 'Delicious Italian pizzas with various toppings',
-        },
-        { name: 'Burger', description: 'Classic and gourmet burgers' },
-        { name: 'Pasta', description: 'Traditional Italian pasta dishes' },
-        { name: 'Sushi', description: 'Fresh sushi and rolls' },
-        { name: 'Dessert', description: 'Sweet desserts and pastries' },
-    ];
-
-    await prisma.category.createMany({
-        data: categories,
-        skipDuplicates: true,
-    });
-
-    console.log(`✅ Seeded 5 categories`);
-}
-
-async function seedIngredients() {
-    console.log('🌱 Seeding ingredients...');
-
-    const ingredients = [
-        { name: 'Tomato', icon: '🍅' },
-        { name: 'Cheese', icon: '🧀' },
-        { name: 'lettuce', icon: '🥬' },
-        { name: 'Bacon', icon: '🥓' },
-        { name: 'Shrimp', icon: '🦐' },
-        { name: 'Rice', icon: '🍚' },
-        { name: 'Avocado', icon: '🥑' },
-        { name: 'Olive Oil', icon: '🫒' },
-    ];
-
-    await prisma.ingredient.createMany({
-        data: ingredients,
-        skipDuplicates: true,
-    });
-
-    console.log(`✅ Seeded 8 ingredients`);
-}
-
-async function seedUsers() {
-    console.log('🌱 Seeding users...');
-
-    const users = [
-        {
-            name: 'Admin',
-            email: 'admin@gmail.com',
-            password: await hashPassword('admin'),
-            phone: '0984120972',
-            birthday: new Date(2006, 0, 19),
-            active: true,
-        },
-        {
-            name: 'Business Owner',
-            email: 'business@gmail.com',
-            password: await hashPassword('business123'),
-            phone: '0987654321',
-            birthday: new Date(1990, 5, 15),
-            active: true,
-        },
-        {
-            name: 'John Customer',
-            email: 'john@gmail.com',
-            password: await hashPassword('john123'),
-            phone: '0912345678',
-            birthday: new Date(1998, 3, 22),
-            active: true,
-        },
-        {
-            name: 'Jane Customer',
-            email: 'jane@gmail.com',
-            password: await hashPassword('jane123'),
-            phone: '0923456789',
-            birthday: new Date(2000, 8, 10),
-            active: true,
-        },
-    ];
-
-    const createdUsers: any[] = [];
-    for (const userData of users) {
-        const existing = await prisma.user.findUnique({
-            where: { email: userData.email },
-        });
-
-        if (!existing) {
-            const user = await prisma.user.create({
-                data: userData,
-            });
-            createdUsers.push(user);
-        } else {
-            createdUsers.push(existing);
-        }
-    }
-
-    // Assign roles
-    const admin = createdUsers[0];
-    const business = createdUsers[1];
-    const customer1 = createdUsers[2];
-    const customer2 = createdUsers[3];
-
-    await prisma.userRole.createMany({
-        data: [
-            { userId: admin.id, role: Role.ADMIN },
-            { userId: admin.id, role: Role.BUSINESS },
-            { userId: admin.id, role: Role.CUSTOMER },
-            { userId: business.id, role: Role.BUSINESS },
-            { userId: business.id, role: Role.CUSTOMER },
-            { userId: customer1.id, role: Role.CUSTOMER },
-            { userId: customer2.id, role: Role.CUSTOMER },
+const users = {
+    admin: {
+        name: 'Seed Admin',
+        email: 'admin@seed.local',
+        phone: '0900000001',
+        password: 'admin123',
+        birthday: '1994-01-10T00:00:00.000Z',
+        roles: [Role.ADMIN],
+        addressTitles: [{ addressKey: 'district-1', title: 'Admin Home' }],
+    },
+    business: {
+        name: 'Seed Business',
+        email: 'business@seed.local',
+        phone: '0900000002',
+        password: 'business123',
+        birthday: '1992-06-20T00:00:00.000Z',
+        roles: [Role.BUSINESS],
+        addressTitles: [{ addressKey: 'phu-nhuan', title: 'Business HQ' }],
+    },
+    customer1: {
+        name: 'Seed Customer One',
+        email: 'customer1@seed.local',
+        phone: '0900000003',
+        password: 'customer123',
+        birthday: '1998-03-15T00:00:00.000Z',
+        roles: [Role.CUSTOMER],
+        addressTitles: [
+            { addressKey: 'district-3', title: 'Home' },
+            { addressKey: 'binh-thanh', title: 'Office' },
         ],
-        skipDuplicates: true,
-    });
+    },
+    customer2: {
+        name: 'Seed Customer Two',
+        email: 'customer2@seed.local',
+        phone: '0900000004',
+        password: 'customer456',
+        birthday: '2000-09-08T00:00:00.000Z',
+        roles: [Role.CUSTOMER],
+        addressTitles: [{ addressKey: 'thu-duc', title: 'Home' }],
+    },
+} as const;
 
-    // Assign addresses to users
-    const addresses = await prisma.address.findMany();
-    if (addresses.length > 0) {
-        await prisma.userAddress.createMany({
-            data: [
-                { userId: admin.id, addressId: addresses[0].id, title: 'Home' },
-                {
-                    userId: business.id,
-                    addressId: addresses[0].id,
-                    title: 'Business',
-                },
-                {
-                    userId: customer1.id,
-                    addressId: addresses[1].id,
-                    title: 'Home',
-                },
-                {
-                    userId: customer1.id,
-                    addressId: addresses[2].id,
-                    title: 'Office',
-                },
-                {
-                    userId: customer2.id,
-                    addressId: addresses[1].id,
-                    title: 'Home',
-                },
-            ],
-            skipDuplicates: true,
-        });
-    }
-
-    console.log(`✅ Seeded 4 users with roles and addresses`);
-    return { admin, business, customer1, customer2 };
+function getLocalProviderUserId(userId: number) {
+    return `local:${userId}`;
 }
 
-async function seedRestaurants(businessUser: any) {
-    console.log('🌱 Seeding restaurants...');
-
-    const addresses = await prisma.address.findMany();
-    if (addresses.length === 0) {
-        throw new Error('❌ No addresses found');
-    }
-
-    const restaurants = [
-        {
-            name: 'Pizza Palace',
-            phone: '0901111111',
-            addressId: addresses[0].id,
-        },
-        {
-            name: 'Burger Heaven',
-            phone: '0902222222',
-            addressId: addresses[1].id,
-        },
-        {
-            name: 'Pasta Magic',
-            phone: '0903333333',
-            addressId: addresses[2].id,
-        },
-        {
-            name: 'Sushi Dreams',
-            phone: '0904444444',
-            addressId: addresses[3].id,
-        },
-        {
-            name: 'Sweet Desserts',
-            phone: '0905555555',
-            addressId: addresses[4].id,
-        },
-    ];
-
-    const createdRestaurants = await Promise.all(
-        restaurants.map((rest) =>
-            prisma.restaurant.create({
-                data: {
-                    ...rest,
-                    ownerId: businessUser.id,
-                    approved: true,
-                },
-            }),
-        ),
-    );
-
-    console.log(`✅ Seeded 5 restaurants`);
-    return createdRestaurants;
-}
-
-async function seedFoods(restaurants: any[]) {
-    console.log('🌱 Seeding foods...');
-
-    const categories = await prisma.category.findMany();
-    const ingredients = await prisma.ingredient.findMany();
-
-    if (categories.length === 0) {
-        throw new Error('❌ No categories found');
-    }
-
-    const foods = [
-        {
-            name: 'Margherita Pizza',
-            categoryId: categories[0].id,
-            price: 12.99,
-            description: 'Classic pizza with tomato and cheese',
-        },
-        {
-            name: 'Pepperoni Pizza',
-            categoryId: categories[0].id,
-            price: 14.99,
-            description: 'Spicy pepperoni pizza',
-        },
-        {
-            name: 'Classic Burger',
-            categoryId: categories[1].id,
-            price: 9.99,
-            description: 'Juicy beef burger with lettuce and tomato',
-        },
-        {
-            name: 'Bacon Burger',
-            categoryId: categories[1].id,
-            price: 11.99,
-            description: 'Burger with crispy bacon',
-        },
-        {
-            name: 'Spaghetti Carbonara',
-            categoryId: categories[2].id,
-            price: 13.99,
-            description: 'Traditional Italian pasta with creamy sauce',
-        },
-        {
-            name: 'Penne Alfredo',
-            categoryId: categories[2].id,
-            price: 12.99,
-            description: 'Creamy pasta with parmesan cheese',
-        },
-        {
-            name: 'California Roll',
-            categoryId: categories[3].id,
-            price: 10.99,
-            description: 'Fresh sushi roll with avocado and crab',
-        },
-        {
-            name: 'Spicy Tuna Roll',
-            categoryId: categories[3].id,
-            price: 11.99,
-            description: 'Spicy tuna sushi roll',
-        },
-        {
-            name: 'Chocolate Cake',
-            categoryId: categories[4].id,
-            price: 6.99,
-            description: 'Rich chocolate cake with frosting',
-        },
-        {
-            name: 'Cheesecake',
-            categoryId: categories[4].id,
-            price: 7.99,
-            description: 'Creamy New York style cheesecake',
-        },
-    ];
-
-    const createdFoods: any[] = [];
-
-    // 👉 Distribute foods evenly among restaurants
-    const foodsPerRestaurant = Math.ceil(foods.length / restaurants.length);
-
-    for (let i = 0; i < restaurants.length; i++) {
-        const restaurant = restaurants[i];
-        const startIdx = i * foodsPerRestaurant;
-        const endIdx = startIdx + foodsPerRestaurant;
-
-        for (let j = startIdx; j < endIdx && j < foods.length; j++) {
-            const food = await prisma.food.create({
-                data: {
-                    ...foods[j],
-                    restaurantId: restaurant.id,
-                },
-            });
-            createdFoods.push(food);
-        }
-    }
-
-    // link ingredients
-    if (ingredients.length > 0) {
-        await prisma.foodIngredient.createMany({
-            data: [
-                { foodId: createdFoods[0].id, ingredientId: ingredients[0].id },
-                { foodId: createdFoods[0].id, ingredientId: ingredients[1].id },
-                { foodId: createdFoods[2].id, ingredientId: ingredients[2].id },
-                { foodId: createdFoods[2].id, ingredientId: ingredients[0].id },
-                { foodId: createdFoods[3].id, ingredientId: ingredients[3].id },
-                { foodId: createdFoods[6].id, ingredientId: ingredients[4].id },
-                { foodId: createdFoods[6].id, ingredientId: ingredients[6].id },
-            ],
-            skipDuplicates: true,
-        });
-    }
-
-    console.log(`✅ Seeded ${createdFoods.length} foods`);
-    return createdFoods;
-}
-
-async function seedVouchers() {
-    console.log('🌱 Seeding vouchers...');
-
-    const vouchers = [
-        {
-            name: 'Summer Discount 10%',
-            code: 'SUMMER10',
-            description: 'Get 10% off on all orders',
-            sale: 10,
-            type: VoucherType.PERCENT,
-            status: VoucherStatus.APPLYING,
-        },
-        {
-            name: 'Save $5',
-            code: 'SAVE5',
-            description: 'Flat $5 discount',
-            sale: 5,
-            type: VoucherType.MONEY,
-            status: VoucherStatus.APPLYING,
-        },
-        {
-            name: 'Flash Sale 20%',
-            code: 'FLASH20',
-            description: 'Limited time 20% off',
-            sale: 20,
-            type: VoucherType.PERCENT,
-            status: VoucherStatus.APPLYING,
-        },
-        {
-            name: 'Weekend Special',
-            code: 'WEEKEND10',
-            description: '$10 off on weekends',
-            sale: 10,
-            type: VoucherType.MONEY,
-            status: VoucherStatus.APPLYING,
-        },
-        {
-            name: 'New User Bonus',
-            code: 'NEW15',
-            description: 'First order 15% discount',
-            sale: 15,
-            type: VoucherType.PERCENT,
-            status: VoucherStatus.ENDED,
-        },
-    ];
-
-    const createdVouchers = await Promise.all(
-        vouchers.map((voucher) =>
-            prisma.voucher.create({
-                data: {
-                    name: voucher.name,
-                    code: voucher.code,
-                    description: voucher.description,
-                    sale: voucher.sale,
-                    type: voucher.type,
-                    status: voucher.status,
-                },
-            }),
-        ),
-    );
-
-    console.log(`✅ Seeded 5 vouchers`);
-    return createdVouchers;
-}
-
-async function seedOrders(
-    businessUser: any,
-    customer1: any,
-    customer2: any,
-    restaurants: any[],
-    vouchers: any[],
-) {
-    console.log('🌱 Seeding orders...');
-
-    const addresses = await prisma.address.findMany();
-
-    const orders = [
-        {
-            restaurantId: restaurants[0].id,
-            totalPrice: 32.37,
-            status: OrderStatus.DELIVERED,
-            userId: customer1.id,
-            voucherId: vouchers[0].id,
-            addressId: addresses[0].id,
-        },
-        {
-            restaurantId: restaurants[1].id,
-            totalPrice: 21.48,
-            status: OrderStatus.DELIVERED,
-            userId: customer1.id,
-            voucherId: vouchers[1].id,
-            addressId: addresses[1].id,
-        },
-        {
-            restaurantId: restaurants[2].id,
-            totalPrice: 26.98,
-            status: OrderStatus.CONFIRMED,
-            userId: customer2.id,
-            addressId: addresses[2].id,
-        },
-        {
-            restaurantId: restaurants[3].id,
-            totalPrice: 20.68,
-            status: OrderStatus.PREPARING,
-            userId: customer2.id,
-            voucherId: vouchers[2].id,
-            addressId: addresses[3].id,
-        },
-        {
-            restaurantId: restaurants[0].id,
-            totalPrice: 29.97,
-            status: OrderStatus.DELIVERING,
-            userId: customer1.id,
-            addressId: addresses[0].id,
-        },
-        {
-            restaurantId: restaurants[4].id,
-            totalPrice: 13.23,
-            status: OrderStatus.PENDING,
-            userId: customer2.id,
-            voucherId: vouchers[3].id,
-            addressId: addresses[4].id,
-        },
-    ];
-    const createdOrders = await Promise.all(
-        orders.map((order) => prisma.order.create({ data: order })),
-    );
-
-    console.log(`✅ Seeded 6 orders with voucher usage and addresses`);
-    return createdOrders;
-}
-
-async function seedOrderFoods(orders: any[], foods: any[]) {
-    console.log('🌱 Seeding order foods...');
-
-    const orderFoods = [
-        {
-            orderId: orders[0].id,
-            foodId: foods[0].id,
-            quantity: 2,
-            price: 12.99,
-            fullText: '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh',
-        },
-        {
-            orderId: orders[0].id,
-            foodId: foods[1].id,
-            quantity: 1,
-            price: 14.99,
-            fullText: '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh',
-        },
-        {
-            orderId: orders[1].id,
-            foodId: foods[2].id,
-            quantity: 2,
-            price: 9.99,
-            fullText: '45 Le Loi, Ben Thanh, District 1, Ho Chi Minh',
-        },
-        {
-            orderId: orders[2].id,
-            foodId: foods[4].id,
-            quantity: 2,
-            price: 13.99,
-            fullText: '12 Tran Phu, Hai Chau, Da Nang',
-        },
-        {
-            orderId: orders[3].id,
-            foodId: foods[6].id,
-            quantity: 2,
-            price: 10.99,
-            fullText: '88 Vo Nguyen Giap, Ngu Hanh Son, Da Nang',
-        },
-        {
-            orderId: orders[4].id,
-            foodId: foods[3].id,
-            quantity: 1,
-            price: 11.99,
-            fullText: '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh',
-        },
-        {
-            orderId: orders[5].id,
-            foodId: foods[9].id,
-            quantity: 2,
-            price: 7.99,
-            fullText: '7 Hung Vuong, Hue',
-        },
-    ];
-
-    await prisma.orderFood.createMany({
-        data: orderFoods,
-    });
-
-    console.log(`✅ Seeded order foods`);
-}
-
-async function seedPayments(orders: any[]) {
-    console.log('🌱 Seeding payments...');
-
-    const payments = [
-        {
-            orderId: orders[0].id,
-            method: PaymentMethod.CASH,
-            amount: 35.97,
-            paymentStatus: PaymentStatus.DONE,
-        },
-        {
-            orderId: orders[1].id,
-            method: PaymentMethod.MOMO,
-            amount: 23.98,
-            paymentStatus: PaymentStatus.DONE,
-        },
-        {
-            orderId: orders[2].id,
-            method: PaymentMethod.CASH,
-            amount: 26.98,
-            paymentStatus: PaymentStatus.SOLVING,
-        },
-        {
-            orderId: orders[3].id,
-            method: PaymentMethod.MOMO,
-            amount: 22.98,
-            paymentStatus: PaymentStatus.SOLVING,
-        },
-        {
-            orderId: orders[4].id,
-            method: PaymentMethod.CASH,
-            amount: 29.97,
-            paymentStatus: PaymentStatus.DONE,
-        },
-        {
-            orderId: orders[5].id,
-            method: PaymentMethod.MOMO,
-            amount: 14.98,
-            paymentStatus: PaymentStatus.SOLVING,
-        },
-    ];
-
-    await prisma.payment.createMany({
-        data: payments,
-    });
-
-    console.log(`✅ Seeded 6 payments`);
-}
-
-async function seedConversations(
-    businessUser: any,
-    customer1: any,
-    customer2: any,
-    orders: any[],
-) {
-    console.log('🌱 Seeding conversations...');
-
-    const conversations = [
-        {
-            orderId: orders[0].id,
-            customerId: customer1.id,
-            sellerId: businessUser.id,
-        },
-        {
-            orderId: orders[1].id,
-            customerId: customer1.id,
-            sellerId: businessUser.id,
-        },
-        {
-            orderId: orders[2].id,
-            customerId: customer2.id,
-            sellerId: businessUser.id,
-        },
-        {
-            orderId: orders[3].id,
-            customerId: customer2.id,
-            sellerId: businessUser.id,
-        },
-        {
-            orderId: orders[4].id,
-            customerId: customer1.id,
-            sellerId: businessUser.id,
-        },
-        {
-            orderId: orders[5].id,
-            customerId: customer2.id,
-            sellerId: businessUser.id,
-        },
-    ];
-
-    const createdConversations = await Promise.all(
-        conversations.map((conv) => prisma.conversation.create({ data: conv })),
-    );
-
-    console.log(`✅ Seeded 6 conversations`);
-    return createdConversations;
-}
-
-async function seedMessages(
-    conversations: any[],
-    businessUser: any,
-    customer1: any,
-    customer2: any,
-) {
-    console.log('🌱 Seeding messages...');
-
-    const messages = [
-        {
-            conversationId: conversations[0].id,
-            senderId: customer1.id,
-            content: 'When will my order arrive?',
-        },
-        {
-            conversationId: conversations[0].id,
-            senderId: businessUser.id,
-            content: 'It will be there in 30 minutes',
-        },
-        {
-            conversationId: conversations[1].id,
-            senderId: customer1.id,
-            content: 'Can I add extra cheese?',
-        },
-        {
-            conversationId: conversations[1].id,
-            senderId: businessUser.id,
-            content: 'Sure, no problem!',
-        },
-        {
-            conversationId: conversations[2].id,
-            senderId: customer2.id,
-            content: 'Is it fresh?',
-        },
-        {
-            conversationId: conversations[2].id,
-            senderId: businessUser.id,
-            content: 'Yes, made fresh today',
-        },
-        {
-            conversationId: conversations[3].id,
-            senderId: customer2.id,
-            content: 'Any discounts available?',
-        },
-        {
-            conversationId: conversations[3].id,
-            senderId: businessUser.id,
-            content: 'Subscribe for 10% off',
-        },
-        {
-            conversationId: conversations[4].id,
-            senderId: customer1.id,
-            content: 'Thank you!',
-        },
-        {
-            conversationId: conversations[4].id,
-            senderId: businessUser.id,
-            content: 'You are welcome!',
-        },
-        {
-            conversationId: conversations[5].id,
-            senderId: customer2.id,
-            content: 'Great food!',
-        },
-        {
-            conversationId: conversations[5].id,
-            senderId: businessUser.id,
-            content: 'Thanks for your order!',
-        },
-    ];
-
-    await prisma.message.createMany({
-        data: messages,
-    });
-
-    console.log(`✅ Seeded 12 messages`);
-}
-
-async function seedCarts(
-    customer1: any,
-    customer2: any,
-    restaurants: any[],
-    foods: any[],
-) {
-    console.log('🌱 Seeding carts...');
-
-    const carts = [{ userId: customer1.id }, { userId: customer2.id }];
-
-    const createdCarts = await Promise.all(
-        carts.map((cart) => prisma.cart.create({ data: cart })),
-    );
-
-    // Add items to carts
-    const cartItems = [
-        { cartId: createdCarts[0].id, foodId: foods[0].id, quantity: 2 },
-        { cartId: createdCarts[0].id, foodId: foods[1].id, quantity: 1 },
-        { cartId: createdCarts[1].id, foodId: foods[2].id, quantity: 3 },
-        { cartId: createdCarts[1].id, foodId: foods[3].id, quantity: 1 },
-    ];
-
-    await prisma.cartItem.createMany({
-        data: cartItems,
-    });
-
-    console.log(`✅ Seeded 2 carts with 4 items`);
-}
-
-async function hashPassword(password: string): Promise<string> {
+async function hashPassword(password: string) {
     return await Bun.password.hash(password, {
         cost: 10,
         algorithm: 'bcrypt',
     });
 }
 
+async function upsertAddress(
+    db: DbClient,
+    data: (typeof addresses)[number],
+) {
+    const existing = await db.address.findFirst({
+        where: {
+            fullText: data.fullText,
+        },
+    });
+
+    if (existing) {
+        return await db.address.update({
+            where: { id: existing.id },
+            data: {
+                title: data.title,
+                latitude: data.latitude,
+                longitude: data.longitude,
+                fullText: data.fullText,
+                deleteAt: null,
+            },
+        });
+    }
+
+    return await db.address.create({
+        data: {
+            title: data.title,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            fullText: data.fullText,
+        },
+    });
+}
+
+async function upsertCategory(
+    db: DbClient,
+    data: (typeof categories)[number],
+) {
+    const existing = await db.category.findFirst({
+        where: {
+            name: data.name,
+        },
+    });
+
+    if (existing) {
+        return await db.category.update({
+            where: { id: existing.id },
+            data: {
+                description: data.description,
+                image: data.image,
+                sortOrder: data.sortOrder,
+                deleteAt: null,
+            },
+        });
+    }
+
+    return await db.category.create({
+        data,
+    });
+}
+
+async function upsertIngredient(
+    db: DbClient,
+    data: (typeof ingredients)[number],
+) {
+    const existing = await db.ingredient.findFirst({
+        where: {
+            name: data.name,
+        },
+    });
+
+    if (existing) {
+        return await db.ingredient.update({
+            where: { id: existing.id },
+            data: {
+                icon: data.icon,
+            },
+        });
+    }
+
+    return await db.ingredient.create({
+        data,
+    });
+}
+
+async function ensureUserRole(
+    db: DbClient,
+    userId: number,
+    role: Role,
+) {
+    const existing = await db.userRole.findFirst({
+        where: {
+            userId,
+            role,
+        },
+    });
+
+    if (existing) {
+        if (existing.deleteAt) {
+            await db.userRole.update({
+                where: { id: existing.id },
+                data: {
+                    deleteAt: null,
+                },
+            });
+        }
+        return;
+    }
+
+    await db.userRole.create({
+        data: {
+            userId,
+            role,
+        },
+    });
+}
+
+async function ensureUserAddress(
+    db: DbClient,
+    userId: number,
+    title: string,
+    addressId: number,
+) {
+    const existing = await db.userAddress.findFirst({
+        where: {
+            userId,
+            title,
+        },
+    });
+
+    if (existing) {
+        return await db.userAddress.update({
+            where: { id: existing.id },
+            data: {
+                addressId,
+                deleteAt: null,
+            },
+        });
+    }
+
+    return await db.userAddress.create({
+        data: {
+            userId,
+            title,
+            addressId,
+        },
+    });
+}
+
+async function upsertUser(
+    db: DbClient,
+    data: (typeof users)[keyof typeof users],
+) {
+    const password = await hashPassword(data.password);
+
+    const user = await db.user.upsert({
+        where: {
+            email: data.email,
+        },
+        create: {
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            password,
+            birthday: new Date(data.birthday),
+            active: true,
+            avatar: '',
+        },
+        update: {
+            name: data.name,
+            phone: data.phone,
+            password,
+            birthday: new Date(data.birthday),
+            active: true,
+            avatar: '',
+            deleteAt: null,
+        },
+    });
+
+    for (const role of data.roles) {
+        await ensureUserRole(db, user.id, role);
+    }
+
+    await db.identity.upsert({
+        where: {
+            userId_provider: {
+                userId: user.id,
+                provider: AuthProvider.LOCAL,
+            },
+        },
+        create: {
+            userId: user.id,
+            provider: AuthProvider.LOCAL,
+            providerUserId: getLocalProviderUserId(user.id),
+        },
+        update: {
+            providerUserId: getLocalProviderUserId(user.id),
+            accessToken: null,
+            deleteAt: null,
+        },
+    });
+
+    if (data.roles.some((role) => role === Role.CUSTOMER)) {
+        await db.cart.upsert({
+            where: {
+                userId: user.id,
+            },
+            create: {
+                userId: user.id,
+            },
+            update: {
+                deleteAt: null,
+            },
+        });
+    }
+
+    return user;
+}
+
+async function upsertRestaurant(
+    db: DbClient,
+    data: {
+        name: string;
+        phone: string;
+        description: string;
+        addressId: number;
+        ownerId: number;
+        approved: boolean;
+        image: string;
+        coverImage: string;
+        deliveryFee: number;
+        minimumOrder: number;
+        estimatedDeliveryTime: number;
+    },
+) {
+    return await db.restaurant.upsert({
+        where: {
+            phone: data.phone,
+        },
+        create: data,
+        update: {
+            ...data,
+            deleteAt: null,
+        },
+    });
+}
+
+async function upsertFood(
+    db: DbClient,
+    data: {
+        restaurantId: number;
+        categoryId: number;
+        name: string;
+        description: string;
+        price: number;
+        label: string;
+        image: string;
+        isAvailable: boolean;
+    },
+) {
+    const existing = await db.food.findFirst({
+        where: {
+            restaurantId: data.restaurantId,
+            name: data.name,
+        },
+    });
+
+    if (existing) {
+        return await db.food.update({
+            where: {
+                id: existing.id,
+            },
+            data: {
+                ...data,
+                deleteAt: null,
+            },
+        });
+    }
+
+    return await db.food.create({
+        data,
+    });
+}
+
+async function ensureFoodIngredient(
+    db: DbClient,
+    foodId: number,
+    ingredientId: number,
+) {
+    await db.foodIngredient.upsert({
+        where: {
+            foodId_ingredientId: {
+                foodId,
+                ingredientId,
+            },
+        },
+        create: {
+            foodId,
+            ingredientId,
+        },
+        update: {
+            deleteAt: null,
+        },
+    });
+}
+
+async function upsertVoucher(
+    db: DbClient,
+    data: {
+        name: string;
+        code: string;
+        description: string;
+        image: string;
+        sale: number;
+        type: VoucherType;
+        status: VoucherStatus;
+        restaurantId?: number | null;
+        minimumOrderAmount: number;
+        maximumDiscountAmount?: number | null;
+        startAt?: Date | null;
+        endAt?: Date | null;
+    },
+) {
+    const existing = await db.voucher.findFirst({
+        where: {
+            code: data.code,
+            restaurantId: data.restaurantId ?? null,
+        },
+    });
+
+    if (existing) {
+        return await db.voucher.update({
+            where: {
+                id: existing.id,
+            },
+            data: {
+                ...data,
+                restaurantId: data.restaurantId ?? null,
+                maximumDiscountAmount: data.maximumDiscountAmount ?? null,
+                startAt: data.startAt ?? null,
+                endAt: data.endAt ?? null,
+                deleteAt: null,
+            },
+        });
+    }
+
+    return await db.voucher.create({
+        data: {
+            ...data,
+            restaurantId: data.restaurantId ?? null,
+            maximumDiscountAmount: data.maximumDiscountAmount ?? null,
+            startAt: data.startAt ?? null,
+            endAt: data.endAt ?? null,
+        },
+    });
+}
+
+async function upsertRating(
+    db: DbClient,
+    data: {
+        restaurantId: number;
+        userId: number;
+        vote: number;
+        comment: string;
+    },
+) {
+    const existing = await db.restaurantRating.findFirst({
+        where: {
+            restaurantId: data.restaurantId,
+            userId: data.userId,
+        },
+    });
+
+    if (existing) {
+        return await db.restaurantRating.update({
+            where: { id: existing.id },
+            data: {
+                vote: data.vote,
+                comment: data.comment,
+                deleteAt: null,
+            },
+        });
+    }
+
+    return await db.restaurantRating.create({
+        data,
+    });
+}
+
+async function upsertOrder(
+    db: DbClient,
+    data: {
+        restaurantId: number;
+        totalPrice: number;
+        status: OrderStatus;
+        userId: number;
+        voucherId?: number | null;
+        addressId: number;
+        note: string;
+    },
+) {
+    const existing = await db.order.findFirst({
+        where: {
+            note: data.note,
+        },
+    });
+
+    if (existing) {
+        return await db.order.update({
+            where: {
+                id: existing.id,
+            },
+            data: {
+                restaurantId: data.restaurantId,
+                totalPrice: data.totalPrice,
+                status: data.status,
+                userId: data.userId,
+                voucherId: data.voucherId ?? null,
+                addressId: data.addressId,
+                note: data.note,
+                deleteAt: null,
+            },
+        });
+    }
+
+    return await db.order.create({
+        data: {
+            restaurantId: data.restaurantId,
+            totalPrice: data.totalPrice,
+            status: data.status,
+            userId: data.userId,
+            voucherId: data.voucherId ?? null,
+            addressId: data.addressId,
+            note: data.note,
+        },
+    });
+}
+
+async function replaceOrderFoods(
+    db: DbClient,
+    orderId: number,
+    items: Array<{
+        foodId: number;
+        quantity: number;
+        fullText: string;
+        price: number;
+    }>,
+) {
+    await db.orderFood.deleteMany({
+        where: {
+            orderId,
+        },
+    });
+
+    if (items.length === 0) {
+        return;
+    }
+
+    await db.orderFood.createMany({
+        data: items.map((item) => ({
+            orderId,
+            foodId: item.foodId,
+            quantity: item.quantity,
+            fullText: item.fullText,
+            price: item.price,
+        })),
+    });
+}
+
+async function upsertPayment(
+    db: DbClient,
+    orderId: number,
+    data: {
+        method: PaymentMethod;
+        amount: number;
+        paymentStatus: PaymentStatus;
+    },
+) {
+    return await db.payment.upsert({
+        where: {
+            orderId,
+        },
+        create: {
+            orderId,
+            method: data.method,
+            amount: data.amount,
+            paymentStatus: data.paymentStatus,
+        },
+        update: {
+            method: data.method,
+            amount: data.amount,
+            paymentStatus: data.paymentStatus,
+            deleteAt: null,
+        },
+    });
+}
+
+async function upsertConversation(
+    db: DbClient,
+    data: {
+        orderId: number;
+        customerId: number;
+        sellerId: number;
+    },
+) {
+    return await db.conversation.upsert({
+        where: {
+            orderId: data.orderId,
+        },
+        create: data,
+        update: {
+            customerId: data.customerId,
+            sellerId: data.sellerId,
+            deleteAt: null,
+        },
+    });
+}
+
+async function replaceMessages(
+    db: DbClient,
+    conversationId: number,
+    messages: Array<{
+        senderId: number;
+        content: string;
+    }>,
+) {
+    await db.message.deleteMany({
+        where: {
+            conversationId,
+        },
+    });
+
+    if (messages.length === 0) {
+        return;
+    }
+
+    await db.message.createMany({
+        data: messages.map((message) => ({
+            conversationId,
+            senderId: message.senderId,
+            content: message.content,
+        })),
+    });
+}
+
+async function replaceCartItems(
+    db: DbClient,
+    userId: number,
+    items: Array<{
+        foodId: number;
+        quantity: number;
+    }>,
+) {
+    const cart = await db.cart.findUnique({
+        where: {
+            userId,
+        },
+    });
+
+    if (!cart) {
+        return;
+    }
+
+    await db.cartItem.deleteMany({
+        where: {
+            cartId: cart.id,
+        },
+    });
+
+    if (items.length === 0) {
+        return;
+    }
+
+    await db.cartItem.createMany({
+        data: items.map((item) => ({
+            cartId: cart.id,
+            foodId: item.foodId,
+            quantity: item.quantity,
+        })),
+    });
+}
+
 async function main() {
-    try {
-        await prisma.$transaction(async () => {
-            await seedAddress();
-            await seedCategories();
-            await seedIngredients();
+    await prisma.$transaction(async (tx) => {
+        const addressMap = new Map<string, Awaited<ReturnType<typeof upsertAddress>>>();
+        for (const address of addresses) {
+            addressMap.set(address.key, await upsertAddress(tx, address));
+        }
 
-            const users = await seedUsers();
-            const restaurants = await seedRestaurants(users.business);
-            const foods = await seedFoods(restaurants);
+        const categoryMap = new Map<string, Awaited<ReturnType<typeof upsertCategory>>>();
+        for (const category of categories) {
+            categoryMap.set(category.name, await upsertCategory(tx, category));
+        }
 
-            // Seed vouchers before orders
-            const vouchers = await seedVouchers();
-
-            const orders = await seedOrders(
-                users.business,
-                users.customer1,
-                users.customer2,
-                restaurants,
-                vouchers,
+        const ingredientMap = new Map<
+            string,
+            Awaited<ReturnType<typeof upsertIngredient>>
+        >();
+        for (const ingredient of ingredients) {
+            ingredientMap.set(
+                ingredient.name,
+                await upsertIngredient(tx, ingredient),
             );
-            await seedOrderFoods(orders, foods);
-            await seedPayments(orders);
+        }
 
-            const conversations = await seedConversations(
-                users.business,
-                users.customer1,
-                users.customer2,
-                orders,
-            );
-            await seedMessages(
-                conversations,
-                users.business,
-                users.customer1,
-                users.customer2,
-            );
+        const userMap = new Map<string, Awaited<ReturnType<typeof upsertUser>>>();
+        for (const [key, userData] of Object.entries(users)) {
+            const user = await upsertUser(tx, userData);
+            userMap.set(key, user);
 
-            await seedCarts(
-                users.customer1,
-                users.customer2,
-                restaurants,
-                foods,
-            );
+            for (const addressLink of userData.addressTitles) {
+                const address = addressMap.get(addressLink.addressKey);
+                if (!address) {
+                    throw new Error(
+                        `Missing address seed "${addressLink.addressKey}"`,
+                    );
+                }
+
+                await ensureUserAddress(
+                    tx,
+                    user.id,
+                    addressLink.title,
+                    address.id,
+                );
+            }
+        }
+
+        const admin = userMap.get('admin');
+        const business = userMap.get('business');
+        const customer1 = userMap.get('customer1');
+        const customer2 = userMap.get('customer2');
+
+        if (!admin || !business || !customer1 || !customer2) {
+            throw new Error('Seed users were not created correctly');
+        }
+
+        const burgerCategory = categoryMap.get('Burger');
+        const riceCategory = categoryMap.get('Rice');
+        const sushiCategory = categoryMap.get('Sushi');
+        const noodlesCategory = categoryMap.get('Noodles');
+        const dessertCategory = categoryMap.get('Dessert');
+
+        if (
+            !burgerCategory ||
+            !riceCategory ||
+            !sushiCategory ||
+            !noodlesCategory ||
+            !dessertCategory
+        ) {
+            throw new Error('Seed categories were not created correctly');
+        }
+
+        const district1 = addressMap.get('district-1');
+        const district3 = addressMap.get('district-3');
+        const thuDuc = addressMap.get('thu-duc');
+
+        if (!district1 || !district3 || !thuDuc) {
+            throw new Error('Seed addresses were not created correctly');
+        }
+
+        const restaurants = {
+            burgerTown: await upsertRestaurant(tx, {
+                name: 'Burger Town',
+                phone: '02873000001',
+                description:
+                    'Fast casual burger shop with smash patties and crispy fries.',
+                addressId: district1.id,
+                ownerId: business.id,
+                approved: true,
+                image: '',
+                coverImage: '',
+                deliveryFee: 2,
+                minimumOrder: 8,
+                estimatedDeliveryTime: 25,
+            }),
+            riceExpress: await upsertRestaurant(tx, {
+                name: 'Rice Express',
+                phone: '02873000002',
+                description:
+                    'Everyday Vietnamese rice bowls for lunch and dinner.',
+                addressId: district3.id,
+                ownerId: business.id,
+                approved: true,
+                image: '',
+                coverImage: '',
+                deliveryFee: 1.5,
+                minimumOrder: 6,
+                estimatedDeliveryTime: 20,
+            }),
+            sushiLab: await upsertRestaurant(tx, {
+                name: 'Sushi Lab',
+                phone: '02873000003',
+                description:
+                    'Fresh sushi rolls and Japanese comfort dishes for testing admin approval.',
+                addressId: thuDuc.id,
+                ownerId: business.id,
+                approved: false,
+                image: '',
+                coverImage: '',
+                deliveryFee: 3,
+                minimumOrder: 10,
+                estimatedDeliveryTime: 35,
+            }),
+        };
+
+        const foods = {
+            cheeseburger: await upsertFood(tx, {
+                restaurantId: restaurants.burgerTown.id,
+                categoryId: burgerCategory.id,
+                name: 'Classic Cheeseburger',
+                description: 'Beef patty, cheddar, pickles, and burger sauce.',
+                price: 9,
+                label: 'Best seller',
+                image: '',
+                isAvailable: true,
+            }),
+            doubleBurger: await upsertFood(tx, {
+                restaurantId: restaurants.burgerTown.id,
+                categoryId: burgerCategory.id,
+                name: 'Double Smash Burger',
+                description:
+                    'Two beef patties, caramelized onions, cheddar, and house sauce.',
+                price: 12,
+                label: 'Signature',
+                image: '',
+                isAvailable: true,
+            }),
+            lavaCake: await upsertFood(tx, {
+                restaurantId: restaurants.burgerTown.id,
+                categoryId: dessertCategory.id,
+                name: 'Chocolate Lava Cake',
+                description: 'Warm chocolate cake with a soft molten center.',
+                price: 6,
+                label: 'Sweet',
+                image: '',
+                isAvailable: true,
+            }),
+            grilledChickenRice: await upsertFood(tx, {
+                restaurantId: restaurants.riceExpress.id,
+                categoryId: riceCategory.id,
+                name: 'Grilled Chicken Rice',
+                description:
+                    'Char-grilled chicken, jasmine rice, pickles, and scallion oil.',
+                price: 8,
+                label: 'Lunch set',
+                image: '',
+                isAvailable: true,
+            }),
+            beefNoodles: await upsertFood(tx, {
+                restaurantId: restaurants.riceExpress.id,
+                categoryId: noodlesCategory.id,
+                name: 'Beef Stir-fried Noodles',
+                description:
+                    'Wok-fried noodles with sliced beef and crunchy greens.',
+                price: 10,
+                label: 'Hot dish',
+                image: '',
+                isAvailable: true,
+            }),
+            salmonRoll: await upsertFood(tx, {
+                restaurantId: restaurants.sushiLab.id,
+                categoryId: sushiCategory.id,
+                name: 'Salmon Roll',
+                description: 'Fresh salmon roll with cucumber and seaweed.',
+                price: 11,
+                label: 'Fresh',
+                image: '',
+                isAvailable: true,
+            }),
+        };
+
+        const beefPatty = ingredientMap.get('Beef Patty');
+        const cheddar = ingredientMap.get('Cheddar');
+        const chicken = ingredientMap.get('Chicken');
+        const salmon = ingredientMap.get('Salmon');
+        const cucumber = ingredientMap.get('Cucumber');
+        const seaweed = ingredientMap.get('Seaweed');
+        const chocolate = ingredientMap.get('Chocolate');
+
+        if (
+            !beefPatty ||
+            !cheddar ||
+            !chicken ||
+            !salmon ||
+            !cucumber ||
+            !seaweed ||
+            !chocolate
+        ) {
+            throw new Error('Seed ingredients were not created correctly');
+        }
+
+        await ensureFoodIngredient(tx, foods.cheeseburger.id, beefPatty.id);
+        await ensureFoodIngredient(tx, foods.cheeseburger.id, cheddar.id);
+        await ensureFoodIngredient(tx, foods.doubleBurger.id, beefPatty.id);
+        await ensureFoodIngredient(tx, foods.doubleBurger.id, cheddar.id);
+        await ensureFoodIngredient(tx, foods.grilledChickenRice.id, chicken.id);
+        await ensureFoodIngredient(tx, foods.salmonRoll.id, salmon.id);
+        await ensureFoodIngredient(tx, foods.salmonRoll.id, cucumber.id);
+        await ensureFoodIngredient(tx, foods.salmonRoll.id, seaweed.id);
+        await ensureFoodIngredient(tx, foods.lavaCake.id, chocolate.id);
+
+        const vouchers = {
+            welcome5: await upsertVoucher(tx, {
+                name: 'Welcome 5',
+                code: 'WELCOME5',
+                description: 'Flat 5 off for seeded test orders.',
+                image: '',
+                sale: 5,
+                type: VoucherType.MONEY,
+                status: VoucherStatus.APPLYING,
+                restaurantId: null,
+                minimumOrderAmount: 15,
+                maximumDiscountAmount: null,
+                startAt: new Date(now.getTime() - oneDay),
+                endAt: new Date(now.getTime() + 30 * oneDay),
+            }),
+            burger10: await upsertVoucher(tx, {
+                name: 'Burger Ten',
+                code: 'BURGER10',
+                description: 'Ten percent off Burger Town orders.',
+                image: '',
+                sale: 10,
+                type: VoucherType.PERCENT,
+                status: VoucherStatus.APPLYING,
+                restaurantId: restaurants.burgerTown.id,
+                minimumOrderAmount: 20,
+                maximumDiscountAmount: 6,
+                startAt: new Date(now.getTime() - oneDay),
+                endAt: new Date(now.getTime() + 14 * oneDay),
+            }),
+            oldRiceDeal: await upsertVoucher(tx, {
+                name: 'Old Rice Deal',
+                code: 'RICEOLD',
+                description: 'Expired voucher kept for testing filters.',
+                image: '',
+                sale: 4,
+                type: VoucherType.MONEY,
+                status: VoucherStatus.ENDED,
+                restaurantId: restaurants.riceExpress.id,
+                minimumOrderAmount: 10,
+                maximumDiscountAmount: null,
+                startAt: new Date(now.getTime() - 30 * oneDay),
+                endAt: new Date(now.getTime() - 7 * oneDay),
+            }),
+        };
+
+        await upsertRating(tx, {
+            restaurantId: restaurants.burgerTown.id,
+            userId: customer1.id,
+            vote: 5,
+            comment: 'Fast delivery and the burger was still hot.',
         });
 
-        console.log('🎉 Seeding completed successfully');
-    } catch (err) {
-        console.error('❌ Seeding failed:', err);
-        process.exit(1);
-    } finally {
-        await prisma.$disconnect();
-    }
+        await upsertRating(tx, {
+            restaurantId: restaurants.riceExpress.id,
+            userId: customer2.id,
+            vote: 4,
+            comment: 'Solid lunch option and portion size was good.',
+        });
+
+        const orderOne = await upsertOrder(tx, {
+            restaurantId: restaurants.burgerTown.id,
+            userId: customer1.id,
+            voucherId: vouchers.welcome5.id,
+            addressId: district3.id,
+            status: OrderStatus.DELIVERED,
+            totalPrice: 22,
+            note: '[seed] delivered burger order',
+        });
+
+        await replaceOrderFoods(tx, orderOne.id, [
+            {
+                foodId: foods.doubleBurger.id,
+                quantity: 1,
+                fullText: 'No onions',
+                price: 12,
+            },
+            {
+                foodId: foods.cheeseburger.id,
+                quantity: 1,
+                fullText: 'Extra sauce',
+                price: 9,
+            },
+            {
+                foodId: foods.lavaCake.id,
+                quantity: 1,
+                fullText: 'Pack separately',
+                price: 6,
+            },
+        ]);
+
+        await upsertPayment(tx, orderOne.id, {
+            method: PaymentMethod.CASH,
+            amount: 22,
+            paymentStatus: PaymentStatus.DONE,
+        });
+
+        const orderTwo = await upsertOrder(tx, {
+            restaurantId: restaurants.riceExpress.id,
+            userId: customer2.id,
+            voucherId: null,
+            addressId: thuDuc.id,
+            status: OrderStatus.CONFIRMED,
+            totalPrice: 18,
+            note: '[seed] confirmed rice order',
+        });
+
+        await replaceOrderFoods(tx, orderTwo.id, [
+            {
+                foodId: foods.grilledChickenRice.id,
+                quantity: 1,
+                fullText: 'Less rice',
+                price: 8,
+            },
+            {
+                foodId: foods.beefNoodles.id,
+                quantity: 1,
+                fullText: 'No chili',
+                price: 10,
+            },
+        ]);
+
+        await upsertPayment(tx, orderTwo.id, {
+            method: PaymentMethod.MOMO,
+            amount: 18,
+            paymentStatus: PaymentStatus.SOLVING,
+        });
+
+        const orderThree = await upsertOrder(tx, {
+            restaurantId: restaurants.burgerTown.id,
+            userId: customer1.id,
+            voucherId: vouchers.burger10.id,
+            addressId: district3.id,
+            status: OrderStatus.PENDING,
+            totalPrice: 19,
+            note: '[seed] pending burger order',
+        });
+
+        await replaceOrderFoods(tx, orderThree.id, [
+            {
+                foodId: foods.doubleBurger.id,
+                quantity: 1,
+                fullText: 'Add napkins',
+                price: 12,
+            },
+            {
+                foodId: foods.cheeseburger.id,
+                quantity: 1,
+                fullText: 'No pickles',
+                price: 9,
+            },
+        ]);
+
+        await upsertPayment(tx, orderThree.id, {
+            method: PaymentMethod.CASH,
+            amount: 19,
+            paymentStatus: PaymentStatus.UNPAID,
+        });
+
+        const conversationOne = await upsertConversation(tx, {
+            orderId: orderOne.id,
+            customerId: customer1.id,
+            sellerId: business.id,
+        });
+
+        await replaceMessages(tx, conversationOne.id, [
+            {
+                senderId: customer1.id,
+                content: 'Thanks, the delivery was quick.',
+            },
+            {
+                senderId: business.id,
+                content: 'Happy to hear that. See you again soon.',
+            },
+        ]);
+
+        const conversationTwo = await upsertConversation(tx, {
+            orderId: orderTwo.id,
+            customerId: customer2.id,
+            sellerId: business.id,
+        });
+
+        await replaceMessages(tx, conversationTwo.id, [
+            {
+                senderId: customer2.id,
+                content: 'Can you help me check the delivery progress?',
+            },
+            {
+                senderId: business.id,
+                content: 'The rider is on the way and should arrive shortly.',
+            },
+        ]);
+
+        const conversationThree = await upsertConversation(tx, {
+            orderId: orderThree.id,
+            customerId: customer1.id,
+            sellerId: business.id,
+        });
+
+        await replaceMessages(tx, conversationThree.id, [
+            {
+                senderId: customer1.id,
+                content: 'Please make sure the burgers stay separate.',
+            },
+            {
+                senderId: business.id,
+                content: 'Confirmed. We will pack them separately.',
+            },
+        ]);
+
+        await replaceCartItems(tx, customer1.id, [
+            {
+                foodId: foods.cheeseburger.id,
+                quantity: 2,
+            },
+            {
+                foodId: foods.lavaCake.id,
+                quantity: 1,
+            },
+        ]);
+
+        await replaceCartItems(tx, customer2.id, [
+            {
+                foodId: foods.grilledChickenRice.id,
+                quantity: 1,
+            },
+        ]);
+    });
+
+    console.log('Seed completed successfully.');
+    console.log('Test accounts:');
+    console.log('ADMIN    phone=0900000001 password=admin123');
+    console.log('BUSINESS phone=0900000002 password=business123');
+    console.log('CUSTOMER phone=0900000003 password=customer123');
+    console.log('CUSTOMER phone=0900000004 password=customer456');
+    console.log('Voucher codes: WELCOME5, BURGER10, RICEOLD');
 }
-main();
+
+main()
+    .catch((error) => {
+        console.error('Seed failed:', error);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await prisma.$disconnect();
+    });

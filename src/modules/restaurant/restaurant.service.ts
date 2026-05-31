@@ -12,12 +12,20 @@ import {
 } from './dto/restaurant.dto';
 import { Role } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { MinioService } from '../minio/minio.service';
+import type { Express } from 'express';
+
+type RestaurantUploadFiles = {
+    image?: Express.Multer.File[];
+    coverImage?: Express.Multer.File[];
+};
 
 @Injectable()
 export class RestaurantService {
     constructor(
         private readonly prismaService: PrismaService,
         private readonly auditService: AuditService,
+        private readonly minioService: MinioService,
     ) {}
     private buildRestaurantSummary<T extends { ratings: { vote: number }[] }>(
         restaurant: T,
@@ -42,6 +50,30 @@ export class RestaurantService {
 
     private hasRole(roles: string[], role: Role) {
         return roles.includes(role);
+    }
+    private async resolveRestaurantImagePayload(
+        data: Partial<CreateRestaurantDto>,
+        files?: RestaurantUploadFiles,
+    ) {
+        let image = data.image;
+        let coverImage = data.coverImage;
+
+        const imageFile = files?.image?.[0];
+        const coverImageFile = files?.coverImage?.[0];
+
+        if (imageFile) {
+            image = await this.minioService.uploadFile(imageFile);
+        }
+
+        if (coverImageFile) {
+            coverImage = await this.minioService.uploadFile(coverImageFile);
+        }
+
+        return {
+            ...data,
+            image,
+            coverImage,
+        };
     }
 
     private async assertRestaurantOwner(
@@ -465,14 +497,20 @@ export class RestaurantService {
         actorId: number,
         data: CreateRestaurantDto,
         roles: string[],
+        files?: RestaurantUploadFiles,
     ) {
         if (!this.hasRole(roles, Role.ADMIN) && !this.hasRole(roles, Role.BUSINESS)) {
             throw new ForbiddenException('Only business/admin can create restaurants');
         }
 
+        const restaurantPayload = await this.resolveRestaurantImagePayload(
+            data,
+            files,
+        );
+
         const restaurant = await this.prismaService.client.restaurant.create({
             data: {
-                ...data,
+                ...restaurantPayload,
                 ownerId: actorId,
                 approved: this.hasRole(roles, Role.ADMIN),
             },
@@ -494,15 +532,21 @@ export class RestaurantService {
         roles: string[],
         restaurantId: number,
         data: UpdateRestaurantDto,
+        files?: RestaurantUploadFiles,
     ) {
         await this.assertRestaurantOwner(actorId, roles, restaurantId);
+
+        const restaurantPayload = await this.resolveRestaurantImagePayload(
+            data,
+            files,
+        );
 
         const restaurant = await this.prismaService.client.restaurant.update({
             where: {
                 id: restaurantId,
             },
             data: {
-                ...data,
+                ...restaurantPayload,
             },
         });
 

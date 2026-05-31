@@ -160,6 +160,7 @@ export class OrderService {
                     where: {
                         id: data.savedAddressId,
                         userId,
+                        deleteAt: null,
                     },
                 });
 

@@ -7,21 +7,38 @@ import {
 import { PrismaService } from '@/prisma/prisma.service';
 import { Role, VoucherStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import type { Express } from 'express';
 import {
     CreateVoucherDto,
     UpdateVoucherDto,
     VoucherListQueryDto,
 } from './dto/voucher.dto';
+import { MinioService } from '../minio/minio.service';
 
 @Injectable()
 export class VoucherService {
     constructor(
         private readonly prismaService: PrismaService,
         private readonly auditService: AuditService,
+        private readonly minioService: MinioService,
     ) {}
 
     private hasRole(roles: string[], role: Role) {
         return roles.includes(role);
+    }
+    private async resolveVoucherImagePayload(
+        data: Partial<CreateVoucherDto>,
+        file?: Express.Multer.File,
+    ) {
+        let image = data.image;
+        if (file) {
+            image = await this.minioService.uploadFile(file);
+        }
+
+        return {
+            ...data,
+            image,
+        };
     }
 
     private async assertVoucherOwner(
@@ -172,6 +189,7 @@ export class VoucherService {
         actorId: number,
         roles: string[],
         data: CreateVoucherDto,
+        file?: Express.Multer.File,
     ) {
         await this.assertVoucherOwner(actorId, roles, data.restaurantId);
 
@@ -188,21 +206,29 @@ export class VoucherService {
         if (existsVoucher) {
             throw new BadRequestException('Voucher code already exists');
         }
+        const voucherPayload = await this.resolveVoucherImagePayload(
+            data,
+            file,
+        );
 
         const voucher = await this.prismaService.client.voucher.create({
             data: {
-                name: data.name,
-                code: data.code,
-                description: data.description ?? '',
-                image: data.image ?? '',
-                sale: data.sale,
-                type: data.type,
-                status: data.status ?? VoucherStatus.APPLYING,
-                restaurantId: data.restaurantId,
-                minimumOrderAmount: data.minimumOrderAmount ?? 0,
-                maximumDiscountAmount: data.maximumDiscountAmount,
-                startAt: data.startAt ? new Date(data.startAt) : undefined,
-                endAt: data.endAt ? new Date(data.endAt) : undefined,
+                name: voucherPayload.name!,
+                code: voucherPayload.code!,
+                description: voucherPayload.description ?? '',
+                image: voucherPayload.image ?? '',
+                sale: voucherPayload.sale!,
+                type: voucherPayload.type!,
+                status: voucherPayload.status ?? VoucherStatus.APPLYING,
+                restaurantId: voucherPayload.restaurantId,
+                minimumOrderAmount: voucherPayload.minimumOrderAmount ?? 0,
+                maximumDiscountAmount: voucherPayload.maximumDiscountAmount,
+                startAt: voucherPayload.startAt
+                    ? new Date(voucherPayload.startAt)
+                    : undefined,
+                endAt: voucherPayload.endAt
+                    ? new Date(voucherPayload.endAt)
+                    : undefined,
             },
         });
 
@@ -222,6 +248,7 @@ export class VoucherService {
         roles: string[],
         id: number,
         data: UpdateVoucherDto,
+        file?: Express.Multer.File,
     ) {
         const voucher = await this.prismaService.client.voucher.findFirst({
             where: {
@@ -234,15 +261,23 @@ export class VoucherService {
         }
 
         await this.assertVoucherOwner(actorId, roles, voucher.restaurantId);
+        const voucherPayload = await this.resolveVoucherImagePayload(
+            data,
+            file,
+        );
 
         const updatedVoucher = await this.prismaService.client.voucher.update({
             where: {
                 id,
             },
             data: {
-                ...data,
-                startAt: data.startAt ? new Date(data.startAt) : undefined,
-                endAt: data.endAt ? new Date(data.endAt) : undefined,
+                ...voucherPayload,
+                startAt: voucherPayload.startAt
+                    ? new Date(voucherPayload.startAt)
+                    : undefined,
+                endAt: voucherPayload.endAt
+                    ? new Date(voucherPayload.endAt)
+                    : undefined,
             },
         });
 

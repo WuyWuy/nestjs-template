@@ -43,8 +43,7 @@ export class UserController {
         const responseData = await this.userService.getAllUsers();
         return responseData;
     }
-    @Roles(Role.CUSTOMER)
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard)
     @Get('/profile')
     async getProfile(@Req() req: Request) {
         const id = (req.user as any).id;
@@ -107,7 +106,7 @@ export class UserController {
         const id = (req.user as any).id;
         if (!id || isNaN(id))
             throw new UnauthorizedException('User Not Found or token invalid');
-        return await this.userService.getUserAddressById(addressId, id);
+        return await this.userService.getUserAddressById(addressId, Number(id));
     }
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)

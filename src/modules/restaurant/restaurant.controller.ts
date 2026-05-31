@@ -8,8 +8,11 @@ import {
     Post,
     Query,
     Req,
+    UploadedFiles,
     UseGuards,
+    UseInterceptors,
 } from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { RestaurantService } from './restaurant.service';
 import {
     CreateRestaurantDto,
@@ -22,7 +25,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '@/bases/guards/role.guard';
 import { Roles } from '@/bases/decorators/role.decorators';
 import { Role } from '@prisma/client';
-import type { Request } from 'express';
+import type { Express, Request } from 'express';
+
+type RestaurantUploadFiles = {
+    image?: Express.Multer.File[];
+    coverImage?: Express.Multer.File[];
+};
 
 @Controller('restaurant')
 export class RestaurantController {
@@ -42,22 +50,40 @@ export class RestaurantController {
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('/manage')
-    async createRestaurant(@Req() req: Request, @Body() data: CreateRestaurantDto) {
+    @UseInterceptors(
+        FileFieldsInterceptor([
+            { name: 'image', maxCount: 1 },
+            { name: 'coverImage', maxCount: 1 },
+        ]),
+    )
+    async createRestaurant(
+        @Req() req: Request,
+        @Body() data: CreateRestaurantDto,
+        @UploadedFiles() files: RestaurantUploadFiles,
+    ) {
         const user = req.user as { id?: number; roles?: string[] };
         return await this.restaurantService.createRestaurant(
             Number(user.id),
             data,
             user.roles ?? [],
+            files,
         );
     }
 
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('/manage/:restaurantId')
+    @UseInterceptors(
+        FileFieldsInterceptor([
+            { name: 'image', maxCount: 1 },
+            { name: 'coverImage', maxCount: 1 },
+        ]),
+    )
     async updateRestaurant(
         @Req() req: Request,
         @Param('restaurantId', ParseIntPipe) restaurantId: number,
         @Body() data: UpdateRestaurantDto,
+        @UploadedFiles() files: RestaurantUploadFiles,
     ) {
         const user = req.user as { id?: number; roles?: string[] };
         return await this.restaurantService.updateRestaurant(
@@ -65,6 +91,7 @@ export class RestaurantController {
             user.roles ?? [],
             restaurantId,
             data,
+            files,
         );
     }
 

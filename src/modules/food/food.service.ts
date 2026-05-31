@@ -4,19 +4,36 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
+import type { Express } from 'express';
 import { Role } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { CreateFoodDto, FoodQueryDto, UpdateFoodDto } from './dto/food.dto';
+import { MinioService } from '../minio/minio.service';
 
 @Injectable()
 export class FoodService {
     constructor(
         private readonly prismaService: PrismaService,
         private readonly auditService: AuditService,
+        private readonly minioService: MinioService,
     ) {}
 
     private hasRole(roles: string[], role: Role) {
         return roles.includes(role);
+    }
+    private async resolveFoodImagePayload(
+        data: Partial<CreateFoodDto>,
+        file?: Express.Multer.File,
+    ) {
+        let image = data.image;
+        if (file) {
+            image = await this.minioService.uploadFile(file);
+        }
+
+        return {
+            ...data,
+            image,
+        };
     }
 
     private async assertFoodOwner(
@@ -122,19 +139,25 @@ export class FoodService {
         };
     }
 
-    async createFood(actorId: number, roles: string[], data: CreateFoodDto) {
+    async createFood(
+        actorId: number,
+        roles: string[],
+        data: CreateFoodDto,
+        file?: Express.Multer.File,
+    ) {
         await this.assertFoodOwner(actorId, roles, data.restaurantId);
+        const foodPayload = await this.resolveFoodImagePayload(data, file);
 
         const food = await this.prismaService.client.food.create({
             data: {
-                name: data.name,
-                description: data.description ?? '',
-                categoryId: data.categoryId,
-                price: data.price,
-                image: data.image ?? '',
-                label: data.label ?? '',
-                restaurantId: data.restaurantId,
-                isAvailable: data.isAvailable ?? true,
+                name: foodPayload.name,
+                description: foodPayload.description ?? '',
+                categoryId: foodPayload.categoryId!,
+                price: foodPayload.price!,
+                image: foodPayload.image ?? '',
+                label: foodPayload.label ?? '',
+                restaurantId: foodPayload.restaurantId!,
+                isAvailable: foodPayload.isAvailable ?? true,
             },
         });
 
@@ -154,6 +177,7 @@ export class FoodService {
         roles: string[],
         id: number,
         data: UpdateFoodDto,
+        file?: Express.Multer.File,
     ) {
         const food = await this.prismaService.client.food.findFirst({
             where: {
@@ -170,13 +194,14 @@ export class FoodService {
         }
 
         await this.assertFoodOwner(actorId, roles, food.restaurantId);
+        const foodPayload = await this.resolveFoodImagePayload(data, file);
 
         const updatedFood = await this.prismaService.client.food.update({
             where: {
                 id,
             },
             data: {
-                ...data,
+                ...foodPayload,
             },
         });
 

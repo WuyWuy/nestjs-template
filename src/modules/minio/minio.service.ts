@@ -7,15 +7,26 @@ import type { Express } from 'express';
 export class MinioService {
     private minioClient: Minio.Client;
     private bucketName: string;
+    private publicBaseUrl: string;
     constructor(private readonly configService: ConfigService) {
+        const endPoint = this.configService.get('MINIO_ENDPOINT') as string;
+        const port = Number(this.configService.get('MINIO_PORT'));
+        const useSSL = this.configService.get('MINIO_USE_SSL') === 'true';
+        const configuredPublicUrl = this.configService.get<string>(
+            'MINIO_PUBLIC_URL',
+        );
+
         this.minioClient = new Minio.Client({
-            endPoint: this.configService.get('MINIO_ENDPOINT') as string,
-            port: Number(this.configService.get('MINIO_PORT')),
-            useSSL: this.configService.get('MINIO_USE_SSL') === 'true',
+            endPoint,
+            port,
+            useSSL,
             accessKey: this.configService.get('MINIO_ACCESS_KEY'),
             secretKey: this.configService.get('MINIO_SECRET_KEY'),
         });
         this.bucketName = this.configService.get('MINIO_BUCKET') as string;
+        this.publicBaseUrl = (
+            configuredPublicUrl || `${useSSL ? 'https' : 'http'}://${endPoint}:${port}`
+        ).replace(/\/+$/, '');
     }
     async createBucketIfNotExists() {
         const bucketExists = await this.minioClient.bucketExists(
@@ -33,21 +44,33 @@ export class MinioService {
             file.buffer,
             file.size,
         );
-        return fileName;
+        return this.buildPublicFileUrl(fileName);
     }
     extractFileNameFromUrl(url: string): string {
-        return url.split('/').pop() as string;
+        if (!url) return '';
+        if (!/^https?:\/\//i.test(url)) return url;
+
+        try {
+            const parsedUrl = new URL(url);
+            const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
+            if (pathParts[0] === this.bucketName) {
+                return pathParts.slice(1).join('/');
+            }
+            return pathParts.join('/');
+        } catch {
+            return url.split('/').pop() as string;
+        }
+    }
+    buildPublicFileUrl(fileName: string) {
+        return `${this.publicBaseUrl}/${this.bucketName}/${fileName}`;
     }
     async getFileUrl(fileName: string) {
-        // const fileName = this.extractFileNameFromUrl(fileUrl);
-        return await this.minioClient.presignedUrl(
-            'GET',
-            this.bucketName,
-            fileName,
-        );
+        if (!fileName) return '';
+        if (/^https?:\/\//i.test(fileName)) return fileName;
+        return this.buildPublicFileUrl(fileName);
     }
     async deleteFile(fileName: string) {
-        // const fileName = this.extractFileNameFromUrl(fileUrl);
-        await this.minioClient.removeObject(this.bucketName, fileName);
+        const objectName = this.extractFileNameFromUrl(fileName);
+        await this.minioClient.removeObject(this.bucketName, objectName);
     }
 }

@@ -53,19 +53,6 @@ services:
       - "4000:4000"
     env_file:
       - .env
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/app_db
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_USE_SSL: "false"
-      MINIO_PUBLIC_URL: http://localhost:9000
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_started
 volumes:
   postgres_data:
   minio_data:

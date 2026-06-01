@@ -28,6 +28,7 @@ import { CategoryModule } from './modules/category/category.module';
 import { VoucherModule } from './modules/voucher/voucher.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
     imports: [
@@ -54,6 +55,7 @@ import { AdminModule } from './modules/admin/admin.module';
         CategoryModule,
         VoucherModule,
         AdminModule,
+        HealthModule
     ],
     controllers: [AppController],
     providers: [

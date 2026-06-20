@@ -86,6 +86,19 @@ export class OrderController {
         );
     }
 
+    @Post('/:orderId/cancel')
+    async cancelOrderCompatible(
+        @Param('orderId', ParseIntPipe) orderId: number,
+        @Req() req: Request,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.orderSerivce.cancelOrderCompatible(
+            Number(user.id),
+            user.roles ?? [],
+            orderId,
+        );
+    }
+
     @Patch('/:orderId')
     async updateOrderStatus(
         @Param('orderId', ParseIntPipe) orderId: number,

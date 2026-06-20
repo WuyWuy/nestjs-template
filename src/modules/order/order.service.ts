@@ -768,6 +768,45 @@ export class OrderService {
         };
     }
 
+    async cancelOrderCompatible(userId: number, roles: string[], orderId: number) {
+        const order = await this.findOrderWithAccess(userId, roles, orderId);
+
+        if (this.hasRole(roles, Role.CUSTOMER)) {
+            this.ensureCustomerAccess(order.userId, userId);
+        }
+
+        const cancellableStatuses: OrderStatus[] = [
+            OrderStatus.PENDING,
+            OrderStatus.CONFIRMED,
+            OrderStatus.PREPARING,
+        ];
+
+        if (!cancellableStatuses.includes(order.status)) {
+            throw new BadRequestException(
+                'Only pending or active orders can be cancelled',
+            );
+        }
+
+        await this.prismaService.client.order.update({
+            where: {
+                id: order.id,
+            },
+            data: {
+                status: OrderStatus.CANCELLED,
+            },
+        });
+
+        const { status: feStatus, status_step } = this.mapOrderStatusToFrontend(OrderStatus.CANCELLED);
+
+        return {
+            order_id: order.id,
+            new_status: OrderStatus.CANCELLED,
+            status: feStatus,
+            status_step,
+            message: 'Order cancelled successfully',
+        };
+    }
+
     async updateOrderStatus(
         userId: number,
         roles: string[],

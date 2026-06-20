@@ -98,6 +98,6 @@ export class GetOrdersQueryDto {
     offset?: number = 0;
 
     @IsOptional()
-    @IsEnum(OrderStatus)
-    status?: OrderStatus;
+    @IsString()
+    status?: string;
 }

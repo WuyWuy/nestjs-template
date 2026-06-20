@@ -450,15 +450,40 @@ export class OrderService {
         roles: string[],
         limit: number,
         offset: number,
-        status?: OrderStatus,
+        status?: string,
     ) {
         const isBusiness =
             this.hasRole(roles, Role.BUSINESS) || this.hasRole(roles, Role.ADMIN);
 
+        let statusFilter: any = undefined;
+
+        if (status) {
+            if (status === 'ongoing') {
+                statusFilter = {
+                    in: [
+                        OrderStatus.PENDING,
+                        OrderStatus.CONFIRMED,
+                        OrderStatus.PREPARING,
+                        OrderStatus.DELIVERING,
+                    ],
+                };
+            } else if (status === 'history') {
+                statusFilter = {
+                    in: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+                };
+            } else {
+                if (Object.values(OrderStatus).includes(status as OrderStatus)) {
+                    statusFilter = status as OrderStatus;
+                } else {
+                    throw new BadRequestException('Invalid status parameter');
+                }
+            }
+        }
+
         const orders = await this.prismaService.client.order.findMany({
             where: isBusiness
                 ? {
-                      status,
+                      status: statusFilter,
                       restaurant: this.hasRole(roles, Role.ADMIN)
                           ? undefined
                           : {
@@ -467,7 +492,7 @@ export class OrderService {
                   }
                 : {
                       userId,
-                      status,
+                      status: statusFilter,
                   },
             select: {
                 id: true,
@@ -526,25 +551,46 @@ export class OrderService {
             },
         });
 
-        return orders.map((order) => ({
-            ...order,
-            totalPrice: Number(order.totalPrice),
-            orderFoods: order.orderFoods.map((orderFood) => ({
-                id: orderFood.food.id,
-                name: orderFood.food.name,
-                image: orderFood.food.image,
-                quantity: orderFood.quantity,
-                price: Number(orderFood.price),
-                foodSizeId: orderFood.foodSizeId,
-                sizeName: orderFood.sizeName,
-            })),
-            payment: order.payments[0]
-                ? {
-                      ...order.payments[0],
-                      amount: Number(order.payments[0].amount),
-                  }
-                : null,
-        }));
+        const mappedOrders = orders.map((order) => {
+            const paymentDate = order.payments[0]?.createdAt ?? new Date();
+            const dateStr = paymentDate instanceof Date ? paymentDate.toISOString() : new Date(paymentDate).toISOString();
+            const itemCount = order.orderFoods.reduce((acc, f) => acc + f.quantity, 0);
+            const { status: feStatus, status_step } = this.mapOrderStatusToFrontend(order.status);
+
+            return {
+                ...order,
+                totalPrice: Number(order.totalPrice),
+                item_count: itemCount,
+                type: 'FOOD',
+                date: dateStr,
+                status: feStatus,
+                status_step,
+                backend_status: order.status,
+                orderFoods: order.orderFoods.map((orderFood) => ({
+                    id: orderFood.food.id,
+                    name: orderFood.food.name,
+                    image: orderFood.food.image,
+                    quantity: orderFood.quantity,
+                    price: Number(orderFood.price),
+                    foodSizeId: orderFood.foodSizeId,
+                    sizeName: orderFood.sizeName,
+                })),
+                payment: order.payments[0]
+                    ? {
+                          ...order.payments[0],
+                          amount: Number(order.payments[0].amount),
+                      }
+                    : null,
+            };
+        });
+
+        if (status === 'ongoing') {
+            return { ongoing_orders: mappedOrders };
+        } else if (status === 'history') {
+            return { history_orders: mappedOrders };
+        }
+
+        return mappedOrders;
     }
 
     async getOrderDetail(userId: number, roles: string[], orderId: number) {

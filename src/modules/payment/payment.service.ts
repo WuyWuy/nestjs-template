@@ -1,5 +1,6 @@
 import {
     BadRequestException,
+    ForbiddenException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
@@ -9,7 +10,9 @@ import {
     PaymentMethod,
     PaymentStatus,
     Prisma,
+    Role,
 } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 import { getMomoPayUrl } from './payment.utls';
 import { PrismaService } from '@/prisma/prisma.service';
 import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
@@ -23,6 +26,7 @@ export class PaymentService {
     constructor(
         private readonly configService: ConfigService,
         private readonly prismaService: PrismaService,
+        private readonly auditService: AuditService,
     ) {
         this.momoAccessKey =
             this.configService.get<string>('MOMO_ACCESS_KEY') || undefined;
@@ -64,7 +68,7 @@ export class PaymentService {
             requestId: `mock-${Date.now()}`,
             payUrl: `https://sandbox.momo.vn/mock-pay?orderId=${orderId}&amount=${money}`,
             deeplink: '',
-            qrCodeUrl: '',
+            qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://sandbox.momo.vn/mock-pay?orderId=${orderId}%26amount=${money}`,
             resultCode: 0,
             message:
                 'Mock MoMo payment created because credentials or network are unavailable',
@@ -232,5 +236,93 @@ export class PaymentService {
 
     async getPaymentDetail(orderId: number) {
         return await this.getPaymentByOrderId(orderId);
+    }
+
+    async confirmPayment(
+        paymentId: number,
+        actorId: number,
+        roles: string[],
+    ) {
+        const payment = await this.prismaService.client.payment.findUnique({
+            where: { id: paymentId },
+            include: {
+                order: {
+                    select: {
+                        id: true,
+                        restaurantId: true,
+                        status: true,
+                    },
+                },
+            },
+        });
+
+        if (!payment) {
+            throw new NotFoundException('Payment not found');
+        }
+
+        await this.assertRestaurantOwner(actorId, roles, payment.order.restaurantId);
+
+        const updatedPayment = await this.prismaService.client.$transaction(async (tx) => {
+            const res = await tx.payment.update({
+                where: { id: paymentId },
+                data: {
+                    paymentStatus: PaymentStatus.DONE,
+                },
+            });
+
+            if (payment.order.status === OrderStatus.PENDING) {
+                await tx.order.update({
+                    where: { id: payment.order.id },
+                    data: {
+                        status: OrderStatus.CONFIRMED,
+                    },
+                });
+            }
+
+            return res;
+        });
+
+        await this.auditService.log(
+            'CONFIRM_PAYMENT',
+            'Payment',
+            paymentId,
+            actorId,
+            { amount: Number(payment.amount) },
+        );
+
+        return {
+            ...updatedPayment,
+            amount: Number(updatedPayment.amount),
+        };
+    }
+
+    private async assertRestaurantOwner(
+        actorId: number,
+        roles: string[],
+        restaurantId: number,
+    ) {
+        const restaurant = await this.prismaService.client.restaurant.findFirst({
+            where: {
+                id: restaurantId,
+            },
+            select: {
+                id: true,
+                ownerId: true,
+            },
+        });
+
+        if (!restaurant) {
+            throw new NotFoundException('Restaurant not found');
+        }
+
+        if (roles.includes(Role.ADMIN)) {
+            return;
+        }
+
+        if (restaurant.ownerId !== actorId) {
+            throw new ForbiddenException(
+                'You are not allowed to manage this restaurant',
+            );
+        }
     }
 }

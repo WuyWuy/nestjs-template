@@ -35,6 +35,16 @@ export class OrderController {
         return await this.orderSerivce.createOrder(Number(user.id), data);
     }
 
+    @Roles(Role.CUSTOMER)
+    @Post('/:orderId/reorder')
+    async reorder(
+        @Param('orderId', ParseIntPipe) orderId: number,
+        @Req() req: Request,
+    ) {
+        const user = req.user as { id?: number };
+        return await this.orderSerivce.reorder(Number(user.id), orderId);
+    }
+
     @Get()
     async getAllOrders(@Req() req: Request, @Query() query: GetOrdersQueryDto) {
         const user = req.user as { id?: number; roles?: string[] };

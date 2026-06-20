@@ -19,6 +19,7 @@ import {
     VoucherType,
 } from '@prisma/client';
 import { PaymentService } from '../payment/payment.service';
+import { CartService } from '../cart/cart.service';
 
 type FoodSnapshot = {
     id: number;
@@ -33,6 +34,7 @@ export class OrderService {
         private readonly prismaService: PrismaService,
         private readonly addressService: AddressService,
         private readonly paymentService: PaymentService,
+        private readonly cartService: CartService,
     ) {}
 
     private hasRole(roles: string[], role: Role) {
@@ -733,6 +735,129 @@ export class OrderService {
             updated_at: (payment?.updatedAt ?? new Date()).toISOString(),
             backend_status: order.status,
         };
+    }
+
+    async reorder(userId: number, orderId: number) {
+        const order = await this.prismaService.client.order.findUnique({
+            where: { id: orderId },
+            include: {
+                orderFoods: {
+                    include: {
+                        food: true,
+                    },
+                },
+            },
+        });
+
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        if (order.userId !== userId) {
+            throw new ForbiddenException('You can only reorder your own orders');
+        }
+
+        const activeCartItems: { foodId: number; foodSizeId: number; quantity: number }[] = [];
+        for (const orderFood of order.orderFoods) {
+            if (!orderFood.food || orderFood.food.deleteAt || !orderFood.food.isAvailable) {
+                continue;
+            }
+
+            let resolvedSizeId: number | null = null;
+            if (orderFood.foodSizeId) {
+                const sizeMatch = await this.prismaService.client.foodSize.findFirst({
+                    where: {
+                        id: orderFood.foodSizeId,
+                        foodId: orderFood.foodId,
+                        deleteAt: null,
+                    },
+                });
+                if (sizeMatch) {
+                    resolvedSizeId = sizeMatch.id;
+                }
+            }
+
+            if (!resolvedSizeId) {
+                const defaultSize = await this.prismaService.client.foodSize.findFirst({
+                    where: {
+                        foodId: orderFood.foodId,
+                        isDefault: true,
+                        deleteAt: null,
+                    },
+                });
+                if (defaultSize) {
+                    resolvedSizeId = defaultSize.id;
+                }
+            }
+
+            if (resolvedSizeId) {
+                activeCartItems.push({
+                    foodId: orderFood.foodId,
+                    foodSizeId: resolvedSizeId,
+                    quantity: orderFood.quantity,
+                });
+            }
+        }
+
+        if (activeCartItems.length === 0) {
+            throw new BadRequestException('None of the items in this order are currently available for purchase');
+        }
+
+        return await this.prismaService.transaction(async (tx) => {
+            let cart = await tx.cart.findFirst({
+                where: { userId },
+            });
+
+            if (!cart) {
+                cart = await tx.cart.create({
+                    data: { userId },
+                });
+            }
+
+            const existingCartItems = await tx.cartItem.findMany({
+                where: { cartId: cart.id, deleteAt: null },
+                include: { food: true },
+            });
+
+            const hasDifferentRestaurant = existingCartItems.some(
+                (item) => item.food.restaurantId !== order.restaurantId,
+            );
+
+            if (hasDifferentRestaurant) {
+                await tx.cartItem.deleteMany({
+                    cartId: cart.id,
+                });
+            }
+
+            for (const item of activeCartItems) {
+                const existing = await tx.cartItem.findFirst({
+                    where: {
+                        cartId: cart.id,
+                        foodId: item.foodId,
+                        foodSizeId: item.foodSizeId,
+                        deleteAt: null,
+                    },
+                });
+
+                if (existing) {
+                    await tx.cartItem.update({
+                        where: { id: existing.id },
+                        data: { quantity: existing.quantity + item.quantity },
+                    });
+                } else {
+                    await tx.cartItem.create({
+                        data: {
+                            cartId: cart.id,
+                            foodId: item.foodId,
+                            foodSizeId: item.foodSizeId,
+                            quantity: item.quantity,
+                        },
+                    });
+                }
+            }
+
+            return await this.cartService.getCart(userId);
+        });
     }
 
     async deleteOrderById(userId: number, roles: string[], orderId: number) {

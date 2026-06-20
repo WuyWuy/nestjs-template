@@ -1,14 +1,18 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
 import {
+    IsBoolean,
     IsInt,
     IsNotEmpty,
     IsNumber,
+    IsObject,
     IsOptional,
     IsPositive,
     IsString,
+    Matches,
     Max,
     Min,
+    ValidateNested,
 } from 'class-validator';
 
 export class GetRestaurantsQueryDto {
@@ -111,3 +115,68 @@ export class CreateRestaurantDto {
 }
 
 export class UpdateRestaurantDto extends PartialType(CreateRestaurantDto) {}
+
+export class UpdateRestaurantStatusDto {
+    @IsBoolean()
+    isOpen: boolean;
+}
+
+export class TimeRangeDto {
+    @IsString()
+    @Matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+        message: 'Time must be in HH:MM format',
+    })
+    open: string;
+
+    @IsString()
+    @Matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+        message: 'Time must be in HH:MM format',
+    })
+    close: string;
+}
+
+export class OperatingHoursDto {
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => TimeRangeDto)
+    monday?: TimeRangeDto;
+
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => TimeRangeDto)
+    tuesday?: TimeRangeDto;
+
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => TimeRangeDto)
+    wednesday?: TimeRangeDto;
+
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => TimeRangeDto)
+    thursday?: TimeRangeDto;
+
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => TimeRangeDto)
+    friday?: TimeRangeDto;
+
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => TimeRangeDto)
+    saturday?: TimeRangeDto;
+
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => TimeRangeDto)
+    sunday?: TimeRangeDto;
+}
+
+export class UpdateOperatingHoursDto {
+    @IsNotEmpty()
+    @IsObject()
+    @ValidateNested()
+    @Type(() => OperatingHoursDto)
+    operatingHours: OperatingHoursDto;
+}
+

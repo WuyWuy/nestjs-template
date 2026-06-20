@@ -20,6 +20,8 @@ import {
     GetRestaurantMenuQueryDto,
     GetRestaurantsQueryDto,
     UpdateRestaurantDto,
+    UpdateRestaurantStatusDto,
+    UpdateOperatingHoursDto,
 } from './dto/restaurant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '@/bases/guards/role.guard';
@@ -92,6 +94,57 @@ export class RestaurantController {
             restaurantId,
             data,
             files,
+        );
+    }
+
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Get('/manage/:restaurantId/dashboard')
+    async getRestaurantDashboard(
+        @Req() req: Request,
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Query('range') range: 'day' | 'week' | 'month' = 'day',
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.restaurantService.getRestaurantDashboard(
+            restaurantId,
+            Number(user.id),
+            user.roles ?? [],
+            range,
+        );
+    }
+
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Patch('/manage/:restaurantId/status')
+    async updateRestaurantStatus(
+        @Req() req: Request,
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Body() body: UpdateRestaurantStatusDto,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.restaurantService.updateRestaurantStatus(
+            restaurantId,
+            Number(user.id),
+            user.roles ?? [],
+            body.isOpen,
+        );
+    }
+
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Patch('/manage/:restaurantId/operating-hours')
+    async updateRestaurantOperatingHours(
+        @Req() req: Request,
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Body() body: UpdateOperatingHoursDto,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.restaurantService.updateRestaurantOperatingHours(
+            restaurantId,
+            Number(user.id),
+            user.roles ?? [],
+            body.operatingHours,
         );
     }
 

@@ -5,7 +5,7 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Role } from '@prisma/client';
+import { Prisma, Role, OrderStatus } from '@prisma/client';
 import {
     CreateRestaurantDto,
     CreateRestaurantRatingDto,
@@ -326,6 +326,8 @@ export class RestaurantService {
                         deliveryFee: true,
                         minimumOrder: true,
                         estimatedDeliveryTime: true,
+                        isOpen: true,
+                        operatingHours: true,
                         address: true,
                         ownerId: true,
                         foods: {
@@ -628,6 +630,143 @@ export class RestaurantService {
             restaurantId,
             actorId,
             data,
+        );
+
+        return restaurant;
+    }
+
+    async getRestaurantDashboard(
+        restaurantId: number,
+        actorId: number,
+        roles: string[],
+        range: 'day' | 'week' | 'month',
+    ) {
+        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+
+        const startDate = new Date();
+        if (range === 'day') {
+            startDate.setHours(0, 0, 0, 0);
+        } else if (range === 'week') {
+            startDate.setDate(startDate.getDate() - 7);
+            startDate.setHours(0, 0, 0, 0);
+        } else if (range === 'month') {
+            startDate.setDate(startDate.getDate() - 30);
+            startDate.setHours(0, 0, 0, 0);
+        } else {
+            throw new BadRequestException('Invalid dashboard range');
+        }
+
+        const orders = await this.prismaService.client.order.findMany({
+            where: {
+                restaurantId,
+                payments: {
+                    some: {
+                        createdAt: {
+                            gte: startDate,
+                        },
+                    },
+                },
+            },
+            include: {
+                payments: true,
+                orderFoods: {
+                    include: {
+                        food: true,
+                    },
+                },
+            },
+        });
+
+        let deliveredRevenue = 0;
+        let deliveredOrderCount = 0;
+        let cancelledOrderCount = 0;
+
+        const foodStats = new Map<number, { id: number; name: string; image: string; quantity: number; revenue: number }>();
+
+        for (const order of orders) {
+            if (order.status === OrderStatus.DELIVERED) {
+                deliveredOrderCount++;
+                deliveredRevenue += Number(order.totalPrice);
+
+                for (const orderFood of order.orderFoods) {
+                    const quantity = orderFood.quantity;
+                    const revenue = Number(orderFood.price);
+                    const foodId = orderFood.foodId;
+                    const existing = foodStats.get(foodId);
+
+                    if (existing) {
+                        existing.quantity += quantity;
+                        existing.revenue += revenue;
+                    } else {
+                        foodStats.set(foodId, {
+                            id: foodId,
+                            name: orderFood.food?.name ?? `Food #${foodId}`,
+                            image: orderFood.food?.image ?? '',
+                            quantity,
+                            revenue,
+                        });
+                    }
+                }
+            } else if (order.status === OrderStatus.CANCELLED) {
+                cancelledOrderCount++;
+            }
+        }
+
+        const topFoods = Array.from(foodStats.values())
+            .sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue)
+            .slice(0, 5);
+
+        return {
+            deliveredRevenue,
+            deliveredOrderCount,
+            cancelledOrderCount,
+            topFoods,
+        };
+    }
+
+    async updateRestaurantStatus(
+        restaurantId: number,
+        actorId: number,
+        roles: string[],
+        isOpen: boolean,
+    ) {
+        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+
+        const restaurant = await this.prismaService.client.restaurant.update({
+            where: { id: restaurantId },
+            data: { isOpen },
+        });
+
+        await this.auditService.log(
+            'UPDATE_RESTAURANT_STATUS',
+            'Restaurant',
+            restaurantId,
+            actorId,
+            { isOpen },
+        );
+
+        return restaurant;
+    }
+
+    async updateRestaurantOperatingHours(
+        restaurantId: number,
+        actorId: number,
+        roles: string[],
+        operatingHours: any,
+    ) {
+        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+
+        const restaurant = await this.prismaService.client.restaurant.update({
+            where: { id: restaurantId },
+            data: { operatingHours },
+        });
+
+        await this.auditService.log(
+            'UPDATE_RESTAURANT_OPERATING_HOURS',
+            'Restaurant',
+            restaurantId,
+            actorId,
+            { operatingHours },
         );
 
         return restaurant;

@@ -51,6 +51,13 @@ export class NotificationController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('me/unread-count')
+    async getUnreadCount(@Req() req: Request) {
+        const user = req.user as { id?: number };
+        return await this.notificationService.getUnreadCount(Number(user.id));
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Patch(':notificationId/read')
     async markAsRead(
         @Req() req: Request,

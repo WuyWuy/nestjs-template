@@ -25,6 +25,10 @@ export class NotificationQueryDto {
     @IsOptional()
     @IsEnum(NotificationType)
     type?: NotificationType;
+
+    @IsOptional()
+    @IsString()
+    read?: string;
 }
 
 export class CreateNotificationDto {

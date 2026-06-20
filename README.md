@@ -1,178 +1,131 @@
 # Food Delivery Backend (NestJS)
 
-![Build](https://img.shields.io/badge/build-passing-brightgreen?logo=githubactions&logoColor=white)
-![NestJS](https://img.shields.io/badge/NestJS-%23E0234E?logo=nestjs&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white)
-![Bun](https://img.shields.io/badge/Bun-000000?logo=bun&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?logo=postgresql&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-blue?logo=open-source-initiative&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-%23E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
+![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 
-## 🚀 Project Overview
+An enterprise-ready, modular food delivery backend built with NestJS, Prisma ORM, and Bun runtime.
 
-This repository is a backend template for a food delivery app built with NestJS. It provides API modules for auth, users, restaurants, menu, cart, and orders. The code is structured for clarity, scalability, and quick extension.
+---
 
-## 🛠️ Tech Stack
+## 🚀 Project Overview & Architecture
 
-- Node.js
-- TypeScript
-- NestJS
-- Prisma ORM
-- PostgreSQL (or compatible SQL)
-- Jest (testing)
+This repository acts as the scalable core backend for a food delivery ecosystem. It exposes RESTful APIs and real-time WebSockets to handle user management, vendor dashboards, dynamic food menus with sizes, cart management, payments, order workflows, and real-time chat.
 
-## Run Docker 
-- Click the right button 
+### 🏛️ System Architecture
 
-## ▶️ Run locally
+The application is structured following modern NestJS module-based architecture:
 
-1. Install dependencies:
+- **Modular Modules:** Each domain feature (Auth, User, Restaurant, Food, Cart, Order, Payment, Chat, Conversation, Notification) is isolated in its own folder under `src/modules/` containing dedicated controllers, services, and data transfer objects (DTOs).
+- **Domain Event Pub/Sub:** Decoupled event emissions via `@nestjs/event-emitter` to run secondary tasks (e.g. pushing Firebase devices/in-app notifications, updating database status logs) asynchronously without blocking primary execution threads.
+- **Data Persistence:** Prisma ORM abstraction using PostgreSQL, utilizing client extensions for transparent global soft deletes (`deleteAt` timestamping).
+- **Real-Time Communication:** Bi-directional real-time chat over WebSockets (Socket.IO rooms) authenticated with JWT guard checks.
+- **Storage Service:** Local or cloud S3/Minio bucket uploads for static media assets (such as conversation image attachments, food photos, and restaurant covers).
 
+---
+
+## 📁 Folder Structure
+
+- `src/` - Application source code
+  - `modules/` - Business domain modules (Auth, Order, Notification, etc.)
+  - `bases/` - Generic application bases (guards, filters, interceptors, decorators)
+  - `prisma/` - Prisma custom client initialization and soft-delete extensions
+  - `realtime/` - Socket.IO gateway and chat handlers
+  - `main.ts` - NestJS application bootstrap entrypoint
+- `prisma/` - Database schema, migrations, and seed scripts
+- `docs/` - Support documentation and guides
+
+---
+
+## ⚡ Setup & Local Execution
+
+### 1. Install Dependencies
 ```bash
-npm install
+bun install
 ```
 
-2. Configure environment variables (`.env` or your value):
-
-- `DATABASE_URL` (for Prisma)
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN`
-
-3. Run Prisma migrate + seed (if required):
-
+### 2. Configure Environment Variables
+Copy the template environment file and fill in your connection details (Database URL, JWT Secret, Minio keys, Firebase credentials, etc.):
 ```bash
-npx prisma migrate dev --name init
-npx prisma db seed
+cp .env.example .env
 ```
 
-4. Start app in development:
-
+### 3. Database Migration & Seeding
+Synchronize the PostgreSQL schema and seed the initial dataset:
 ```bash
-bun install 
-npm dev 
+bun prisma db push
+bun prisma generate
+bun prisma db seed
 ```
 
-5. Production build + start:
+### 4. Run the Server
+- **Development Mode:**
+  ```bash
+  bun dev
+  ```
+- **Production Mode:**
+  ```bash
+  bun run build
+  bun run start
+  ```
 
-```bash
-bun run build 
-bun run start 
-```
+---
 
-## 📁 Folder structure
-
-- `src/` - application source
-  - `modules/` - features and endpoints
-  - `bases/` - generic decorators, guards, filters, interceptors
-  - `prisma/` - database module, service
-  - `main.ts` - app bootstrap
-- `prisma/` - schema and migrations
-- `generated/prisma` - generated Prisma client models
-- `test/` - e2e tests
-- `scripts/` - helper scripts
-
-## 🗂️ Relevant files
-
-- `src/app.module.ts` - root module
-- `src/main.ts` - application startup
-- `src/modules/auth` - auth flow (JWT/local)
-- `prisma/schema.prisma` - ER model
-- `prisma/migrations` - DB history
-
-## 🧩 Database diagram (Mermaid)
+## 📐 Database Diagram (ERD)
 
 ```mermaid
 erDiagram
-    User ||--o{ Cart : has
+    User ||--o{ UserRole : has
+    User ||--o{ UserAddress : has
+    User ||--o{ UserCard : has
+    User ||--o{ Device : registers
+    User ||--o{ Notification : receives
     User ||--o{ Order : places
-    User ||--o{ OTP : requests
-    Restaurant ||--o{ Menu : contains
-    Restaurant ||--o{ Food : offers
-    Menu ||--o{ Food : includes
-    Food ||--o{ CartItem : in
-    Cart ||--o{ CartItem : has
-    Order ||--o{ OrderFood : contains
-    Food ||--o{ OrderFood : item
-    Order ||--|| Payment : pays
-    Restaurant ||--o{ RestaurantRating : receives
-    User ||--o{ RestaurantRating : gives
+    User ||--o{ Cart : owns
+    User ||--o{ RestaurantRating : writes
+    User ||--o{ FoodRating : writes
+    User ||--o{ Conversation : chats_as_customer
+    User ||--o{ Conversation : chats_as_seller
+    User ||--o{ Message : sends
 
-    User {
-      int id PK
-      string name
-      string email
-    }
-    Restaurant {
-      int id PK
-      string name
-      string address
-    }
-    Menu {
-      int id PK
-      string title
-      int restaurantId FK
-    }
-    Food {
-      int id PK
-      string name
-      float price
-      int restaurantId FK
-      int categoryId FK
-    }
-    Cart {
-      int id PK
-      int userId FK
-    }
-    CartItem {
-      int id PK
-      int cartId FK
-      int foodId FK
-      int quantity
-    }
-    Order {
-      int id PK
-      int userId FK
-      int restaurantId FK
-      string status
-    }
-    OrderFood {
-      int id PK
-      int orderId FK
-      int foodId FK
-      int quantity
-    }
-    Payment {
-      int id PK
-      int orderId FK
-      float amount
-      string method
-      string status
-    }
-    OTP {
-      int id PK
-      int userId FK
-      string code
-      bool used
-    }
-    RestaurantRating {
-      int id PK
-      int restaurantId FK
-      int userId FK
-      int rating
-      string comment
-    }
+    Address ||--o{ UserAddress : linked
+    Address ||--o{ Restaurant : locates
+    Address ||--o{ Order : ships_to
+
+    Restaurant ||--o{ Food : sells
+    Restaurant ||--o{ RestaurantRating : reviewed
+    Restaurant ||--o{ Voucher : issues
+    Restaurant ||--o{ Order : receives
+
+    Category ||--o{ Food : categorizes
+
+    Food ||--o{ FoodSize : has_sizes
+    Food ||--o{ FoodIngredient : has_ingredients
+    Food ||--o{ FoodRating : reviewed
+    Food ||--o{ CartItem : added
+    Food ||--o{ OrderFood : ordered
+
+    Size ||--o{ FoodSize : defines
+    Ingredient ||--o{ FoodIngredient : defines
+
+    Cart ||--o{ CartItem : contains
+    FoodSize ||--o{ CartItem : selected_size
+
+    Order ||--o{ OrderFood : contains
+    Order ||--|| Payment : details
+    FoodSize ||--o{ OrderFood : selected_size
+    Voucher ||--o{ Order : applied_to
+
+    Notification ||--o{ NotificationChannel : delivers_via
+    Conversation ||--o{ Message : contains
 ```
 
-## 🧪 Tests
-
-- Unit / e2e: `npm run test` or `npm run test:e2e`
-
-## 📌 Notes
-
-- Keep `prisma/generated` in sync: `npx prisma generate`.
-- Use modern NestJS module-based design for new features.
-
 ---
-![](https://capgo.app/conventional_commits.webp)
-> Simple, clean, and ready for production-grade extension.
+
+## 🧪 Testing
+```bash
+# Run unit and E2E integration tests
+bun test
+```

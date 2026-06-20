@@ -49,10 +49,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     server: Server;
 
     handleConnection(client: AuthenticatedSocket) {
-        const authHeader = client.handshake.headers['authorization'];
+        let authHeader = client.handshake.headers['authorization'] as string | undefined;
+        if (!authHeader && client.handshake.auth?.token) {
+            authHeader = client.handshake.auth.token;
+        }
+
         if (authHeader) {
             try {
-                const token = authHeader.split(' ')[1];
+                let token = authHeader;
+                if (authHeader.startsWith('Bearer ')) {
+                    token = authHeader.split(' ')[1];
+                }
                 const payload = this.jwtService.verify(token, {
                     secret: this.configService.get('ACCESS_SECRET_KEY'),
                 });

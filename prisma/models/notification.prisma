@@ -8,4 +8,27 @@ model Notification {
     createdAt DateTime  @default(now())
     readAt    DateTime?
     deleteAt  DateTime?
+
+    targetType String?
+    targetId   Int?
+    actorId    Int?
+    metadata   Json?
+
+    channels  NotificationChannel[]
+}
+
+model NotificationChannel {
+    id             Int             @id @default(autoincrement())
+    notificationId Int
+    notification   Notification    @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+    channel        DeliveryChannel
+    status         DeliveryStatus  @default(PENDING)
+    sentAt         DateTime?
+    failedAt       DateTime?
+    error          String?
+    providerResult Json?
+    deleteAt       DateTime?
+
+    @@index([notificationId])
+    @@index([channel, status])
 }

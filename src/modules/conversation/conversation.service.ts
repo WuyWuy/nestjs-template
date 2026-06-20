@@ -131,6 +131,7 @@ export class ConversationService {
                             content: true,
                             senderId: true,
                             createdAt: true,
+                            image: true,
                         },
                     },
                     customer: {
@@ -226,6 +227,7 @@ export class ConversationService {
                 conversationId: true,
                 senderId: true,
                 content: true,
+                image: true,
                 createdAt: true,
                 sender: {
                     select: {
@@ -290,6 +292,7 @@ export class ConversationService {
                 conversationId: true,
                 senderId: true,
                 content: true,
+                image: true,
                 createdAt: true,
                 sender: {
                     select: {

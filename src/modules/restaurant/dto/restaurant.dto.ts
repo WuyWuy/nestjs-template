@@ -37,6 +37,27 @@ export class GetRestaurantsQueryDto {
     @IsInt()
     @IsPositive()
     categoryId?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    latitude?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    longitude?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    @Min(0)
+    @Max(5)
+    minRating?: number;
+
+    @IsOptional()
+    @IsString()
+    sortBy?: string;
 }
 
 export class GetRestaurantMenuQueryDto {

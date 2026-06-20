@@ -58,3 +58,15 @@ enum NotificationType {
     PROMOTION
     CHAT
 }
+
+enum DeliveryChannel {
+    IN_APP
+    DEVICE
+}
+
+enum DeliveryStatus {
+    PENDING
+    SENT
+    FAILED
+    SKIPPED
+}

@@ -17,9 +17,12 @@ import {
     Role,
     VoucherStatus,
     VoucherType,
+    NotificationType,
 } from '@prisma/client';
 import { PaymentService } from '../payment/payment.service';
 import { CartService } from '../cart/cart.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { NotificationEvent } from '../notification/events/notification.event';
 
 type FoodSnapshot = {
     id: number;
@@ -35,6 +38,7 @@ export class OrderService {
         private readonly addressService: AddressService,
         private readonly paymentService: PaymentService,
         private readonly cartService: CartService,
+        private readonly eventEmitter: EventEmitter2,
     ) {}
 
     private hasRole(roles: string[], role: Role) {
@@ -131,7 +135,7 @@ export class OrderService {
     }
 
     async createOrder(userId: number, data: CreateOrderDto) {
-        return await this.prismaService.transaction(async (tx) => {
+        const result = await this.prismaService.transaction(async (tx) => {
             let totalPrice = new Prisma.Decimal(0);
             let voucherId: number | undefined;
             let saleOff = 0;
@@ -336,31 +340,31 @@ export class OrderService {
                 data: orderFoodData,
             });
 
-                let finalPrice = Math.ceil(Number(totalPrice));
-                if (
-                    currentVoucher &&
-                    Number(totalPrice) <
-                        Number(currentVoucher.minimumOrderAmount)
-                ) {
-                    throw new BadRequestException(
-                        'Order does not meet voucher minimum amount',
-                    );
-                }
-                if (saleOff && voucherType) {
-                    finalPrice =
-                        voucherType === VoucherType.MONEY
-                            ? this.calculateMoneyDiscount(totalPrice, saleOff)
-                            : this.calculatePercentDiscount(totalPrice, saleOff);
-                }
-                if (
-                    currentVoucher?.maximumDiscountAmount &&
-                    Number(totalPrice) - finalPrice >
-                        Number(currentVoucher.maximumDiscountAmount)
-                ) {
-                    finalPrice =
-                        Number(totalPrice) -
-                        Number(currentVoucher.maximumDiscountAmount);
-                }
+            let finalPrice = Math.ceil(Number(totalPrice));
+            if (
+                currentVoucher &&
+                Number(totalPrice) <
+                    Number(currentVoucher.minimumOrderAmount)
+            ) {
+                throw new BadRequestException(
+                    'Order does not meet voucher minimum amount',
+                );
+            }
+            if (saleOff && voucherType) {
+                finalPrice =
+                    voucherType === VoucherType.MONEY
+                        ? this.calculateMoneyDiscount(totalPrice, saleOff)
+                        : this.calculatePercentDiscount(totalPrice, saleOff);
+            }
+            if (
+                currentVoucher?.maximumDiscountAmount &&
+                Number(totalPrice) - finalPrice >
+                    Number(currentVoucher.maximumDiscountAmount)
+            ) {
+                finalPrice =
+                    Number(totalPrice) -
+                    Number(currentVoucher.maximumDiscountAmount);
+            }
 
             const updatedOrder = await tx.order.update({
                 where: {
@@ -445,6 +449,54 @@ export class OrderService {
                 paymentInformation,
             };
         });
+
+        try {
+            const customerObj = await this.prismaService.client.user.findUnique({
+                where: { id: userId },
+                select: { name: true }
+            });
+            const customerName = customerObj?.name || 'Customer';
+
+            const restaurant = await this.prismaService.client.restaurant.findUnique({
+                where: { id: data.restaurantId },
+                select: { ownerId: true }
+            });
+
+            if (restaurant?.ownerId) {
+                const orderFoodDetails = [];
+                for (const item of data.orderFoods) {
+                    const foodObj = await this.prismaService.client.food.findUnique({
+                        where: { id: item.foodId },
+                        select: { name: true }
+                    });
+                    if (foodObj) {
+                        orderFoodDetails.push(`${item.quantity}x ${foodObj.name}`);
+                    }
+                }
+                const itemSummary = orderFoodDetails.join(', ');
+
+                this.eventEmitter.emit('notification.send', {
+                    recipientUserId: restaurant.ownerId,
+                    title: 'New Order Received',
+                    body: `New order #${result.order.id} from ${customerName}: ${itemSummary}. Total: $${result.order.totalPrice}`,
+                    type: NotificationType.ORDER,
+                    targetType: 'ORDER',
+                    targetId: result.order.id,
+                    actorId: userId,
+                    metadata: {
+                        actions: ['ACCEPT_ORDER', 'REJECT_ORDER'],
+                        orderId: result.order.id,
+                        customerName,
+                        totalPrice: result.order.totalPrice,
+                        itemSummary,
+                    }
+                } as NotificationEvent);
+            }
+        } catch (err) {
+            console.error('Error emitting new order notification:', err);
+        }
+
+        return result;
     }
 
     async getAllOrders(
@@ -888,6 +940,24 @@ export class OrderService {
             },
         });
 
+        try {
+            this.eventEmitter.emit('notification.send', {
+                recipientUserId: order.userId,
+                title: 'Order Cancelled',
+                body: `Your order #${order.id} has been cancelled.`,
+                type: NotificationType.ORDER,
+                targetType: 'ORDER',
+                targetId: order.id,
+                actorId: userId,
+                metadata: {
+                    orderId: order.id,
+                    status: OrderStatus.CANCELLED,
+                }
+            } as NotificationEvent);
+        } catch (err) {
+            console.error('Error emitting cancel order notification:', err);
+        }
+
         return {
             message: 'Order cancelled successfully',
         };
@@ -920,6 +990,24 @@ export class OrderService {
                 status: OrderStatus.CANCELLED,
             },
         });
+
+        try {
+            this.eventEmitter.emit('notification.send', {
+                recipientUserId: order.userId,
+                title: 'Order Cancelled',
+                body: `Your order #${order.id} has been cancelled.`,
+                type: NotificationType.ORDER,
+                targetType: 'ORDER',
+                targetId: order.id,
+                actorId: userId,
+                metadata: {
+                    orderId: order.id,
+                    status: OrderStatus.CANCELLED,
+                }
+            } as NotificationEvent);
+        } catch (err) {
+            console.error('Error emitting cancel order notification:', err);
+        }
 
         const { status: feStatus, status_step } = this.mapOrderStatusToFrontend(OrderStatus.CANCELLED);
 
@@ -964,6 +1052,49 @@ export class OrderService {
                 status: data.status,
             },
         });
+
+        try {
+            let title = 'Order Update';
+            let body = `Your order #${order.id} status has been updated to ${data.status}.`;
+            switch (data.status) {
+                case OrderStatus.CONFIRMED:
+                    title = 'Order Confirmed';
+                    body = `Your order #${order.id} has been confirmed by the restaurant.`;
+                    break;
+                case OrderStatus.PREPARING:
+                    title = 'Preparing Your Order';
+                    body = `The restaurant is preparing your food for order #${order.id}.`;
+                    break;
+                case OrderStatus.DELIVERING:
+                    title = 'Order Out for Delivery';
+                    body = `Your order #${order.id} is on the way!`;
+                    break;
+                case OrderStatus.DELIVERED:
+                    title = 'Order Delivered';
+                    body = `Your order #${order.id} has been successfully delivered. Enjoy your meal!`;
+                    break;
+                case OrderStatus.CANCELLED:
+                    title = 'Order Cancelled';
+                    body = `Your order #${order.id} has been cancelled.`;
+                    break;
+            }
+
+            this.eventEmitter.emit('notification.send', {
+                recipientUserId: order.userId,
+                title,
+                body,
+                type: NotificationType.ORDER,
+                targetType: 'ORDER',
+                targetId: order.id,
+                actorId: userId,
+                metadata: {
+                    orderId: order.id,
+                    status: data.status,
+                }
+            } as NotificationEvent);
+        } catch (err) {
+            console.error('Error emitting update order status notification:', err);
+        }
 
         return updatedOrder;
     }

@@ -11,11 +11,14 @@ import {
     PaymentStatus,
     Prisma,
     Role,
+    NotificationType,
 } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { getMomoPayUrl } from './payment.utls';
 import { PrismaService } from '@/prisma/prisma.service';
 import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { NotificationEvent } from '../notification/events/notification.event';
 
 @Injectable()
 export class PaymentService {
@@ -27,6 +30,7 @@ export class PaymentService {
         private readonly configService: ConfigService,
         private readonly prismaService: PrismaService,
         private readonly auditService: AuditService,
+        private readonly eventEmitter: EventEmitter2,
     ) {
         this.momoAccessKey =
             this.configService.get<string>('MOMO_ACCESS_KEY') || undefined;
@@ -251,6 +255,7 @@ export class PaymentService {
                         id: true,
                         restaurantId: true,
                         status: true,
+                        userId: true,
                     },
                 },
             },
@@ -281,6 +286,41 @@ export class PaymentService {
 
             return res;
         });
+
+        try {
+            this.eventEmitter.emit('notification.send', {
+                recipientUserId: payment.order.userId,
+                title: 'Payment Confirmed',
+                body: `Your payment of $${payment.amount} for order #${payment.order.id} has been confirmed.`,
+                type: NotificationType.PAYMENT,
+                targetType: 'ORDER',
+                targetId: payment.order.id,
+                actorId,
+                metadata: {
+                    orderId: payment.order.id,
+                    paymentId: payment.id,
+                    amount: payment.amount,
+                }
+            } as NotificationEvent);
+
+            if (payment.order.status === OrderStatus.PENDING) {
+                this.eventEmitter.emit('notification.send', {
+                    recipientUserId: payment.order.userId,
+                    title: 'Order Confirmed',
+                    body: `Your order #${payment.order.id} has been confirmed by the restaurant.`,
+                    type: NotificationType.ORDER,
+                    targetType: 'ORDER',
+                    targetId: payment.order.id,
+                    actorId,
+                    metadata: {
+                        orderId: payment.order.id,
+                        status: OrderStatus.CONFIRMED,
+                    }
+                } as NotificationEvent);
+            }
+        } catch (err) {
+            console.error('Error emitting payment/order confirmation notification:', err);
+        }
 
         await this.auditService.log(
             'CONFIRM_PAYMENT',

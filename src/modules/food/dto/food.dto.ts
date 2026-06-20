@@ -42,6 +42,29 @@ export class FoodQueryDto {
     @IsInt()
     @IsPositive()
     restaurantId?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    @Min(0)
+    minPrice?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    @Min(0)
+    maxPrice?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    @Min(0)
+    @Max(5)
+    minRating?: number;
+
+    @IsOptional()
+    @IsString()
+    sortBy?: string;
 }
 
 export class CreateFoodSizeDto {

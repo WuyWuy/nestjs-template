@@ -63,20 +63,54 @@ export class FoodService {
     }
 
     async getAllFood(query: FoodQueryDto) {
+        const whereClause: any = {
+            isAvailable: true,
+            name: query.name
+                ? {
+                      contains: query.name,
+                      mode: 'insensitive',
+                  }
+                : undefined,
+            categoryId: query.categoryId,
+            restaurantId: query.restaurantId,
+        };
+
+        if (query.minPrice !== undefined) {
+            whereClause.price = {
+                ...whereClause.price,
+                gte: query.minPrice,
+            };
+        }
+
+        if (query.maxPrice !== undefined) {
+            whereClause.price = {
+                ...whereClause.price,
+                lte: query.maxPrice,
+            };
+        }
+
+        if (query.minRating !== undefined) {
+            whereClause.rating = {
+                ...whereClause.rating,
+                gte: query.minRating,
+            };
+        }
+
+        let orderByClause: any = { id: 'desc' };
+        if (query.sortBy === 'PRICE_ASC') {
+            orderByClause = { price: 'asc' };
+        } else if (query.sortBy === 'PRICE_DESC') {
+            orderByClause = { price: 'desc' };
+        } else if (query.sortBy === 'RATING') {
+            orderByClause = { rating: 'desc' };
+        } else if (query.sortBy === 'NEWEST') {
+            orderByClause = { id: 'desc' };
+        }
+
         const foods = await this.prismaService.client.food.findMany({
             take: query.limit ?? 20,
             skip: query.offset ?? 0,
-            where: {
-                name: query.name
-                    ? {
-                          contains: query.name,
-                          mode: 'insensitive',
-                      }
-                    : undefined,
-                categoryId: query.categoryId,
-                restaurantId: query.restaurantId,
-                isAvailable: true,
-            },
+            where: whereClause,
             include: {
                 category: {
                     select: {
@@ -100,9 +134,7 @@ export class FoodService {
                     },
                 },
             },
-            orderBy: {
-                id: 'desc',
-            },
+            orderBy: orderByClause,
         });
 
         return foods.map((food) => ({

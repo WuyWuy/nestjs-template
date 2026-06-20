@@ -117,6 +117,21 @@ export class RestaurantController {
 
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
+    @Get('/manage/:restaurantId/revenue')
+    async getRestaurantRevenue(
+        @Req() req: Request,
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.restaurantService.getRestaurantRevenue(
+            restaurantId,
+            Number(user.id),
+            user.roles ?? [],
+        );
+    }
+
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('/manage/:restaurantId/status')
     async updateRestaurantStatus(
         @Req() req: Request,
@@ -156,6 +171,10 @@ export class RestaurantController {
             query.offset ?? 0,
             query.keyword ?? '',
             query.categoryId,
+            query.latitude,
+            query.longitude,
+            query.minRating,
+            query.sortBy,
         );
     }
 

@@ -5,7 +5,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import { Role, VoucherStatus } from '@prisma/client';
+import { Role, VoucherStatus, NotificationType } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import type { Express } from 'express';
 import {
@@ -14,6 +14,8 @@ import {
     VoucherListQueryDto,
 } from './dto/voucher.dto';
 import { MinioService } from '../minio/minio.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { NotificationEvent } from '../notification/events/notification.event';
 
 @Injectable()
 export class VoucherService {
@@ -21,6 +23,7 @@ export class VoucherService {
         private readonly prismaService: PrismaService,
         private readonly auditService: AuditService,
         private readonly minioService: MinioService,
+        private readonly eventEmitter: EventEmitter2,
     ) {}
 
     private hasRole(roles: string[], role: Role) {
@@ -239,6 +242,52 @@ export class VoucherService {
             actorId,
             data,
         );
+
+        if (voucher.status === VoucherStatus.APPLYING) {
+            try {
+                let restaurantName = '';
+                if (voucher.restaurantId) {
+                    const restaurant = await this.prismaService.client.restaurant.findUnique({
+                        where: { id: voucher.restaurantId },
+                        select: { name: true }
+                    });
+                    if (restaurant) {
+                        restaurantName = ` at ${restaurant.name}`;
+                    }
+                }
+
+                const customers = await this.prismaService.client.user.findMany({
+                    where: {
+                        deleteAt: null,
+                        userRoles: {
+                            some: {
+                                role: Role.CUSTOMER,
+                                deleteAt: null,
+                            }
+                        }
+                    },
+                    select: { id: true }
+                });
+
+                for (const customer of customers) {
+                    this.eventEmitter.emit('notification.send', {
+                        recipientUserId: customer.id,
+                        title: 'New Promotion Available!',
+                        body: `Use code ${voucher.code} to get discount${restaurantName}.`,
+                        type: NotificationType.PROMOTION,
+                        targetType: 'VOUCHER',
+                        targetId: voucher.id,
+                        actorId,
+                        metadata: {
+                            voucherId: voucher.id,
+                            code: voucher.code,
+                        }
+                    } as NotificationEvent);
+                }
+            } catch (err) {
+                console.error('Error emitting promotion notifications:', err);
+            }
+        }
 
         return voucher;
     }

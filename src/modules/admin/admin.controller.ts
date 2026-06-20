@@ -36,6 +36,12 @@ export class AdminController {
         return await this.adminService.getDashboardSummary(actorId);
     }
 
+    @Get('revenue')
+    async getRevenue(@Req() req: Request) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.getRevenueSummary(actorId);
+    }
+
     @Get('audit-logs')
     async getAuditLogs(@Req() req: Request, @Query() query: AuditLogQueryDto) {
         const actorId = Number((req.user as { id?: number })?.id);

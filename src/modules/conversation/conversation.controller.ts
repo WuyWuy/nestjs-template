@@ -8,6 +8,9 @@ import {
     Query,
     Req,
     UseGuards,
+    UseInterceptors,
+    UploadedFile,
+    BadRequestException,
 } from '@nestjs/common';
 import { ConversationService } from './conversation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -19,10 +22,16 @@ import {
     ConversationDetailQueryDto,
     CreateConversationDto,
 } from './dto/conversation.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { MinioService } from '../minio/minio.service';
+import type { Express } from 'express';
 
 @Controller('conversation')
 export class ConversationController {
-    constructor(private readonly conversationService: ConversationService) {}
+    constructor(
+        private readonly conversationService: ConversationService,
+        private readonly minioService: MinioService,
+    ) {}
 
     @UseGuards(JwtAuthGuard)
     @Get('/me')
@@ -94,5 +103,18 @@ export class ConversationController {
             query.limit ?? 20,
             query.offset ?? 0,
         );
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('/upload-image')
+    @UseInterceptors(FileInterceptor('file'))
+    async uploadChatImage(
+        @UploadedFile() file: Express.Multer.File,
+    ) {
+        if (!file) {
+            throw new BadRequestException('No file provided');
+        }
+        const imageUrl = await this.minioService.uploadFile(file);
+        return { imageUrl };
     }
 }

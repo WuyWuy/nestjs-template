@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class ChatMessage {
     @IsInt()
@@ -7,8 +7,11 @@ export class ChatMessage {
     @Type(() => Number)
     conversationId: number;
     @IsString()
-    @IsNotEmpty()
-    content: string;
+    @IsOptional()
+    content?: string;
+    @IsString()
+    @IsOptional()
+    image?: string;
 }
 export class JoiNRoomDto {
     @IsInt()

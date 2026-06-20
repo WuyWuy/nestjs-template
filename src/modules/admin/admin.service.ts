@@ -2,7 +2,7 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { OrderStatus, PaymentStatus, NotificationType } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import {
@@ -13,6 +13,8 @@ import {
 import { generatePassword } from '@/utilis/rnadomPassword';
 import { EmailService } from '../email/email.service';
 import { APP_NAME } from '@/bases/commons/constants/app.constant';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { NotificationEvent } from '../notification/events/notification.event';
 
 @Injectable()
 export class AdminService {
@@ -20,6 +22,7 @@ export class AdminService {
         private readonly prismaService: PrismaService,
         private readonly auditService: AuditService,
         private readonly emailService: EmailService,
+        private readonly eventEmitter: EventEmitter2,
     ) {}
 
     async getDashboardSummary(actorId: number) {
@@ -65,6 +68,72 @@ export class AdminService {
             deliveredRevenue: Number(
                 deliveredOrdersAggregate._sum.totalPrice ?? 0,
             ),
+        };
+    }
+
+    async getRevenueSummary(actorId: number) {
+        const deliveredOrdersAggregate = await this.prismaService.client.order.aggregate({
+            where: {
+                status: OrderStatus.DELIVERED,
+            },
+            _sum: {
+                totalPrice: true,
+            },
+        });
+
+        const grossRevenue = Number(deliveredOrdersAggregate._sum.totalPrice ?? 0);
+        const adminCommissionRate = 0.2;
+        const adminRevenue = Number((grossRevenue * adminCommissionRate).toFixed(2));
+
+        const groupedOrders = await this.prismaService.client.order.groupBy({
+            by: ['restaurantId'],
+            where: {
+                status: OrderStatus.DELIVERED,
+            },
+            _sum: {
+                totalPrice: true,
+            },
+        });
+
+        const restaurantIds = groupedOrders.map((g) => g.restaurantId);
+        const restaurantsInfo = await this.prismaService.client.restaurant.findMany({
+            where: {
+                id: {
+                    in: restaurantIds,
+                },
+            },
+            select: {
+                id: true,
+                name: true,
+            },
+        });
+
+        const restaurantMap = new Map(
+            restaurantsInfo.map((r) => [r.id, r.name]),
+        );
+
+        const restaurantsBreakdown = groupedOrders.map((g) => {
+            const rGross = Number(g._sum.totalPrice ?? 0);
+            return {
+                restaurantId: g.restaurantId,
+                restaurantName: restaurantMap.get(g.restaurantId) ?? `Restaurant #${g.restaurantId}`,
+                grossRevenue: rGross,
+                adminRevenue: Number((rGross * 0.2).toFixed(2)),
+            };
+        });
+
+        await this.auditService.log(
+            'ADMIN_VIEW_REVENUE',
+            'Revenue',
+            null,
+            actorId,
+        );
+
+        return {
+            grossRevenue,
+            adminCommissionRate,
+            adminRevenue,
+            restaurants: restaurantsBreakdown,
         };
     }
 
@@ -302,6 +371,7 @@ export class AdminService {
                 id: true,
                 approved: true,
                 name: true,
+                ownerId: true,
             },
         });
 
@@ -318,6 +388,24 @@ export class AdminService {
                     approved,
                 },
             });
+
+        try {
+            this.eventEmitter.emit('notification.send', {
+                recipientUserId: restaurant.ownerId,
+                title: 'Restaurant Approval Status Update',
+                body: `Your restaurant "${restaurant.name}" has been ${approved ? 'approved' : 'disapproved'} by the administrator.`,
+                type: NotificationType.SYSTEM,
+                targetType: 'RESTAURANT',
+                targetId: restaurantId,
+                actorId,
+                metadata: {
+                    restaurantId,
+                    approved,
+                },
+            } as NotificationEvent);
+        } catch (err) {
+            console.error('Error emitting restaurant approval notification:', err);
+        }
 
         await this.auditService.log(
             'ADMIN_UPDATE_RESTAURANT_APPROVAL',

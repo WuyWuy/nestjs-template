@@ -5,7 +5,7 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Role, OrderStatus } from '@prisma/client';
+import { Prisma, Role, OrderStatus, NotificationType } from '@prisma/client';
 import {
     CreateRestaurantDto,
     CreateRestaurantRatingDto,
@@ -14,6 +14,8 @@ import {
 import { AuditService } from '../audit/audit.service';
 import { MinioService } from '../minio/minio.service';
 import type { Express } from 'express';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { NotificationEvent } from '../notification/events/notification.event';
 
 type RestaurantUploadFiles = {
     image?: Express.Multer.File[];
@@ -26,6 +28,7 @@ export class RestaurantService {
         private readonly prismaService: PrismaService,
         private readonly auditService: AuditService,
         private readonly minioService: MinioService,
+        private readonly eventEmitter: EventEmitter2,
     ) {}
     private buildRestaurantSummary<T extends { ratings: { vote: number }[] }>(
         restaurant: T,
@@ -121,11 +124,34 @@ export class RestaurantService {
         }
     }
 
+    private calculateDistance(
+        lat1: number,
+        lon1: number,
+        lat2: number,
+        lon2: number,
+    ): number {
+        const R = 6371; // Earth radius in km
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos((lat1 * Math.PI) / 180) *
+                Math.cos((lat2 * Math.PI) / 180) *
+                Math.sin(dLon / 2) *
+                Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
     async getAllRestaurants(
         limit: number,
         offset: number,
         keyword: string,
         categoryId?: number,
+        latitude?: number,
+        longitude?: number,
+        minRating?: number,
+        sortBy?: string,
     ) {
         try {
             const restaurants = await this.prismaService.client.restaurant.findMany(
@@ -170,11 +196,14 @@ export class RestaurantService {
                         deliveryFee: true,
                         minimumOrder: true,
                         estimatedDeliveryTime: true,
+                        createdAt: true,
                         address: {
                             select: {
                                 id: true,
                                 title: true,
                                 fullText: true,
+                                latitude: true,
+                                longitude: true,
                             },
                         },
                         foods: {
@@ -196,17 +225,30 @@ export class RestaurantService {
                             },
                         },
                     },
-                    take: limit,
-                    skip: offset,
-                    orderBy: {
-                        createdAt: 'desc',
-                    },
                 },
             );
 
-            return restaurants.map((restaurant) => {
+            let mapped = restaurants.map((restaurant) => {
                 const { averageRating, ratingCount } =
                     this.buildRestaurantSummary(restaurant);
+
+                let distanceKm: number | null = null;
+                if (
+                    latitude !== undefined &&
+                    longitude !== undefined &&
+                    restaurant.address?.latitude !== null &&
+                    restaurant.address?.longitude !== null &&
+                    restaurant.address?.latitude !== undefined &&
+                    restaurant.address?.longitude !== undefined
+                ) {
+                    const dist = this.calculateDistance(
+                        latitude,
+                        longitude,
+                        restaurant.address.latitude,
+                        restaurant.address.longitude,
+                    );
+                    distanceKm = Math.round(dist * 100) / 100;
+                }
 
                 return {
                     id: restaurant.id,
@@ -218,9 +260,11 @@ export class RestaurantService {
                     deliveryFee: Number(restaurant.deliveryFee),
                     minimumOrder: Number(restaurant.minimumOrder),
                     estimatedDeliveryTime: restaurant.estimatedDeliveryTime,
+                    createdAt: restaurant.createdAt,
                     address: restaurant.address,
                     averageRating,
                     ratingCount,
+                    distanceKm,
                     categories: Array.from(
                         new Map(
                             restaurant.foods.map((food) => [
@@ -241,6 +285,26 @@ export class RestaurantService {
                             : 0,
                 };
             });
+
+            if (minRating !== undefined) {
+                mapped = mapped.filter((r) => r.averageRating >= minRating);
+            }
+
+            if (sortBy === 'DISTANCE' && latitude !== undefined && longitude !== undefined) {
+                mapped.sort((a, b) => {
+                    if (a.distanceKm === null) return 1;
+                    if (b.distanceKm === null) return -1;
+                    return a.distanceKm - b.distanceKm;
+                });
+            } else if (sortBy === 'RATING') {
+                mapped.sort((a, b) => b.averageRating - a.averageRating);
+            } else {
+                mapped.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            }
+
+            const paginated = mapped.slice(offset, offset + limit);
+
+            return paginated.map(({ createdAt, ...rest }) => rest);
         } catch (err) {
             console.log("get all restaurant error: " , err) 
             throw err;
@@ -426,26 +490,45 @@ export class RestaurantService {
                     },
                 });
 
-            if (existingRating) {
-                return await this.prismaService.client.restaurantRating.update({
-                    where: {
-                        id: existingRating.id,
-                    },
-                    data: {
+            const rating = existingRating
+                ? await this.prismaService.client.restaurantRating.update({
+                      where: {
+                          id: existingRating.id,
+                      },
+                      data: {
+                          vote: data.vote,
+                          comment: data.comment ?? '',
+                      },
+                  })
+                : await this.prismaService.client.restaurantRating.create({
+                      data: {
+                          restaurantId,
+                          userId,
+                          vote: data.vote,
+                          comment: data.comment ?? '',
+                      },
+                  });
+
+            try {
+                this.eventEmitter.emit('notification.send', {
+                    recipientUserId: restaurant.ownerId,
+                    title: 'New Restaurant Review',
+                    body: `A customer has rated your restaurant "${restaurant.name}" with ${data.vote} stars: "${data.comment ?? ''}"`,
+                    type: NotificationType.SYSTEM,
+                    targetType: 'RESTAURANT',
+                    targetId: restaurantId,
+                    actorId: userId,
+                    metadata: {
+                        ratingId: rating.id,
                         vote: data.vote,
                         comment: data.comment ?? '',
                     },
-                });
+                } as NotificationEvent);
+            } catch (err) {
+                console.error('Error emitting review notification:', err);
             }
 
-            return await this.prismaService.client.restaurantRating.create({
-                data: {
-                    restaurantId,
-                    userId,
-                    vote: data.vote,
-                    comment: data.comment ?? '',
-                },
-            });
+            return rating;
         } catch (err) {
             console.log("Creating restaurant err: " , err) 
             throw err;
@@ -725,6 +808,43 @@ export class RestaurantService {
             deliveredOrderCount,
             cancelledOrderCount,
             topFoods,
+        };
+    }
+
+    async getRestaurantRevenue(
+        restaurantId: number,
+        actorId: number,
+        roles: string[],
+    ) {
+        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+
+        const ordersAggregate = await this.prismaService.client.order.aggregate({
+            where: {
+                restaurantId,
+                status: OrderStatus.DELIVERED,
+            },
+            _sum: {
+                totalPrice: true,
+            },
+        });
+
+        const grossRevenue = Number(ordersAggregate._sum.totalPrice ?? 0);
+        const platformCommissionRate = 0.2;
+        const platformCommission = Number((grossRevenue * platformCommissionRate).toFixed(2));
+        const restaurantNetRevenue = Number((grossRevenue * 0.8).toFixed(2));
+
+        await this.auditService.log(
+            'VIEW_RESTAURANT_REVENUE',
+            'Restaurant',
+            restaurantId,
+            actorId,
+        );
+
+        return {
+            grossRevenue,
+            platformCommissionRate,
+            platformCommission,
+            restaurantNetRevenue,
         };
     }
 

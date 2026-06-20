@@ -60,6 +60,19 @@ export class OrderController {
         );
     }
 
+    @Get('/:orderId/status')
+    async getOrderStatus(
+        @Param('orderId', ParseIntPipe) orderId: number,
+        @Req() req: Request,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.orderSerivce.getOrderStatus(
+            Number(user.id),
+            user.roles ?? [],
+            orderId,
+        );
+    }
+
     @Delete('/:orderId')
     async cancelOrder(
         @Param('orderId', ParseIntPipe) orderId: number,

@@ -716,6 +716,25 @@ export class OrderService {
         };
     }
 
+    async getOrderStatus(userId: number, roles: string[], orderId: number) {
+        const order = await this.findOrderWithAccess(userId, roles, orderId);
+
+        const payment = await this.prismaService.client.payment.findFirst({
+            where: { orderId: order.id },
+            select: { updatedAt: true },
+        });
+
+        const { status: feStatus, status_step } = this.mapOrderStatusToFrontend(order.status);
+
+        return {
+            order_id: order.id,
+            status: feStatus,
+            status_step,
+            updated_at: (payment?.updatedAt ?? new Date()).toISOString(),
+            backend_status: order.status,
+        };
+    }
+
     async deleteOrderById(userId: number, roles: string[], orderId: number) {
         const order = await this.findOrderWithAccess(userId, roles, orderId);
 

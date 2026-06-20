@@ -9,6 +9,9 @@ model Restaurant {
     deliveryFee Decimal          @default(0)
     minimumOrder Decimal         @default(0)
     estimatedDeliveryTime Int    @default(20)
+    isOpen    Boolean            @default(true)
+    operatingHours Json?
+    isFeatured Boolean           @default(false)
     addressId Int
     address   Address            @relation(fields: [addressId], references: [id])
     ownerId   Int
@@ -30,6 +33,8 @@ model RestaurantRating {
     user         User       @relation(fields: [userId], references: [id])
     vote         Int
     comment      String     @default("") @db.Text
+    reply        String?    @db.Text
+    replyCreatedAt DateTime?
     createdAt    DateTime   @default(now())
     deleteAt     DateTime?
 }

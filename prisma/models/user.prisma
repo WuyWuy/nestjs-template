@@ -23,6 +23,9 @@ model User {
     identities            Identity[]
     orders                Order[]
     auditLogs             AuditLog[]
+    stripeCustomerId      String?
+    userCards             UserCard[]
+    foodRatings           FoodRating[]
 }
 
 model UserRole {

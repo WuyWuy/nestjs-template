@@ -51,7 +51,7 @@ export class UserController {
         const responseData = await this.userService.getUserProfile(Number(id));
         return responseData;
     }
-    @Roles(Role.CUSTOMER)
+    @Roles(Role.CUSTOMER, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Put('profile')
     @UseInterceptors(FileInterceptor('avatar'))

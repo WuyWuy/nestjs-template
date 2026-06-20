@@ -14,6 +14,7 @@ model Order {
     deleteAt     DateTime?
     addressId    Int
     address      Address     @relation(fields: [addressId], references: [id])
+    foodRatings  FoodRating[]
 }
 
 model OrderFood {

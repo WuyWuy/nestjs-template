@@ -14,10 +14,33 @@ model Food {
     orderFoods      OrderFood[]
     cartItems       CartItem[]
     foodIngredients FoodIngredient[]
+    ratings         FoodRating[]
+    sizes           FoodSize[]
     restaurantId    Int
     restaurant      Restaurant       @relation(fields: [restaurantId], references: [id])
     @@index([categoryId])
     @@index([price])
+}
+
+model Size {
+    id        Int        @id @default(autoincrement())
+    name      String     @unique // S, M, L, XL
+    foodSizes FoodSize[]
+}
+
+model FoodSize {
+    id        Int       @id @default(autoincrement())
+    foodId    Int
+    sizeId    Int
+    price     Decimal   @default(0)
+    isDefault Boolean   @default(false)
+    deleteAt  DateTime?
+    food      Food      @relation(fields: [foodId], references: [id])
+    size      Size      @relation(fields: [sizeId], references: [id])
+
+    @@unique([foodId, sizeId])
+    @@index([foodId])
+    @@index([sizeId])
 }
 
 model Ingredient {
@@ -36,4 +59,23 @@ model FoodIngredient {
 
     @@unique([foodId, ingredientId])
     @@index([ingredientId])
+}
+
+model FoodRating {
+    id        Int       @id @default(autoincrement())
+    foodId    Int
+    food      Food      @relation(fields: [foodId], references: [id])
+    userId    Int
+    user      User      @relation(fields: [userId], references: [id])
+    orderId   Int
+    order     Order     @relation(fields: [orderId], references: [id])
+    vote      Int
+    comment   String    @default("") @db.Text
+    createdAt DateTime  @default(now())
+    deleteAt  DateTime?
+
+    @@unique([userId, foodId, orderId])
+    @@index([foodId])
+    @@index([userId])
+    @@index([orderId])
 }

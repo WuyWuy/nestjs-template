@@ -462,6 +462,43 @@ async function ensureFoodIngredient(
     });
 }
 
+async function upsertSize(db: DbClient, name: string) {
+    return await db.size.upsert({
+        where: { name },
+        create: { name },
+        update: {},
+    });
+}
+
+async function ensureDefaultFoodSize(db: DbClient, foodId: number, sizeId: number, price: number) {
+    const existing = await db.foodSize.findFirst({
+        where: {
+            foodId,
+            sizeId,
+        },
+    });
+
+    if (existing) {
+        return await db.foodSize.update({
+            where: { id: existing.id },
+            data: {
+                price,
+                isDefault: true,
+                deleteAt: null,
+            },
+        });
+    }
+
+    return await db.foodSize.create({
+        data: {
+            foodId,
+            sizeId,
+            price,
+            isDefault: true,
+        },
+    });
+}
+
 async function upsertVoucher(
     db: DbClient,
     data: {
@@ -750,6 +787,11 @@ async function main() {
             categoryMap.set(category.name, await upsertCategory(tx, category));
         }
 
+        const sizeMap = new Map<string, Awaited<ReturnType<typeof upsertSize>>>();
+        for (const name of ['S', 'M', 'L', 'XL'] as const) {
+            sizeMap.set(name, await upsertSize(tx, name));
+        }
+
         const ingredientMap = new Map<
             string,
             Awaited<ReturnType<typeof upsertIngredient>>
@@ -926,6 +968,35 @@ async function main() {
                 isAvailable: true,
             }),
         };
+
+        const sizeM = sizeMap.get('M');
+        if (!sizeM) {
+            throw new Error('Size "M" was not created correctly');
+        }
+
+        for (const [key, food] of Object.entries(foods)) {
+            console.log("Key: ", key)
+            await ensureDefaultFoodSize(tx, food.id, sizeM.id, Number(food.price));
+        }
+
+        // Backfill FoodSizes for any other foods in the database that don't have sizes yet
+        const allFoods = await tx.food.findMany({
+            include: {
+                sizes: true,
+            },
+        });
+        for (const food of allFoods) {
+            if (food.sizes.length === 0) {
+                await tx.foodSize.create({
+                    data: {
+                        foodId: food.id,
+                        sizeId: sizeM.id,
+                        price: food.price,
+                        isDefault: true,
+                    },
+                });
+            }
+        }
 
         const beefPatty = ingredientMap.get('Beef Patty');
         const cheddar = ingredientMap.get('Cheddar');

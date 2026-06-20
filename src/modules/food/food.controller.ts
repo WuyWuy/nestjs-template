@@ -20,7 +20,7 @@ import { Roles } from '@/bases/decorators/role.decorators';
 import { RolesGuard } from '@/bases/guards/role.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FoodService } from './food.service';
-import { CreateFoodDto, FoodQueryDto, UpdateFoodDto } from './dto/food.dto';
+import { CreateFoodDto, FoodQueryDto, UpdateFoodDto, CreateFoodRatingDto } from './dto/food.dto';
 
 @Controller('food')
 export class FoodController {
@@ -40,6 +40,26 @@ export class FoodController {
     async getFoodDetail(@Param('id', ParseIntPipe) id: number) {
         return await this.foodService.getFoodDetail(id);
     }
+
+    @Roles(Role.CUSTOMER)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Post('/:id/ratings')
+    async createFoodRating(
+        @Req() req: Request,
+        @Param('id', ParseIntPipe) foodId: number,
+        @Body() body: CreateFoodRatingDto,
+    ) {
+        const userId = Number((req.user as { id?: number })?.id);
+        return await this.foodService.createFoodRating(foodId, userId, body);
+    }
+
+    @Get('/:id/ratings')
+    async getFoodRatings(
+        @Param('id', ParseIntPipe) foodId: number,
+    ) {
+        return await this.foodService.getFoodRatings(foodId);
+    }
+
 
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)

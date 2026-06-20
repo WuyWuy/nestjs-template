@@ -9,6 +9,7 @@ import {
     IsOptional,
     IsPositive,
     IsString,
+    Max,
     Min,
     ValidateNested,
 } from 'class-validator';
@@ -134,3 +135,19 @@ export class CreateFoodDto {
 }
 
 export class UpdateFoodDto extends PartialType(CreateFoodDto) {}
+
+export class CreateFoodRatingDto {
+    @IsInt()
+    @Min(1)
+    @Max(5)
+    vote: number;
+
+    @IsOptional()
+    @IsString()
+    comment?: string = '';
+
+    @IsInt()
+    @IsNotEmpty()
+    orderId: number;
+}
+

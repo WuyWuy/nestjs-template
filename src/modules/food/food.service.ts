@@ -6,9 +6,9 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import type { Express } from 'express';
-import { Role } from '@prisma/client';
+import { Role, OrderStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
-import { CreateFoodDto, FoodQueryDto, UpdateFoodDto, CreateFoodSizeDto } from './dto/food.dto';
+import { CreateFoodDto, FoodQueryDto, UpdateFoodDto, CreateFoodSizeDto, CreateFoodRatingDto } from './dto/food.dto';
 import { MinioService } from '../minio/minio.service';
 
 @Injectable()
@@ -412,5 +412,121 @@ export class FoodService {
         if (count !== uniqueIds.length) {
             throw new BadRequestException('One or more ingredient IDs are invalid');
         }
+    }
+
+    async createFoodRating(
+        foodId: number,
+        userId: number,
+        data: CreateFoodRatingDto,
+    ) {
+        const food = await this.prismaService.client.food.findUnique({
+            where: { id: foodId },
+        });
+        if (!food) {
+            throw new NotFoundException('Food not found');
+        }
+
+        const order = await this.prismaService.client.order.findFirst({
+            where: {
+                id: data.orderId,
+                userId,
+                status: OrderStatus.DELIVERED,
+            },
+            include: {
+                orderFoods: true,
+            },
+        });
+
+        if (!order) {
+            throw new BadRequestException('You do not have a delivered order matching this order ID');
+        }
+
+        const hasFood = order.orderFoods.some((of) => of.foodId === foodId);
+        if (!hasFood) {
+            throw new BadRequestException('The selected order does not contain this food item');
+        }
+
+        await this.prismaService.client.$transaction(async (tx) => {
+            const existingRating = await tx.foodRating.findFirst({
+                where: {
+                    userId,
+                    foodId,
+                    orderId: data.orderId,
+                    deleteAt: null,
+                },
+            });
+            if (existingRating) {
+                throw new BadRequestException('You have already rated this food item for this order');
+            }
+
+            await tx.foodRating.create({
+                data: {
+                    foodId,
+                    userId,
+                    orderId: data.orderId,
+                    vote: data.vote,
+                    comment: data.comment ?? '',
+                },
+            });
+
+            const aggregate = await tx.foodRating.aggregate({
+                where: {
+                    foodId,
+                    deleteAt: null,
+                },
+                _avg: {
+                    vote: true,
+                },
+            });
+
+            const average = aggregate._avg.vote ? Math.round(aggregate._avg.vote) : 0;
+
+            await tx.food.update({
+                where: { id: foodId },
+                data: { rating: average },
+            });
+        });
+
+        await this.auditService.log(
+            'CREATE_FOOD_RATING',
+            'FoodRating',
+            foodId,
+            userId,
+            { vote: data.vote },
+        );
+
+        return {
+            message: 'Food rated successfully',
+        };
+    }
+
+    async getFoodRatings(foodId: number) {
+        const food = await this.prismaService.client.food.findUnique({
+            where: { id: foodId },
+        });
+        if (!food) {
+            throw new NotFoundException('Food not found');
+        }
+
+        const ratings = await this.prismaService.client.foodRating.findMany({
+            where: {
+                foodId,
+                deleteAt: null,
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        avatar: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+
+        return ratings;
     }
 }

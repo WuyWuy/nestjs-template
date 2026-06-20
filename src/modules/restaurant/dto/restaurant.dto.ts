@@ -180,3 +180,9 @@ export class UpdateOperatingHoursDto {
     operatingHours: OperatingHoursDto;
 }
 
+export class CreateRestaurantRatingReplyDto {
+    @IsString()
+    @IsNotEmpty()
+    reply: string;
+}
+

@@ -22,6 +22,7 @@ import {
     UpdateRestaurantDto,
     UpdateRestaurantStatusDto,
     UpdateOperatingHoursDto,
+    CreateRestaurantRatingReplyDto,
 } from './dto/restaurant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '@/bases/guards/role.guard';
@@ -197,6 +198,23 @@ export class RestaurantController {
             restaurantId,
             userId,
             data,
+        );
+    }
+
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Post('/reviews/:reviewId/reply')
+    async replyToRestaurantReview(
+        @Param('reviewId', ParseIntPipe) reviewId: number,
+        @Body() body: CreateRestaurantRatingReplyDto,
+        @Req() req: Request,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.restaurantService.replyToRestaurantRating(
+            reviewId,
+            Number(user.id),
+            user.roles ?? [],
+            body.reply,
         );
     }
 }

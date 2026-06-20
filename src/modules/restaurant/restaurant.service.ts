@@ -354,6 +354,8 @@ export class RestaurantService {
                                 id: true,
                                 vote: true,
                                 comment: true,
+                                reply: true,
+                                replyCreatedAt: true,
                                 createdAt: true,
                                 user: {
                                     select: {
@@ -464,6 +466,8 @@ export class RestaurantService {
                         id: true,
                         vote: true,
                         comment: true,
+                        reply: true,
+                        replyCreatedAt: true,
                         createdAt: true,
                         user: {
                             select: {
@@ -770,5 +774,43 @@ export class RestaurantService {
         );
 
         return restaurant;
+    }
+
+    async replyToRestaurantRating(
+        reviewId: number,
+        actorId: number,
+        roles: string[],
+        reply: string,
+    ) {
+        const rating = await this.prismaService.client.restaurantRating.findFirst({
+            where: {
+                id: reviewId,
+                deleteAt: null,
+            },
+        });
+
+        if (!rating) {
+            throw new NotFoundException('Restaurant review not found');
+        }
+
+        await this.assertRestaurantOwner(actorId, roles, rating.restaurantId);
+
+        const updatedRating = await this.prismaService.client.restaurantRating.update({
+            where: { id: reviewId },
+            data: {
+                reply,
+                replyCreatedAt: new Date(),
+            },
+        });
+
+        await this.auditService.log(
+            'REPLY_RESTAURANT_REVIEW',
+            'RestaurantRating',
+            reviewId,
+            actorId,
+            { reply },
+        );
+
+        return updatedRating;
     }
 }

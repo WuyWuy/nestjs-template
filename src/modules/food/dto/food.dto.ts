@@ -1,6 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
+    IsArray,
     IsBoolean,
     IsInt,
     IsNotEmpty,
@@ -9,6 +10,7 @@ import {
     IsPositive,
     IsString,
     Min,
+    ValidateNested,
 } from 'class-validator';
 
 export class FoodQueryDto {
@@ -41,6 +43,23 @@ export class FoodQueryDto {
     restaurantId?: number;
 }
 
+export class CreateFoodSizeDto {
+    @Type(() => Number)
+    @IsInt()
+    @IsPositive()
+    sizeId: number;
+
+    @Type(() => Number)
+    @IsNumber()
+    @IsPositive()
+    price: number;
+
+    @IsOptional()
+    @IsBoolean()
+    @Type(() => Boolean)
+    isDefault?: boolean = false;
+}
+
 export class CreateFoodDto {
     @IsString()
     @IsNotEmpty()
@@ -55,9 +74,10 @@ export class CreateFoodDto {
     @IsPositive()
     categoryId: number;
 
+    @IsOptional()
     @Type(() => Number)
     @IsNumber()
-    price: number;
+    price?: number;
 
     @IsOptional()
     @IsString()
@@ -76,6 +96,22 @@ export class CreateFoodDto {
     @IsBoolean()
     @Type(() => Boolean)
     isAvailable?: boolean = true;
+
+    @IsOptional()
+    @Transform(({ value }) => {
+        if (typeof value === 'string') {
+            try {
+                return JSON.parse(value);
+            } catch {
+                return value;
+            }
+        }
+        return value;
+    })
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CreateFoodSizeDto)
+    sizes?: CreateFoodSizeDto[];
 }
 
 export class UpdateFoodDto extends PartialType(CreateFoodDto) {}

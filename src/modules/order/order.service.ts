@@ -240,21 +240,11 @@ export class OrderService {
                 );
             }
 
-            const orderFoodMap = new Map<
-                number,
-                { quantity: number; fullText: string }
-            >();
-            for (const orderFood of data.orderFoods) {
-                orderFoodMap.set(orderFood.foodId, {
-                    quantity: orderFood.quantity,
-                    fullText: orderFood.fullText || '',
-                });
-            }
-
+            const foodIds = data.orderFoods.map(item => item.foodId);
             const foods = await tx.food.findMany({
                 where: {
                     id: {
-                        in: [...orderFoodMap.keys()],
+                        in: foodIds,
                     },
                 },
                 select: {
@@ -262,10 +252,23 @@ export class OrderService {
                     name: true,
                     price: true,
                     restaurantId: true,
+                    sizes: {
+                        where: { deleteAt: null },
+                        select: {
+                            id: true,
+                            price: true,
+                            isDefault: true,
+                            size: {
+                                select: { name: true }
+                            }
+                        }
+                    }
                 },
             });
 
-            if (foods.length !== orderFoodMap.size) {
+            // Prevent duplicate food IDs from skewing length comparison
+            const uniqueFoodIdsInRequest = new Set(foodIds);
+            if (foods.length !== uniqueFoodIdsInRequest.size) {
                 throw new BadRequestException(
                     'Some foods not found or have been deleted',
                 );
@@ -290,23 +293,42 @@ export class OrderService {
                 },
             });
 
-            const orderFoodData = foods.map((food) => {
-                const snapshot = orderFoodMap.get(food.id);
-                if (!snapshot) {
-                    throw new BadRequestException('Invalid order payload');
+            const orderFoodData = [];
+            for (const item of data.orderFoods) {
+                const food = foods.find(f => f.id === item.foodId);
+                if (!food) {
+                    throw new BadRequestException(`Food with ID ${item.foodId} not found`);
                 }
 
-                const itemTotal = food.price.mul(snapshot.quantity);
+                let resolvedSize: { id: number; price: Prisma.Decimal; size: { name: string } };
+                if (item.foodSizeId) {
+                    const matchedSize = food.sizes.find(s => s.id === item.foodSizeId);
+                    if (!matchedSize) {
+                        throw new BadRequestException(`Selected size ${item.foodSizeId} does not belong to food ${food.name}`);
+                    }
+                    resolvedSize = matchedSize;
+                } else {
+                    const defaultSize = food.sizes.find(s => s.isDefault);
+                    if (!defaultSize) {
+                        throw new BadRequestException(`Food ${food.name} does not have a default size configured`);
+                    }
+                    resolvedSize = defaultSize;
+                }
+
+                const itemPrice = resolvedSize.price;
+                const itemTotal = itemPrice.mul(item.quantity);
                 totalPrice = totalPrice.plus(itemTotal);
 
-                return {
+                orderFoodData.push({
                     orderId: order.id,
                     foodId: food.id,
-                    quantity: snapshot.quantity,
-                    fullText: snapshot.fullText,
+                    foodSizeId: resolvedSize.id,
+                    sizeName: resolvedSize.size.name,
+                    quantity: item.quantity,
+                    fullText: item.fullText || '',
                     price: itemTotal,
-                };
-            });
+                });
+            }
 
             await tx.orderFood.createMany({
                 data: orderFoodData,
@@ -469,6 +491,8 @@ export class OrderService {
                     select: {
                         quantity: true,
                         price: true,
+                        foodSizeId: true,
+                        sizeName: true,
                         food: {
                             select: {
                                 id: true,
@@ -511,6 +535,8 @@ export class OrderService {
                 image: orderFood.food.image,
                 quantity: orderFood.quantity,
                 price: Number(orderFood.price),
+                foodSizeId: orderFood.foodSizeId,
+                sizeName: orderFood.sizeName,
             })),
             payment: order.payments[0]
                 ? {
@@ -564,6 +590,8 @@ export class OrderService {
                         quantity: true,
                         fullText: true,
                         price: true,
+                        foodSizeId: true,
+                        sizeName: true,
                         food: {
                             select: {
                                 id: true,

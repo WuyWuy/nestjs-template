@@ -18,13 +18,18 @@ model Order {
 }
 
 model OrderFood {
-    id       Int       @id @default(autoincrement())
-    orderId  Int
-    order    Order     @relation(fields: [orderId], references: [id])
-    foodId   Int
-    food     Food      @relation(fields: [foodId], references: [id])
-    quantity Int
-    fullText String?
-    price    Decimal   @default(0)
-    deleteAt DateTime?
+    id         Int       @id @default(autoincrement())
+    orderId    Int
+    order      Order     @relation(fields: [orderId], references: [id])
+    foodId     Int
+    food       Food      @relation(fields: [foodId], references: [id])
+    foodSizeId Int?
+    foodSize   FoodSize? @relation(fields: [foodSizeId], references: [id])
+    sizeName   String?
+    quantity   Int
+    fullText   String?
+    price      Decimal   @default(0)
+    deleteAt   DateTime?
+
+    @@index([foodSizeId])
 }

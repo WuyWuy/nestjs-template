@@ -71,6 +71,12 @@ export class CartService {
             select: {
                 id: true,
                 quantity: true,
+                foodSizeId: true,
+                foodSize: {
+                    include: {
+                        size: true,
+                    },
+                },
                 food: {
                     select: {
                         id: true,
@@ -100,15 +106,18 @@ export class CartService {
         });
 
         const normalizedItems = items.map((item) => {
-            const lineTotal = item.food.price.mul(item.quantity);
+            const activePrice = item.foodSize ? item.foodSize.price : item.food.price;
+            const lineTotal = activePrice.mul(item.quantity);
 
             return {
                 id: item.id,
                 quantity: item.quantity,
                 lineTotal: Number(lineTotal),
+                foodSizeId: item.foodSizeId,
+                sizeName: item.foodSize?.size.name ?? null,
                 food: {
                     ...item.food,
-                    price: Number(item.food.price),
+                    price: Number(activePrice),
                 },
             };
         });
@@ -147,11 +156,41 @@ export class CartService {
             );
         }
 
+        // Fetch food sizes
+        const foodWithSizes = await this.prismaService.client.food.findUnique({
+            where: { id: data.foodId },
+            include: {
+                sizes: {
+                    where: { deleteAt: null },
+                    include: { size: true }
+                }
+            }
+        });
+        if (!foodWithSizes) {
+            throw new NotFoundException('Food not found');
+        }
+
+        let resolvedSizeId: number;
+        if (data.foodSizeId) {
+            const sizeMatch = foodWithSizes.sizes.find(s => s.id === data.foodSizeId);
+            if (!sizeMatch) {
+                throw new BadRequestException('Selected size does not belong to this food');
+            }
+            resolvedSizeId = data.foodSizeId;
+        } else {
+            const defaultSize = foodWithSizes.sizes.find(s => s.isDefault);
+            if (!defaultSize) {
+                throw new BadRequestException('Food does not have a default size configured');
+            }
+            resolvedSizeId = defaultSize.id;
+        }
+
         const existsCartItem = await this.prismaService.client.cartItem.findFirst(
             {
                 where: {
                     cartId: cart.id,
                     foodId: data.foodId,
+                    foodSizeId: resolvedSizeId,
                 },
             },
         );
@@ -176,6 +215,7 @@ export class CartService {
                 cartId: cart.id,
                 quantity: data.quantity,
                 foodId: data.foodId,
+                foodSizeId: resolvedSizeId,
             },
         });
 

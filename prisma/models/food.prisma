@@ -29,14 +29,16 @@ model Size {
 }
 
 model FoodSize {
-    id        Int       @id @default(autoincrement())
+    id        Int         @id @default(autoincrement())
     foodId    Int
     sizeId    Int
-    price     Decimal   @default(0)
-    isDefault Boolean   @default(false)
+    price     Decimal     @default(0)
+    isDefault Boolean     @default(false)
     deleteAt  DateTime?
-    food      Food      @relation(fields: [foodId], references: [id])
-    size      Size      @relation(fields: [sizeId], references: [id])
+    food      Food        @relation(fields: [foodId], references: [id])
+    size      Size        @relation(fields: [sizeId], references: [id])
+    cartItems CartItem[]
+    orderFoods OrderFood[]
 
     @@unique([foodId, sizeId])
     @@index([foodId])

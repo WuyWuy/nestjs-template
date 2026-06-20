@@ -17,14 +17,22 @@ import { OrderStatus, PaymentMethod } from '@prisma/client';
 
 class CreateOrderFoodDto {
     @IsInt()
+    @Type(() => Number)
     foodId: number;
 
     @IsInt()
     @Min(1)
+    @Type(() => Number)
     quantity: number;
+
     @IsOptional()
     @IsString()
     fullText: string = '';
+
+    @IsOptional()
+    @IsInt()
+    @Type(() => Number)
+    foodSizeId?: number;
 }
 
 export class CreateOrderDto {

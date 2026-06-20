@@ -582,6 +582,7 @@ export class OrderService {
                         image: true,
                         phone: true,
                         ownerId: true,
+                        estimatedDeliveryTime: true,
                     },
                 },
                 orderFoods: {
@@ -642,9 +643,19 @@ export class OrderService {
             },
         });
 
+        const paymentDate = order.payments[0]?.createdAt ?? new Date();
+        const estimatedMinutes = order.restaurant?.estimatedDeliveryTime ?? 20;
+        const expectedArrival = new Date(new Date(paymentDate).getTime() + estimatedMinutes * 60000);
+
+        const { status: feStatus, status_step } = this.mapOrderStatusToFrontend(order.status);
+
         return {
             ...order,
             totalPrice: Number(order.totalPrice),
+            expected_arrival: expectedArrival.toISOString(),
+            status: feStatus,
+            status_step,
+            backend_status: order.status,
             orderFoods: order.orderFoods.map((item) => ({
                 ...item,
                 price: Number(item.price),
@@ -726,5 +737,23 @@ export class OrderService {
         });
 
         return updatedOrder;
+    }
+
+    private mapOrderStatusToFrontend(status: OrderStatus) {
+        switch (status) {
+            case OrderStatus.PENDING:
+            case OrderStatus.CONFIRMED:
+                return { status: 'RECEIVED', status_step: 0 };
+            case OrderStatus.PREPARING:
+                return { status: 'PREPARING', status_step: 1 };
+            case OrderStatus.DELIVERING:
+                return { status: 'ON_THE_WAY', status_step: 2 };
+            case OrderStatus.DELIVERED:
+                return { status: 'DELIVERED', status_step: 3 };
+            case OrderStatus.CANCELLED:
+                return { status: 'CANCELED', status_step: -1 };
+            default:
+                return { status: 'UNKNOWN', status_step: -1 };
+        }
     }
 }

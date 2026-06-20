@@ -803,7 +803,7 @@ export class OrderService {
             throw new BadRequestException('None of the items in this order are currently available for purchase');
         }
 
-        return await this.prismaService.transaction(async (tx) => {
+        await this.prismaService.transaction(async (tx) => {
             let cart = await tx.cart.findFirst({
                 where: { userId },
             });
@@ -855,9 +855,9 @@ export class OrderService {
                     });
                 }
             }
-
-            return await this.cartService.getCart(userId);
         });
+
+        return await this.cartService.getCart(userId);
     }
 
     async deleteOrderById(userId: number, roles: string[], orderId: number) {

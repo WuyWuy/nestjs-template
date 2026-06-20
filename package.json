@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^2.3.4",
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
@@ -42,7 +43,7 @@
     "@types/passport-facebook": "^3.0.4",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
-    "axios": "^1.15.0",
+    "axios": "^1.16.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "firebase-admin": "^13.7.0",

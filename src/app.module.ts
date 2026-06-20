@@ -31,6 +31,7 @@ import { CouponModule } from './modules/coupon/coupon.module';
         ConfigModule.forRoot({
             isGlobal: true,
         }),
+        AuditModule,
         AuthModule,
         TwilioModule, //Sending SmS
         DeviceModule,
@@ -47,8 +48,8 @@ import { CouponModule } from './modules/coupon/coupon.module';
     ],
     controllers: [AppController],
     providers: [
-        ChatGateway, 
-        ChatService, 
+        ChatGateway,
+        ChatService,
         AppService,
         {
             provide: APP_FILTER,

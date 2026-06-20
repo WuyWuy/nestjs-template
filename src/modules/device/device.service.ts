@@ -7,13 +7,13 @@ export class DeviceService {
     constructor(private readonly prismaService: PrismaService) {}
     async register(userId: number, registerData: RegisterDeviceData) {
         try {
-            const device = await this.prismaService.device.findFirst({
+            const device = await this.prismaService.client.device.findFirst({
                 where: {
                     deviceToken: registerData.deviceToken,
                 },
             });
             if (!device)
-                return await this.prismaService.device.create({
+                return await this.prismaService.client.device.create({
                     data: {
                         deviceToken: registerData.deviceToken,
                         platform: registerData.platform,
@@ -21,7 +21,7 @@ export class DeviceService {
                     },
                 });
             //Neu co roi thi tien hanh upate
-            return await this.prismaService.device.update({
+            return await this.prismaService.client.device.update({
                 where: {
                     deviceToken: registerData.deviceToken,
                 },
@@ -37,7 +37,7 @@ export class DeviceService {
     }
     async findDevicesByUser(userId: number) {
         try {
-            const devicesIds = await this.prismaService.device.findMany({
+            const devicesIds = await this.prismaService.client.device.findMany({
                 where: {
                     userId,
                 },

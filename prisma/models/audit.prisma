@@ -1,0 +1,16 @@
+model AuditLog {
+    id         Int       @id @default(autoincrement())
+    actorId     Int?
+    actor       User?     @relation(fields: [actorId], references: [id])
+    action      String
+    entityType  String
+    entityId    Int?
+    metadata    Json?
+    createdAt   DateTime  @default(now())
+    deleteAt    DateTime?
+
+    @@index([actorId])
+    @@index([action])
+    @@index([entityType, entityId])
+    @@index([createdAt])
+}

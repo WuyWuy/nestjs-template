@@ -1,9 +1,13 @@
 import { PrismaService } from "@/prisma/prisma.service";
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 
-@Injectable()  
-export class RestaurantService 
-{
+type RestaurantUploadFiles = {
+    image?: Express.Multer.File[];
+    coverImage?: Express.Multer.File[];
+};
+
+@Injectable()
+export class RestaurantService {
     constructor(
         private readonly prismaService : PrismaService
     ) {} 
@@ -47,67 +51,144 @@ export class RestaurantService
             throw err 
         }
     }
-    async getRestaurantMenu(restaurantId : number) 
-    {
-        try 
-        {
-            const menu = await this.prismaService.menu.findUnique({
-                where: {
-                    restaurantId, 
-                    deleteAt: null, 
-                    restaurant: {
-                        deleteAt : null 
-                    }
-                }, 
-                select: {
-                    foods: {
-                        select: {
-                            description: true,  
-                            id: true, 
-                            code: true, 
-                            price: true, 
-                            image : true, 
-                            name : true, 
-                        }
-                    }
-                }
-            })
-            if (!menu) 
-                throw new NotFoundException("Menu not found") 
-            return menu 
-        } 
-        catch (err) 
-        {
-            console.log("Get restaurant menu error" , err) 
-            throw err 
+
+    async getRestaurantInDetail(restaurantId: number) {
+        try {
+            const restaurant = await this.prismaService.client.restaurant.findFirst(
+                {
+                    where: {
+                        id: restaurantId,
+                        approved: true,
+                    },
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true,
+                        coverImage: true,
+                        phone: true,
+                        description: true,
+                        deliveryFee: true,
+                        minimumOrder: true,
+                        estimatedDeliveryTime: true,
+                        address: true,
+                        ownerId: true,
+                        foods: {
+                            select: {
+                                id: true,
+                                name: true,
+                                price: true,
+                                image: true,
+                                label: true,
+                                category: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                    },
+                                },
+                            },
+                            take: 12,
+                        },
+                        ratings: {
+                            where: {
+                                deleteAt: null,
+                            },
+                            select: {
+                                id: true,
+                                vote: true,
+                                comment: true,
+                                createdAt: true,
+                                user: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        avatar: true,
+                                    },
+                                },
+                            },
+                            orderBy: {
+                                createdAt: 'desc',
+                            },
+                            take: 5,
+                        },
+                    },
+                },
+            );
+            if (!restaurant) throw new NotFoundException('restaurant not found');
+
+            const { averageRating, ratingCount } =
+                this.buildRestaurantSummary(restaurant);
+
+            return {
+                ...restaurant,
+                deliveryFee: Number(restaurant.deliveryFee),
+                minimumOrder: Number(restaurant.minimumOrder),
+                averageRating,
+                ratingCount,
+                categories: Array.from(
+                    new Map(
+                        restaurant.foods.map((food) => [
+                            food.category.id,
+                            food.category,
+                        ]),
+                    ).values(),
+                ),
+            };
+        } catch (err) {
+            console.log("Get all restaurants error: " , err)  
+            throw err;
         }
     }
-    async getRestaurantInDetail(restaurantId : number) 
-    {
-        try 
-        {
-            
-            const response = await this.prismaService.restaurant.findFirst({
-                where: {
-                    id : restaurantId, 
-                    deleteAt: null, 
-                    approved: true, 
-                }, 
-                select: {
-                    name: true, 
-                    image : true, 
-                    phone : true, 
-                    address: true, 
-                }
-            })
-            if (!response) 
-                throw new NotFoundException("restaurant not found") 
-            return response
-        } 
-        catch (err) 
-        {
-            console.log("Error during get restaurant in detail" , err) 
-            throw err 
+
+    async createRestaurantRating(
+        restaurantId: number,
+        userId: number,
+        data: CreateRestaurantRatingDto,
+    ) {
+        try {
+            const restaurant = await this.prismaService.client.restaurant.findFirst(
+                {
+                    where: {
+                        id: restaurantId,
+                        approved: true,
+                    },
+                },
+            );
+
+            if (!restaurant) {
+                throw new NotFoundException('Restaurant not found');
+            }
+
+            const existingRating =
+                await this.prismaService.client.restaurantRating.findFirst({
+                    where: {
+                        restaurantId,
+                        userId,
+                    },
+                });
+
+            if (existingRating) {
+                return await this.prismaService.client.restaurantRating.update({
+                    where: {
+                        id: existingRating.id,
+                    },
+                    data: {
+                        vote: data.vote,
+                        comment: data.comment ?? '',
+                    },
+                });
+            }
+
+            return await this.prismaService.client.restaurantRating.create({
+                data: {
+                    restaurantId,
+                    userId,
+                    vote: data.vote,
+                    comment: data.comment ?? '',
+                },
+            });
+        } catch (err) {
+            console.log("Creating restaurant err: " , err) 
+            throw err;
         }
     }
 

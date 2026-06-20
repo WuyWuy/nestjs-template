@@ -32,7 +32,7 @@ COPY --from=prerelease /usr/src/app/package.json .
 COPY --from=prerelease /usr/src/app/dist dist
 COPY --from=prerelease /usr/src/app/generated generated
 COPY --from=prerelease /usr/src/app/node_modules/@prisma node_modules/@prisma
-
+COPY --from=prerelease /usr/src/app/src/modules/email/templates dist/src/modules/email/templates
 USER bun
 EXPOSE 4000
 

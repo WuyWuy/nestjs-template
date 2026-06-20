@@ -12,7 +12,7 @@ model User {
     avatar                String             @default("")
     restaurants           Restaurant[]
     ratings               RestaurantRating[]
-    cart                  Cart? 
+    cart                  Cart?
     userRoles             UserRole[]
     devices               Device[]
     notifications         Notification[]
@@ -21,11 +21,14 @@ model User {
     sellerConversations   Conversation[]     @relation("SellerConversations")
     chatMessages          Message[]          @relation("ChatMessages")
     identities            Identity[]
+    orders                Order[]
+    auditLogs             AuditLog[]
 }
 
 model UserRole {
-    id     Int  @id @default(autoincrement())
-    userId Int
-    user   User @relation(fields: [userId], references: [id])
-    role   Role
+    id      Int       @id @default(autoincrement())
+    userId  Int
+    user    User      @relation(fields: [userId], references: [id])
+    role    Role
+    deleteAt DateTime?
 }

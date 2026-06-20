@@ -31,14 +31,30 @@ enum OrderStatus {
 }
 
 enum PaymentMethod {
-    ZALOPAY
     MOMO
-    BANK
     CASH
 }
 
 enum PaymentStatus {
+    UNPAID 
     FAILED
     SOLVING
     DONE
+}
+
+enum VoucherType {
+    PERCENT 
+    MONEY 
+} 
+enum VoucherStatus {
+    APPLYING 
+    ENDED 
+}
+
+enum NotificationType {
+    SYSTEM
+    ORDER
+    PAYMENT
+    PROMOTION
+    CHAT
 }

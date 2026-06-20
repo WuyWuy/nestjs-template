@@ -14,10 +14,16 @@ CREATE TYPE "AuthProvider" AS ENUM ('LOCAL', 'FACEBOOK', 'GOOGLE');
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'CONFIRMED', 'PREPARING', 'DELIVERING', 'DELIVERED', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "PaymentMethod" AS ENUM ('ZALOPAY', 'MOMO', 'BANK', 'CASH');
+CREATE TYPE "PaymentMethod" AS ENUM ('MOMO', 'CASH');
 
 -- CreateEnum
-CREATE TYPE "PaymentStatus" AS ENUM ('FAILED', 'SOLVING', 'DONE');
+CREATE TYPE "PaymentStatus" AS ENUM ('UNPAID', 'FAILED', 'SOLVING', 'DONE');
+
+-- CreateEnum
+CREATE TYPE "VoucherType" AS ENUM ('PERCENT', 'MONEY');
+
+-- CreateEnum
+CREATE TYPE "VoucherStatus" AS ENUM ('APPLYING', 'ENDED');
 
 -- CreateTable
 CREATE TABLE "Address" (
@@ -27,6 +33,7 @@ CREATE TABLE "Address" (
     "longitude" DOUBLE PRECISION,
     "fullText" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Address_pkey" PRIMARY KEY ("id")
 );
@@ -49,6 +56,7 @@ CREATE TABLE "OTP" (
     "userId" INTEGER NOT NULL,
     "type" "OTPType" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleteAt" TIMESTAMP(3),
     "usedAt" TIMESTAMP(3),
     "expiresAt" TIMESTAMP(3) NOT NULL,
 
@@ -64,6 +72,7 @@ CREATE TABLE "Identity" (
     "accessToken" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Identity_pkey" PRIMARY KEY ("id")
 );
@@ -85,7 +94,7 @@ CREATE TABLE "AuthToken" (
 CREATE TABLE "Cart" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
-    "restaurantId" INTEGER NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Cart_pkey" PRIMARY KEY ("id")
 );
@@ -96,7 +105,7 @@ CREATE TABLE "CartItem" (
     "cartId" INTEGER NOT NULL,
     "foodId" INTEGER NOT NULL,
     "quantity" INTEGER NOT NULL,
-    "deletedAt" TIMESTAMP(3),
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "CartItem_pkey" PRIMARY KEY ("id")
 );
@@ -121,6 +130,7 @@ CREATE TABLE "Conversation" (
     "sellerId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
 );
@@ -133,6 +143,7 @@ CREATE TABLE "Message" (
     "content" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
 );
@@ -144,6 +155,7 @@ CREATE TABLE "Device" (
     "platform" TEXT NOT NULL,
     "userId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Device_pkey" PRIMARY KEY ("id")
 );
@@ -151,7 +163,6 @@ CREATE TABLE "Device" (
 -- CreateTable
 CREATE TABLE "Food" (
     "id" SERIAL NOT NULL,
-    "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL DEFAULT '',
     "categoryId" INTEGER NOT NULL,
@@ -160,7 +171,7 @@ CREATE TABLE "Food" (
     "deleteAt" TIMESTAMP(3),
     "label" TEXT NOT NULL DEFAULT '',
     "rating" INTEGER NOT NULL DEFAULT 0,
-    "menuId" INTEGER NOT NULL,
+    "restaurantId" INTEGER NOT NULL,
 
     CONSTRAINT "Food_pkey" PRIMARY KEY ("id")
 );
@@ -177,18 +188,8 @@ CREATE TABLE "Ingredient" (
 -- CreateTable
 CREATE TABLE "FoodIngredient" (
     "foodId" INTEGER NOT NULL,
-    "ingredientId" INTEGER NOT NULL
-);
-
--- CreateTable
-CREATE TABLE "Menu" (
-    "id" SERIAL NOT NULL,
-    "foodId" INTEGER NOT NULL,
-    "restaurantId" INTEGER NOT NULL,
-    "quantity" INTEGER NOT NULL DEFAULT 0,
-    "deleteAt" TIMESTAMP(3),
-
-    CONSTRAINT "Menu_pkey" PRIMARY KEY ("id")
+    "ingredientId" INTEGER NOT NULL,
+    "deleteAt" TIMESTAMP(3)
 );
 
 -- CreateTable
@@ -199,6 +200,7 @@ CREATE TABLE "Notification" (
     "userId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL,
     "readAt" TIMESTAMP(3),
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
@@ -206,10 +208,13 @@ CREATE TABLE "Notification" (
 -- CreateTable
 CREATE TABLE "Order" (
     "id" SERIAL NOT NULL,
-    "code" TEXT NOT NULL,
     "restaurantId" INTEGER NOT NULL,
     "totalPrice" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "status" "OrderStatus" NOT NULL,
+    "voucherId" INTEGER,
+    "userId" INTEGER NOT NULL,
+    "deleteAt" TIMESTAMP(3),
+    "addressId" INTEGER NOT NULL,
 
     CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
 );
@@ -220,10 +225,9 @@ CREATE TABLE "OrderFood" (
     "orderId" INTEGER NOT NULL,
     "foodId" INTEGER NOT NULL,
     "quantity" INTEGER NOT NULL,
-    "latitude" DOUBLE PRECISION,
-    "longitude" DOUBLE PRECISION,
     "fullText" TEXT,
     "price" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "OrderFood_pkey" PRIMARY KEY ("id")
 );
@@ -234,8 +238,9 @@ CREATE TABLE "Payment" (
     "orderId" INTEGER NOT NULL,
     "method" "PaymentMethod" NOT NULL,
     "amount" DOUBLE PRECISION NOT NULL,
-    "status" "PaymentStatus" NOT NULL,
+    "paymentStatus" "PaymentStatus" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
 );
@@ -243,7 +248,6 @@ CREATE TABLE "Payment" (
 -- CreateTable
 CREATE TABLE "Restaurant" (
     "id" SERIAL NOT NULL,
-    "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "image" TEXT NOT NULL DEFAULT '',
     "phone" TEXT NOT NULL,
@@ -291,8 +295,22 @@ CREATE TABLE "UserRole" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "role" "Role" NOT NULL,
+    "deleteAt" TIMESTAMP(3),
 
     CONSTRAINT "UserRole_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Voucher" (
+    "id" SERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT NOT NULL DEFAULT '',
+    "sale" DECIMAL(65,30) NOT NULL,
+    "type" "VoucherType" NOT NULL,
+    "status" "VoucherStatus" NOT NULL,
+    "deleteAt" TIMESTAMP(3),
+
+    CONSTRAINT "Voucher_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -311,7 +329,7 @@ CREATE INDEX "AuthToken_userId_idx" ON "AuthToken"("userId");
 CREATE INDEX "AuthToken_token_idx" ON "AuthToken"("token");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Cart_userId_restaurantId_key" ON "Cart"("userId", "restaurantId");
+CREATE UNIQUE INDEX "Cart_userId_key" ON "Cart"("userId");
 
 -- CreateIndex
 CREATE INDEX "CartItem_cartId_idx" ON "CartItem"("cartId");
@@ -338,9 +356,6 @@ CREATE INDEX "Message_senderId_idx" ON "Message"("senderId");
 CREATE UNIQUE INDEX "Device_deviceToken_key" ON "Device"("deviceToken");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Food_code_key" ON "Food"("code");
-
--- CreateIndex
 CREATE INDEX "Food_categoryId_idx" ON "Food"("categoryId");
 
 -- CreateIndex
@@ -353,16 +368,7 @@ CREATE INDEX "FoodIngredient_ingredientId_idx" ON "FoodIngredient"("ingredientId
 CREATE UNIQUE INDEX "FoodIngredient_foodId_ingredientId_key" ON "FoodIngredient"("foodId", "ingredientId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Menu_restaurantId_key" ON "Menu"("restaurantId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Order_code_key" ON "Order"("code");
-
--- CreateIndex
-CREATE INDEX "Payment_status_idx" ON "Payment"("status");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Restaurant_code_key" ON "Restaurant"("code");
+CREATE UNIQUE INDEX "Payment_orderId_method_key" ON "Payment"("orderId", "method");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Restaurant_phone_key" ON "Restaurant"("phone");
@@ -381,9 +387,6 @@ ALTER TABLE "Identity" ADD CONSTRAINT "Identity_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "Cart" ADD CONSTRAINT "Cart_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Cart" ADD CONSTRAINT "Cart_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "Restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_cartId_fkey" FOREIGN KEY ("cartId") REFERENCES "Cart"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -410,7 +413,7 @@ ALTER TABLE "Device" ADD CONSTRAINT "Device_userId_fkey" FOREIGN KEY ("userId") 
 ALTER TABLE "Food" ADD CONSTRAINT "Food_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Food" ADD CONSTRAINT "Food_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "Menu"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Food" ADD CONSTRAINT "Food_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "Restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "FoodIngredient" ADD CONSTRAINT "FoodIngredient_foodId_fkey" FOREIGN KEY ("foodId") REFERENCES "Food"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -419,13 +422,19 @@ ALTER TABLE "FoodIngredient" ADD CONSTRAINT "FoodIngredient_foodId_fkey" FOREIGN
 ALTER TABLE "FoodIngredient" ADD CONSTRAINT "FoodIngredient_ingredientId_fkey" FOREIGN KEY ("ingredientId") REFERENCES "Ingredient"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Menu" ADD CONSTRAINT "Menu_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "Restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_restaurantId_fkey" FOREIGN KEY ("restaurantId") REFERENCES "Restaurant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_voucherId_fkey" FOREIGN KEY ("voucherId") REFERENCES "Voucher"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_addressId_fkey" FOREIGN KEY ("addressId") REFERENCES "Address"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrderFood" ADD CONSTRAINT "OrderFood_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

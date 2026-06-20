@@ -20,7 +20,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '@/bases/guards/role.guard';
 import { Roles } from '@/bases/decorators/role.decorators';
 import { Role } from '@prisma/client';
-import { AddUserAddressDto, UpdateUserAddressDto, UpdateUserProfileDto } from './dto/user.dto';
+import {
+    AddUserAddressDto,
+    UpdateUserAddressDto,
+    UpdateUserProfileDto,
+} from './dto/user.dto';
 
 @Controller('user')
 export class UserController {
@@ -38,8 +42,7 @@ export class UserController {
         const responseData = await this.userService.getAllUsers();
         return responseData;
     }
-    @Roles(Role.CUSTOMER)
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseGuards(JwtAuthGuard)
     @Get('/profile')
     async getProfile(@Req() req: Request) {
         const id = (req.user as any).id;
@@ -52,14 +55,18 @@ export class UserController {
     @Put('profile')
     @UseInterceptors(FileInterceptor('avatar'))
     async updateUserProfile(
-        @Req() req : Request, 
-        @Body() data : UpdateUserProfileDto, 
-        @UploadedFile() file : Express.Multer.File
+        @Req() req: Request,
+        @Body() data: UpdateUserProfileDto,
+        @UploadedFile() file: Express.Multer.File,
     ) {
         const id = (req.user as any).id;
         if (!id) throw new UnauthorizedException('Invalid Token'); //Login again
-        const response = await this.userService.updateUserProfile(Number(id) , data , file) 
-        return response
+        const response = await this.userService.updateUserProfile(
+            Number(id),
+            data,
+            file,
+        );
+        return response;
     }
     //[CUSTOMER'S ADDRESS API RELATED]
     @Roles(Role.CUSTOMER)
@@ -88,46 +95,50 @@ export class UserController {
         const response = await this.userService.getAllAddress(Number(id));
         return response;
     }
-    @Roles(Role.CUSTOMER) 
-    @UseGuards(JwtAuthGuard , RolesGuard) 
-    @Get("address/:addressId")
+    @Roles(Role.CUSTOMER)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Get('address/:addressId')
     async getUserAddressById(
-        @Param("addressId" , ParseIntPipe) addressId : number, 
-        @Req() req : Request
-    ) 
-    {   
+        @Param('addressId', ParseIntPipe) addressId: number,
+        @Req() req: Request,
+    ) {
         const id = (req.user as any).id;
         if (!id || isNaN(id))
             throw new UnauthorizedException('User Not Found or token invalid');
-        return await this.userService.getUserAddressById(addressId , id)
+        return await this.userService.getUserAddressById(addressId, Number(id));
     }
-    @Roles(Role.CUSTOMER) 
-    @UseGuards(JwtAuthGuard , RolesGuard) 
-    @Put("/address/:addressId") 
+    @Roles(Role.CUSTOMER)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Put('/address/:addressId')
     async updateUserAddress(
-        @Param("addressId" , ParseIntPipe) addressId : number, 
-        @Body() updateAddressData : UpdateUserAddressDto, 
-        @Req() req : Request 
-    ) 
-    {
+        @Param('addressId', ParseIntPipe) addressId: number,
+        @Body() updateAddressData: UpdateUserAddressDto,
+        @Req() req: Request,
+    ) {
         const id = (req.user as any).id;
         if (!id || isNaN(id))
             throw new UnauthorizedException('User Not Found or token invalid');
-        const response = await this.userService.updateUserAddress(addressId , Number(id) , updateAddressData) 
-        return response 
+        const response = await this.userService.updateUserAddress(
+            addressId,
+            Number(id),
+            updateAddressData,
+        );
+        return response;
     }
-    @Roles(Role.CUSTOMER) 
-    @UseGuards(JwtAuthGuard , RolesGuard) 
-    @Delete("address/:addressId") 
+    @Roles(Role.CUSTOMER)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Delete('address/:addressId')
     async deleteUserAddress(
-        @Req() req : Request, 
-        @Param("addressId" , ParseIntPipe) addressId : number, 
-    ) 
-    {
+        @Req() req: Request,
+        @Param('addressId', ParseIntPipe) addressId: number,
+    ) {
         const id = (req.user as any).id;
         if (!id || isNaN(id))
             throw new UnauthorizedException('User Not Found or token invalid');
-        const response = await this.userService.deleteUserAddress(addressId , Number(id)) 
-        return response
+        const response = await this.userService.deleteUserAddress(
+            addressId,
+            Number(id),
+        );
+        return response;
     }
 }

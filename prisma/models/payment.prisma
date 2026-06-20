@@ -1,12 +1,13 @@
 model Payment {
-    id        Int           @id @default(autoincrement())
-    orderId   Int
-    method    PaymentMethod
-    amount    Float
-    status    PaymentStatus
-    createdAt DateTime      @default(now())
+    id            Int           @id @default(autoincrement())
+    orderId       Int       @unique
+    method        PaymentMethod
+    amount        Decimal 
+    paymentStatus PaymentStatus
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @updatedAt
+    order         Order         @relation(fields: [orderId], references: [id])
+    deleteAt      DateTime?
 
-    order Order @relation(fields: [orderId], references: [id])
-
-    @@index([status])
+    @@unique([orderId, method])
 }

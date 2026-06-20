@@ -7,6 +7,7 @@ import {
     Matches,
     IsDateString,
     IsOptional,
+    ValidateIf,
 } from 'class-validator';
 
 export class RegisterData {
@@ -39,6 +40,53 @@ export class LoginData {
             'Phone number must start with 0 and contain 10-11 digits (e.g., 0901234567)',
     })
     phone: string;
+}
+
+export class ResetEmailData {
+    @IsString()
+    @MinLength(6, { message: 'Password must be at least 6 characters' })
+    password: string;
+
+    @Matches(/^0\d{9,10}$/, {
+        message:
+            'Phone number must start with 0 and contain 10-11 digits (e.g., 0901234567)',
+    })
+    phone: string;
+}
+
+export class ForgotPasswordData {
+    @IsNotEmpty()
+    @IsEmail({}, { message: 'Must be valid email' })
+    email: string;
+}
+
+export class RefreshTokenData {
+    @IsString()
+    @IsNotEmpty()
+    refreshToken: string;
+}
+
+export class ChangePasswordData {
+    @IsOptional()
+    @ValidateIf((data) => !data.phone)
+    @IsEmail({}, { message: 'Must be valid email' })
+    email?: string;
+
+    @IsOptional()
+    @ValidateIf((data) => !data.email)
+    @Matches(/^0\d{9,10}$/, {
+        message:
+            'Phone number must start with 0 and contain 10-11 digits (e.g., 0901234567)',
+    })
+    phone?: string;
+
+    @IsString()
+    @MinLength(6, { message: 'Password must be at least 6 characters' })
+    currentPassword: string;
+
+    @IsString()
+    @MinLength(6, { message: 'Password must be at least 6 characters' })
+    newPassword: string;
 }
 
 export class SocialLoginData {

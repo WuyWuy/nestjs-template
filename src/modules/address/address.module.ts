@@ -1,9 +1,11 @@
-import { Module } from "@nestjs/common"; 
-import { AddressService } from "./address.service";
-import { AddressController } from "./address.controller";
+import { Module } from '@nestjs/common';
+import { AddressService } from './address.service';
+import { AddressController } from './address.controller';
+import { AuditModule } from '../audit/audit.module';
 @Module({
-    providers: [AddressService], 
-    exports: [AddressService], 
-    controllers : [AddressController]
-}) 
-export class AddressModule { }
+    imports: [AuditModule],
+    providers: [AddressService],
+    exports: [AddressService],
+    controllers: [AddressController],
+})
+export class AddressModule {}

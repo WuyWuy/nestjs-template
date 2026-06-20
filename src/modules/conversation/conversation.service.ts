@@ -1,101 +1,312 @@
-/**
- * LUỒNG HOẠT ĐỘNG 
- * Mỗi màn hình hiển thị chi tiết hóa đơn, sẽ có một nút bấm để chat <=> Mỗi hóa đơn là 1 phòng chat 
- * Scene 1: Gửi về cho người dùng danh sách tất ca hóa đơn, trong đó có kèm theo conversationId liên quan hóa đơn đó 
- * Scene 2: Khi bấm vào 1 thẻ Hóa đơn, sẽ hiển thị chi tiết hóa đơn, đồng thời sử dụng conversationId để join socket 
- * Scene 3: Lấy thông tin lịch sử chat bằng conversationId. Join room, kết nối socket để bắt đầu nhắn tin. 
- * Join room socket dựa vào conversationId 
- */
-import { PrismaService } from "@/prisma/prisma.service";
-import { BadRequestException, Injectable } from "@nestjs/common"; 
-import { CreateConversationDto } from "./dto/conversation.dto";
-import { UserService } from "../user/user.service";
+import { PrismaService } from '@/prisma/prisma.service';
+import {
+    BadRequestException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
+} from '@nestjs/common';
+import { CreateConversationDto } from './dto/conversation.dto';
 
-@Injectable() 
-export class ConversationService 
-{
-    constructor(
-        private readonly prismaService : PrismaService, 
-        private readonly userService : UserService
-    ) {} 
-    async createConversation(userId : number , data : CreateConversationDto) 
-    {
-        const customer = await this.userService.getUserById(userId) 
-        const seller = await this.userService.getUserById(userId) 
-        if (!customer || !seller) 
-            throw new BadRequestException("user not found") 
-        try 
-        {   
-            const result = await this.prismaService.$transaction(async (tx) => {
-                const conversation = await tx.conversation.create({
-                    data: {
-                        orderId: data.orderId, 
-                        customerId : userId, 
-                        sellerId : data.sellerId
-                    }
-                })
-                return conversation
-            }) 
-            return result
-        } 
-        catch (err) {
-            console.log("initialized conversation error" , err) 
-            throw err 
+@Injectable()
+export class ConversationService {
+    constructor(private readonly prismaService: PrismaService) {}
+
+    private async findConversationForUserOrThrow(
+        userId: number,
+        conversationId: number,
+    ) {
+        const conversation = await this.prismaService.client.conversation.findFirst(
+            {
+                where: {
+                    id: conversationId,
+                    OR: [{ sellerId: userId }, { customerId: userId }],
+                },
+            },
+        );
+
+        if (!conversation) {
+            throw new NotFoundException('Conversation not found');
         }
+
+        return conversation;
     }
-    async getAllUserConversation(userId : number) 
-    {
-        const result = await this.prismaService.conversation.findMany({
+
+    async createConversation(userId: number, data: CreateConversationDto) {
+        const order = await this.prismaService.client.order.findFirst({
             where: {
-                OR: [
-                    {sellerId : userId}, 
-                    {customerId : userId }
-                ]
-            }
-        }) 
-        return result
-    } 
-    async getConversationByOrderId(userId : number , orderId : number , limit : number = 20, offset : number = 0) 
-    {
-        try {
-            const conversation = await this.prismaService.conversation.findFirst({
-                where: {
-                    orderId
-                }
-            }) 
-            if (!conversation) 
-                throw new BadRequestException("conversation not found") 
-            let messages = await this.prismaService.message.findMany({
-                where: {
-                    conversationId : conversation.id 
-                }, 
-                orderBy: {
-                    createdAt: 'desc'
-                }, 
-                take: limit, 
-                skip : offset
-            })
-            //Đánh dấu tin nhắn này là do ai gửi để FE có thể hiển thị. Người gửi thì đẩy bên trái, người khác gửi thì đẩy bên phải 
-            //other : người khác, me : chính bạn 
-            messages = messages.map((message) => {
-                return {
-                    ...message, 
-                    who: (userId === message.senderId? 'me' : 'other')
-                }
-            }) 
-            return {
-                conversation, 
-                messages 
-               
-            }
-        } 
-        catch (err) {
-            console.log("get conversation by order id error: " , err) 
-            throw err 
-        }
-    }
-    async getConversationById() 
-    {
+                id: data.orderId,
+            },
+            select: {
+                id: true,
+                userId: true,
+                restaurant: {
+                    select: {
+                        ownerId: true,
+                    },
+                },
+            },
+        });
 
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        if (order.userId !== userId) {
+            throw new ForbiddenException(
+                'Only the customer of the order can open a conversation',
+            );
+        }
+
+        if (order.restaurant.ownerId !== data.sellerId) {
+            throw new BadRequestException(
+                'Seller does not match the restaurant owner',
+            );
+        }
+
+        const existsConversation =
+            await this.prismaService.client.conversation.findFirst({
+                where: {
+                    orderId: data.orderId,
+                },
+            });
+
+        if (existsConversation) {
+            return existsConversation;
+        }
+
+        return await this.prismaService.client.conversation.create({
+            data: {
+                orderId: data.orderId,
+                customerId: userId,
+                sellerId: data.sellerId,
+            },
+        });
+    }
+
+    async ensureConversationForOrder(
+        orderId: number,
+        customerId: number,
+        sellerId: number,
+    ) {
+        const existsConversation =
+            await this.prismaService.client.conversation.findFirst({
+                where: {
+                    orderId,
+                },
+            });
+
+        if (existsConversation) {
+            return existsConversation;
+        }
+
+        return await this.prismaService.client.conversation.create({
+            data: {
+                orderId,
+                customerId,
+                sellerId,
+            },
+        });
+    }
+
+    async getAllUserConversation(userId: number) {
+        const conversations = await this.prismaService.client.conversation.findMany(
+            {
+                where: {
+                    OR: [{ sellerId: userId }, { customerId: userId }],
+                },
+                select: {
+                    id: true,
+                    orderId: true,
+                    customerId: true,
+                    sellerId: true,
+                    updatedAt: true,
+                    createdAt: true,
+                    messages: {
+                        take: 1,
+                        orderBy: {
+                            createdAt: 'desc',
+                        },
+                        select: {
+                            id: true,
+                            content: true,
+                            senderId: true,
+                            createdAt: true,
+                        },
+                    },
+                    customer: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                    seller: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    updatedAt: 'desc',
+                },
+            },
+        );
+
+        const orderIds = conversations.map((conversation) => conversation.orderId);
+        const orders = await this.prismaService.client.order.findMany({
+            where: {
+                id: {
+                    in: orderIds,
+                },
+            },
+            select: {
+                id: true,
+                status: true,
+                restaurant: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true,
+                    },
+                },
+            },
+        });
+        const orderMap = new Map(orders.map((order) => [order.id, order]));
+
+        return conversations.map((conversation) => {
+            const { messages, ...rest } = conversation;
+            return {
+                ...rest,
+                order: orderMap.get(conversation.orderId) ?? null,
+                lastMessage: messages[0] ?? null,
+            };
+        });
+    }
+
+    async getConversationByOrderId(
+        userId: number,
+        orderId: number,
+        limit: number = 20,
+        offset: number = 0,
+    ) {
+        const conversation = await this.prismaService.client.conversation.findFirst(
+            {
+                where: {
+                    orderId,
+                    OR: [{ sellerId: userId }, { customerId: userId }],
+                },
+                select: {
+                    id: true,
+                    orderId: true,
+                    customerId: true,
+                    sellerId: true,
+                    createdAt: true,
+                    updatedAt: true,
+                },
+            },
+        );
+
+        if (!conversation) {
+            throw new BadRequestException('Conversation not found');
+        }
+
+        const messages = await this.prismaService.client.message.findMany({
+            where: {
+                conversationId: conversation.id,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+            take: limit,
+            skip: offset,
+            select: {
+                id: true,
+                conversationId: true,
+                senderId: true,
+                content: true,
+                createdAt: true,
+                sender: {
+                    select: {
+                        id: true,
+                        name: true,
+                        avatar: true,
+                    },
+                },
+            },
+        });
+
+        return {
+            conversation: {
+                ...conversation,
+                order:
+                    (await this.prismaService.client.order.findFirst({
+                        where: {
+                            id: conversation.orderId,
+                        },
+                        select: {
+                            id: true,
+                            status: true,
+                            restaurant: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    image: true,
+                                },
+                            },
+                        },
+                    })) ?? null,
+            },
+            messages: messages.map((message) => ({
+                ...message,
+                who: userId === message.senderId ? 'me' : 'other',
+            })),
+        };
+    }
+
+    async getConversationById(
+        userId: number,
+        conversationId: number,
+        limit: number = 20,
+        offset: number = 0,
+    ) {
+        const conversation = await this.findConversationForUserOrThrow(
+            userId,
+            conversationId,
+        );
+
+        const messages = await this.prismaService.client.message.findMany({
+            where: {
+                conversationId: conversation.id,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+            take: limit,
+            skip: offset,
+            select: {
+                id: true,
+                conversationId: true,
+                senderId: true,
+                content: true,
+                createdAt: true,
+                sender: {
+                    select: {
+                        id: true,
+                        name: true,
+                        avatar: true,
+                    },
+                },
+            },
+        });
+
+        return {
+            conversation,
+            messages: messages.map((message) => ({
+                ...message,
+                who: userId === message.senderId ? 'me' : 'other',
+            })),
+        };
     }
 }

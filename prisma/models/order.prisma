@@ -1,23 +1,29 @@
 model Order {
     id           Int         @id @default(autoincrement())
-    code         String      @unique
     restaurantId Int
     restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
     totalPrice   Decimal     @default(0)
     status       OrderStatus
     orderFoods   OrderFood[]
     payments     Payment[]
+    voucherId    Int?
+    voucher      Voucher?    @relation(fields: [voucherId], references: [id])
+    userId       Int
+    user         User        @relation(fields: [userId], references: [id])
+    note         String      @default("")
+    deleteAt     DateTime?
+    addressId    Int
+    address      Address     @relation(fields: [addressId], references: [id])
 }
 
 model OrderFood {
-    id        Int     @id @default(autoincrement())
-    orderId   Int
-    order     Order   @relation(fields: [orderId], references: [id])
-    foodId    Int
-    food      Food    @relation(fields: [foodId], references: [id])
-    quantity  Int
-    latitude  Float?
-    longitude Float?
-    fullText  String?
-    price     Decimal @default(0)
+    id       Int       @id @default(autoincrement())
+    orderId  Int
+    order    Order     @relation(fields: [orderId], references: [id])
+    foodId   Int
+    food     Food      @relation(fields: [foodId], references: [id])
+    quantity Int
+    fullText String?
+    price    Decimal   @default(0)
+    deleteAt DateTime?
 }

@@ -24,7 +24,7 @@ import { Roles } from '@/bases/decorators/role.decorators';
 import { Role } from '@prisma/client';
 import type { Request } from 'express';
 
-@ApiTags('09. Đơn hàng')
+@ApiTags('09. Order')
 @ApiBearerAuth()
 @Controller('orders')
 @UseGuards(JwtAuthGuard, RolesGuard)

@@ -36,7 +36,7 @@ type RestaurantUploadFiles = {
     coverImage?: Express.Multer.File[];
 };
 
-@ApiTags('06. Nhà hàng')
+@ApiTags('06. Restaurant')
 @Controller('restaurant')
 export class RestaurantController {
     constructor(private readonly restaurantService: RestaurantService) { }

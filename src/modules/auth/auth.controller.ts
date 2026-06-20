@@ -58,7 +58,7 @@ export class AuthController {
         const responseData = await this.authService.verify(otp);
         return responseData;
     }
-    @ApiOperation({ summary: 'Đăng nhập bằng email hoặc số điện thoại' })
+    @ApiOperation({ summary: 'Đăng nhập bằng số điện thoại' })
     @Post('login')
     async login(@Body() data: LoginData) {
         return await this.authService.loginLocal(data);

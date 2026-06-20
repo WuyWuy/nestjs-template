@@ -19,7 +19,7 @@ import { Roles } from '@/bases/decorators/role.decorators';
 import type { Request } from 'express';
 import { CreateCartItemDto, UpdateCartItemDto } from './dto/cart.dto';
 
-@ApiTags('08. Giỏ hàng')
+@ApiTags('08. Cart')
 @ApiBearerAuth()
 @Roles(Role.CUSTOMER)
 @UseGuards(JwtAuthGuard, RolesGuard)

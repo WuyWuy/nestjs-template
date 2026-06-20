@@ -27,7 +27,7 @@ import {
     UpdateCategoryDto,
 } from './dto/category.dto';
 
-@ApiTags('05. Danh mục')
+@ApiTags('05. Category')
 @Controller('categories')
 export class CategoryController {
     constructor(private readonly categoryService: CategoryService) {}

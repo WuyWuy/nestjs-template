@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
-@ApiTags('01. Khởi động')
+@ApiTags('14. Health')
 @Controller('health')
 export class HealthController {
     @ApiOperation({ summary: 'Kiểm tra service còn sống' })

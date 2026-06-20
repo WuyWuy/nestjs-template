@@ -19,7 +19,7 @@ import {
     NotificationQueryDto,
 } from './dto/notification.dto';
 
-@ApiTags('12. Thông báo')
+@ApiTags('12. Notification')
 @ApiBearerAuth()
 @Controller('notification')
 export class NotificationController {

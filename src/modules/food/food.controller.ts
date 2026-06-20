@@ -23,7 +23,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FoodService } from './food.service';
 import { CreateFoodDto, FoodQueryDto, UpdateFoodDto, CreateFoodRatingDto } from './dto/food.dto';
 
-@ApiTags('07. Món ăn')
+@ApiTags('07. Food')
 @Controller('food')
 export class FoodController {
     constructor(private readonly foodService: FoodService) {}

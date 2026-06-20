@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EmailService } from './email.service';
 
-@ApiTags('01. Khởi động')
+@ApiTags('01. Init')
 @Controller('/email')
 export class EmailController {
     constructor(

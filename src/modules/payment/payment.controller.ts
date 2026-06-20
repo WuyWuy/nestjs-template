@@ -18,7 +18,7 @@ import { Roles } from '@/bases/decorators/role.decorators';
 import { Role } from '@prisma/client';
 import type { Request } from 'express';
 
-@ApiTags('10. Thanh toán')
+@ApiTags('10. Payment')
 @Controller('payment')
 export class PaymentController {
     constructor(private readonly paymentService: PaymentService) {}

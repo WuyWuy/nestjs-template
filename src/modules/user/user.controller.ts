@@ -80,7 +80,7 @@ export class UserController {
         return response;
     }
     //[CUSTOMER'S ADDRESS API RELATED]
-    @ApiOperation({ summary: 'Thêm địa chỉ mới cho khách hàng' })
+    @ApiOperation({ summary: 'Thêm địa chỉ mới cho người dùng' })
     @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
@@ -98,7 +98,7 @@ export class UserController {
         );
         return responseData;
     }
-    @ApiOperation({ summary: 'Lấy toàn bộ địa chỉ của khách hàng' })
+    @ApiOperation({ summary: 'Lấy toàn bộ địa chỉ của người dùng' })
     @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
@@ -110,7 +110,7 @@ export class UserController {
         const response = await this.userService.getAllAddress(Number(id));
         return response;
     }
-    @ApiOperation({ summary: 'Xem chi tiết một địa chỉ của khách hàng' })
+    @ApiOperation({ summary: 'Xem chi tiết một địa chỉ của người dùng' })
     @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
@@ -142,7 +142,7 @@ export class UserController {
         );
         return response;
     }
-    @ApiOperation({ summary: 'Xóa địa chỉ của khách hàng' })
+    @ApiOperation({ summary: 'Xóa địa chỉ của người dùng' })
     @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)

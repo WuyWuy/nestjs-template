@@ -27,7 +27,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { MinioService } from '../minio/minio.service';
 import type { Express } from 'express';
 
-@ApiTags('13. Hội thoại')
+@ApiTags('13. Conversation - Chat')
 @ApiBearerAuth()
 @Controller('conversation')
 export class ConversationController {

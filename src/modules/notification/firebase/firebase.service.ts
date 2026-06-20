@@ -22,7 +22,7 @@ export class FirebaseService {
             clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
             privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
         };
-
+        console.log(serviceAccountFromEnv)
         if (
             serviceAccountFromEnv.projectId &&
             serviceAccountFromEnv.clientEmail &&
@@ -71,13 +71,14 @@ export class FirebaseService {
         payload: admin.messaging.MessagingPayload,
     ) {
         try {
-            await admin.messaging().send({
+            return await admin.messaging().send({
                 token: deviceToken,
                 notification: payload.notification,
                 data: payload.data,
             });
         } catch (error) {
             console.error('Error sending notification:', error);
+            throw error;
         }
     }
 }

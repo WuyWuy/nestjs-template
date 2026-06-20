@@ -1,5 +1,5 @@
 import { PrismaService } from '@/prisma/prisma.service';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -52,7 +52,36 @@ export class AuthService {
         private readonly twilioService: TwilioService,
         private readonly emailService: EmailService,
         // private readonly twilioService: TwilioService,
-    ) {}
+    ) { }
+    async getMe(userId: number) {
+        try {
+            const user = await this.prismaService.user.findFirst({
+                where: { id: userId, deleteAt: null, active: true },
+                select: {
+                    id: true,
+                    email: true
+                }
+            })
+
+            if (!user)
+                throw new NotFoundException("User not found")
+            const roles = await this.prismaService.userRole.findMany({
+                where: {
+                    userId
+                }
+            })
+            const payload = {
+                id: user.id,
+                email: user.email,
+                roles: roles.map(role => role.role)
+            }
+            return payload
+        }
+        catch (err) {
+            console.log("Get user information error: ", err)
+            throw err
+        }
+    }
     async validateUser(phone: string, password: string) {
         const user = await this.prismaService.client.user.findFirst({
             where: { phone, active: true },
@@ -262,8 +291,8 @@ export class AuthService {
                     ...(email && phone
                         ? { email, phone }
                         : email
-                          ? { email }
-                          : { phone }),
+                            ? { email }
+                            : { phone }),
                     active: true,
                 },
             });
@@ -548,10 +577,10 @@ export class AuthService {
 
             const matchedUser = profile.email
                 ? await tx.user.findFirst({
-                      where: {
-                          email: profile.email,
-                      },
-                  })
+                    where: {
+                        email: profile.email,
+                    },
+                })
                 : null;
 
             if (matchedUser) {

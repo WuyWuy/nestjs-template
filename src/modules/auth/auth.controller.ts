@@ -7,6 +7,7 @@ import {
     // HttpStatus,
     Post,
     Query,
+    Req,
     UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -20,10 +21,11 @@ import {
     SocialLoginData,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import type { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService) {}
+    constructor(private readonly authService: AuthService) { }
     @Post('register')
     async register(@Body() registerData: RegisterData) {
         const responseData = await this.authService.register(registerData);
@@ -38,7 +40,12 @@ export class AuthController {
     async login(@Body() data: LoginData) {
         return await this.authService.loginLocal(data);
     }
-
+    @Get('me')
+    @UseGuards(JwtAuthGuard)
+    async me(@Req() req: Request) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.authService.getMe(Number(user.id))
+    }
     @Post('/refresh')
     async getAccessToken(@Body() data: RefreshTokenData) {
         return await this.authService.refreshAccessToken(data.refreshToken);

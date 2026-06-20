@@ -37,7 +37,7 @@ type RestaurantUploadFiles = {
 
 @Controller('restaurant')
 export class RestaurantController {
-    constructor(private readonly restaurantService: RestaurantService) {}
+    constructor(private readonly restaurantService: RestaurantService) { }
 
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)

@@ -15,7 +15,7 @@ export class NotificationService {
         private readonly deviceService: DeviceService,
         private readonly prismaService: PrismaService,
         private readonly eventEmitter: EventEmitter2,
-    ) {}
+    ) { }
 
     async createNotification(
         userId: number,
@@ -56,6 +56,8 @@ export class NotificationService {
         };
     }
 
+
+    //he thong listener cua event ben trong du an (Chac vay)
     @OnEvent('notification.send')
     async handleNotificationSendEvent(event: NotificationEvent) {
         try {
@@ -258,17 +260,24 @@ export class NotificationService {
         };
     }
 
-    async testPushNotification(deviceToken: string) {
-        const payload = {
-            notification: {
-                title: 'Testing website title',
-                body: 'Testing website body',
-            },
-        };
-        await this.firebaseService.sendNotification(deviceToken, payload);
-        return {
-            [ResponseBody.MESSAGE]:
-                'Notification has been pushed to the test device',
-        };
+    async testPushNotification(userId: number) {
+        try {
+            this.eventEmitter.emit('notification.send', {
+                recipientUserId: userId,
+                title: 'Test push notification',
+                body: 'This is a test push notification',
+                type: NotificationType.SYSTEM,
+                channels: [DeliveryChannel.DEVICE],
+            } as NotificationEvent);
+
+            return {
+                [ResponseBody.MESSAGE]:
+                    'Test notification event has been emitted',
+            };
+        }
+        catch (err) {
+            console.log("Push notification error: ", err)
+            throw err
+        }
     }
 }

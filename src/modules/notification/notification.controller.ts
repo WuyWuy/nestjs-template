@@ -20,7 +20,7 @@ import {
 
 @Controller('notification')
 export class NotificationController {
-    constructor(private readonly notificationService: NotificationService) {}
+    constructor(private readonly notificationService: NotificationService) { }
 
     @UseGuards(JwtAuthGuard)
     @Post()
@@ -76,10 +76,12 @@ export class NotificationController {
         const user = req.user as { id?: number };
         return await this.notificationService.markAllAsRead(Number(user.id));
     }
-
+    @UseGuards(JwtAuthGuard)
     @Get('test') //Using for testing only - Not production
-    async testSendNotification() {
-        const DEVICE_TOKEN = 'PASTE YOUR DEVICE ID HERE';
-        return await this.notificationService.testPushNotification(DEVICE_TOKEN);
+    async testSendNotification(
+        @Req() req: Request
+    ) {
+        const user = (req.user) as any
+        return await this.notificationService.testPushNotification(Number(user.id))
     }
 }

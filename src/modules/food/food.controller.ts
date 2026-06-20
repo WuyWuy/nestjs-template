@@ -31,6 +31,11 @@ export class FoodController {
         return await this.foodService.getAllFood(query);
     }
 
+    @Get('ingredients')
+    async getAllIngredients() {
+        return await this.foodService.getAllIngredients();
+    }
+
     @Get('/:id')
     async getFoodDetail(@Param('id', ParseIntPipe) id: number) {
         return await this.foodService.getFoodDetail(id);

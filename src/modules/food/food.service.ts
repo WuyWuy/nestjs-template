@@ -137,6 +137,7 @@ export class FoodService {
                     },
                 },
                 foodIngredients: {
+                    where: { deleteAt: null },
                     select: {
                         ingredient: {
                             select: { id: true, name: true, icon: true },
@@ -210,10 +211,14 @@ export class FoodService {
         }
         const defaultPrice = await this.validateAndGetDefaultSizePrice(data.sizes);
 
+        if (data.ingredientIds) {
+            await this.validateIngredientsExist(data.ingredientIds);
+        }
+
         const foodPayload = await this.resolveFoodImagePayload(data, file);
 
-        // Exclude sizes from foodPayload for model creation
-        const { sizes, ...foodCreateData } = foodPayload;
+        // Exclude sizes and ingredientIds from foodPayload for model creation
+        const { sizes, ingredientIds, ...foodCreateData } = foodPayload;
 
         const food = await this.prismaService.client.$transaction(async (tx) => {
             const newFood = await tx.food.create({
@@ -237,6 +242,15 @@ export class FoodService {
                     isDefault: s.isDefault ?? false,
                 })),
             });
+
+            if (data.ingredientIds && data.ingredientIds.length > 0) {
+                await tx.foodIngredient.createMany({
+                    data: data.ingredientIds.map((ingId) => ({
+                        foodId: newFood.id,
+                        ingredientId: ingId,
+                    })),
+                });
+            }
 
             return newFood;
         });
@@ -280,8 +294,12 @@ export class FoodService {
             defaultPrice = await this.validateAndGetDefaultSizePrice(data.sizes);
         }
 
+        if (data.ingredientIds) {
+            await this.validateIngredientsExist(data.ingredientIds);
+        }
+
         const foodPayload = await this.resolveFoodImagePayload(data, file);
-        const { sizes, ...updatePayload } = foodPayload;
+        const { sizes, ingredientIds, ...updatePayload } = foodPayload;
 
         if (defaultPrice !== undefined) {
             updatePayload.price = defaultPrice;
@@ -308,6 +326,30 @@ export class FoodService {
                         isDefault: s.isDefault ?? false,
                     })),
                 });
+            }
+
+            if (data.ingredientIds) {
+                await tx.foodIngredient.deleteMany({
+                    foodId: id,
+                });
+
+                for (const ingredientId of data.ingredientIds) {
+                    await tx.foodIngredient.upsert({
+                        where: {
+                            foodId_ingredientId: {
+                                foodId: id,
+                                ingredientId,
+                            },
+                        },
+                        create: {
+                            foodId: id,
+                            ingredientId,
+                        },
+                        update: {
+                            deleteAt: null,
+                        },
+                    });
+                }
             }
 
             return result;
@@ -347,5 +389,28 @@ export class FoodService {
         return {
             message: 'Food deleted successfully',
         };
+    }
+
+    async getAllIngredients() {
+        return await this.prismaService.client.ingredient.findMany({
+            orderBy: {
+                id: 'asc',
+            },
+        });
+    }
+
+    private async validateIngredientsExist(ingredientIds?: number[]) {
+        if (!ingredientIds || ingredientIds.length === 0) return;
+
+        const uniqueIds = Array.from(new Set(ingredientIds));
+        const count = await this.prismaService.client.ingredient.count({
+            where: {
+                id: { in: uniqueIds },
+            },
+        });
+
+        if (count !== uniqueIds.length) {
+            throw new BadRequestException('One or more ingredient IDs are invalid');
+        }
     }
 }

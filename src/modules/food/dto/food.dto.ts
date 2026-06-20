@@ -112,6 +112,25 @@ export class CreateFoodDto {
     @ValidateNested({ each: true })
     @Type(() => CreateFoodSizeDto)
     sizes?: CreateFoodSizeDto[];
+
+    @IsOptional()
+    @Transform(({ value }) => {
+        if (typeof value === 'string') {
+            if (value.startsWith('[') && value.endsWith(']')) {
+                try {
+                    return JSON.parse(value).map(Number);
+                } catch {
+                    // ignore and fallback
+                }
+            }
+            return value.split(',').map(Number);
+        }
+        return value;
+    })
+    @IsArray()
+    @IsInt({ each: true })
+    @Type(() => Number)
+    ingredientIds?: number[];
 }
 
 export class UpdateFoodDto extends PartialType(CreateFoodDto) {}

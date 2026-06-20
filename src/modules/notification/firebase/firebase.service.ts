@@ -7,21 +7,29 @@ import { join } from 'node:path';
 @Injectable()
 export class FirebaseService {
     constructor() {
-        if (!admin.apps.length) {
-            admin.initializeApp({
-                credential: admin.credential.cert(
-                    this.getServiceAccount(),
-                ),
-            });
-        }
-    }
+        let serviceAccount: ServiceAccount;
 
-    private getServiceAccount(): ServiceAccount {
-        const serviceAccountFromEnv: ServiceAccount = {
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        };
+        if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+            serviceAccount = {
+                projectId: process.env.FIREBASE_PROJECT_ID,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+            };
+        } else {
+            try {
+                // Fallback to firebase-credential.json at project root
+                // Map fields from snake_case to camelCase expected by firebase-admin
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const cred = require(process.cwd() + '/firebase-credential.json');
+                serviceAccount = {
+                    projectId: cred.project_id,
+                    clientEmail: cred.client_email,
+                    privateKey: cred.private_key,
+                };
+            } catch (err) {
+                throw new Error('Firebase credentials not found in env or firebase-credential.json');
+            }
+        }
 
         if (
             serviceAccountFromEnv.projectId &&

@@ -22,8 +22,15 @@ This repository is a backend template for a food delivery app built with NestJS.
 - PostgreSQL (or compatible SQL)
 - Jest (testing)
 
-## Run Docker 
-- Click the right button 
+## Run PostgreSQL locally
+
+You can run the database on your machine or start only the Postgres container from `docker-compose.yaml`.
+
+```bash
+docker compose up -d postgres
+```
+
+If you prefer a native install, create a local database named `app_db` and make sure it listens on `localhost:5432`.
 
 ## ▶️ Run locally
 
@@ -33,11 +40,13 @@ This repository is a backend template for a food delivery app built with NestJS.
 npm install
 ```
 
-2. Configure environment variables (`.env` or your value):
+2. Configure environment variables in `.env`:
 
-- `DATABASE_URL` (for Prisma)
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN`
+- `DATABASE_URL=postgresql://admin:admin@localhost:5432/app_db?schema=public`
+- `ACCESS_SECRET_KEY`
+- `REFRESH_SECRET_KEY`
+
+The sample values are in [/.env.example](.env.example).
 
 3. Run Prisma migrate + seed (if required):
 
@@ -167,6 +176,19 @@ erDiagram
 ## 🧪 Tests
 
 - Unit / e2e: `npm run test` or `npm run test:e2e`
+
+## 📮 Postman Samples
+
+Use the sample collection in [postman/food-delivery-api.postman_collection.json](postman/food-delivery-api.postman_collection.json) and the environment in [postman/local.postman_environment.json](postman/local.postman_environment.json).
+
+1. Import both files into Postman.
+2. Select the `Local` environment.
+3. Set the login credentials in the requests if you want to test your own account.
+4. Run `Login Customer` or `Login Admin` first to store the access token automatically.
+
+The API base URL used in the sample is `http://localhost:4000/api`.
+
+If `POST /auth/login` still returns `500`, make sure `ACCESS_SECRET_KEY` and `REFRESH_SECRET_KEY` are loaded from your `.env` file and that the account you are testing is active/verified. Opening `/auth/login` in a browser with `GET` will always return `404` because that route only supports `POST`.
 
 ## 📌 Notes
 

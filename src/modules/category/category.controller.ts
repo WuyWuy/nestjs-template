@@ -5,81 +5,65 @@ import {
     Get,
     Param,
     ParseIntPipe,
-    Patch,
     Post,
+    Put,
     Query,
-    Req,
-    UploadedFile,
+    DefaultValuePipe,
     UseGuards,
-    UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import type { Express, Request } from 'express';
-import { Role } from '@prisma/client';
+import { CategoryService } from './category.service';
+import { CreateCategoryDto, UpdateCategoryDto } from './category.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '@/bases/decorators/role.decorators';
 import { RolesGuard } from '@/bases/guards/role.guard';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CategoryService } from './category.service';
-import {
-    CategoryQueryDto,
-    CreateCategoryDto,
-    UpdateCategoryDto,
-} from './dto/category.dto';
+import { Role } from '@prisma/client';
 
-@Controller('categories')
+// Category CRUD API
+// - public GET endpoints
+// - admin-only create/update/delete
+@Controller('category')
 export class CategoryController {
     constructor(private readonly categoryService: CategoryService) {}
 
+    // Public endpoint: lấy danh sách danh mục sản phẩm
     @Get()
-    async getCategories(@Query() query: CategoryQueryDto) {
-        return await this.categoryService.getCategories(query);
+    async getCategories(
+        @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+        @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+        @Query('name', new DefaultValuePipe('')) name: string,
+    ) {
+        return this.categoryService.getCategories(limit, offset, name);
     }
 
     @Get(':id')
-    async getCategoryDetail(@Param('id', ParseIntPipe) id: number) {
-        return await this.categoryService.getCategoryDetail(id);
+    async getCategory(@Param('id', ParseIntPipe) id: number) {
+        return this.categoryService.getCategory(id);
     }
 
-    @Roles(Role.ADMIN, Role.BUSINESS)
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    // Admin endpoint: tạo category mới
     @Post()
-    @UseInterceptors(FileInterceptor('image'))
-    async createCategory(
-        @Req() req: Request,
-        @Body() data: CreateCategoryDto,
-        @UploadedFile() file: Express.Multer.File,
-    ) {
-        const actorId = Number((req.user as { id?: number })?.id);
-        return await this.categoryService.createCategory(actorId, data, file);
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.ADMIN)
+    async createCategory(@Body() dto: CreateCategoryDto) {
+        return this.categoryService.createCategory(dto);
     }
 
-    @Roles(Role.ADMIN, Role.BUSINESS)
+    // Admin endpoint: cập nhật category
+    @Put(':id')
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Patch(':id')
-    @UseInterceptors(FileInterceptor('image'))
+    @Roles(Role.ADMIN)
     async updateCategory(
-        @Req() req: Request,
         @Param('id', ParseIntPipe) id: number,
-        @Body() data: UpdateCategoryDto,
-        @UploadedFile() file: Express.Multer.File,
+        @Body() dto: UpdateCategoryDto,
     ) {
-        const actorId = Number((req.user as { id?: number })?.id);
-        return await this.categoryService.updateCategory(
-            actorId,
-            id,
-            data,
-            file,
-        );
+        return this.categoryService.updateCategory(id, dto);
     }
 
-    @Roles(Role.ADMIN, Role.BUSINESS)
-    @UseGuards(JwtAuthGuard, RolesGuard)
+    // Admin endpoint: xóa category (soft delete)
     @Delete(':id')
-    async deleteCategory(
-        @Req() req: Request,
-        @Param('id', ParseIntPipe) id: number,
-    ) {
-        const actorId = Number((req.user as { id?: number })?.id);
-        return await this.categoryService.deleteCategory(actorId, id);
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.ADMIN)
+    async deleteCategory(@Param('id', ParseIntPipe) id: number) {
+        return this.categoryService.deleteCategory(id);
     }
 }

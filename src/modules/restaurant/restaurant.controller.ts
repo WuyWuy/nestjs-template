@@ -7,30 +7,16 @@ import {
     Patch,
     Post,
     Query,
-    Req,
-    UploadedFiles,
+    Put,
+    Body,
     UseGuards,
-    UseInterceptors,
+    Req,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { RestaurantService } from './restaurant.service';
-import {
-    CreateRestaurantDto,
-    CreateRestaurantRatingDto,
-    GetRestaurantMenuQueryDto,
-    GetRestaurantsQueryDto,
-    UpdateRestaurantDto,
-} from './dto/restaurant.dto';
+import { ApproveRestaurantDto, RejectRestaurantDto, GetRegistrationsQueryDto } from './dto/restaurant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '@/bases/guards/role.guard';
-import { Roles } from '@/bases/decorators/role.decorators';
-import { Role } from '@prisma/client';
-import type { Express, Request } from 'express';
-
-type RestaurantUploadFiles = {
-    image?: Express.Multer.File[];
-    coverImage?: Express.Multer.File[];
-};
+import { AdminRoleMiddleware } from '@/bases/middlewares/admin-role.middleware';
 
 @Controller('restaurant')
 export class RestaurantController {
@@ -145,5 +131,43 @@ export class RestaurantController {
             userId,
             data,
         );
+    }
+
+    /**
+     * Admin: Get all pending restaurant registrations
+     */
+    // Admin endpoint: Lấy danh sách các nhà hàng chờ duyệt
+    @Get('admin/registrations')
+    @UseGuards(JwtAuthGuard)
+    async getPendingRegistrations(
+        @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+        @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    ) {
+        return this.restaurantService.getPendingRegistrations(limit, offset);
+    }
+
+    /**
+     * Admin: Approve restaurant registration
+     */
+    // Admin endpoint: Duyệt đơn đăng ký nhà hàng
+    @Put('admin/approve/:restaurantId')
+    @UseGuards(JwtAuthGuard)
+    async approveRestaurant(
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    ) {
+        return this.restaurantService.approveRestaurant(restaurantId);
+    }
+
+    /**
+     * Admin: Reject restaurant registration
+     */
+    // Admin endpoint: Từ chối đơn đăng ký nhà hàng
+    @Put('admin/reject/:restaurantId')
+    @UseGuards(JwtAuthGuard)
+    async rejectRestaurant(
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Body() dto: RejectRestaurantDto,
+    ) {
+        return this.restaurantService.rejectRestaurant(restaurantId, dto.rejectionReason);
     }
 }

@@ -10,6 +10,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { Request } from 'express';
 import { NotificationService } from './notification.service';
@@ -18,10 +19,13 @@ import {
     NotificationQueryDto,
 } from './dto/notification.dto';
 
+@ApiTags('12. Thông báo')
+@ApiBearerAuth()
 @Controller('notification')
 export class NotificationController {
     constructor(private readonly notificationService: NotificationService) { }
 
+    @ApiOperation({ summary: 'Tạo/thử gửi thông báo' })
     @UseGuards(JwtAuthGuard)
     @Post()
     async sendNotification(
@@ -37,6 +41,7 @@ export class NotificationController {
         );
     }
 
+    @ApiOperation({ summary: 'Lấy thông báo của tôi' })
     @UseGuards(JwtAuthGuard)
     @Get('me')
     async getMyNotifications(
@@ -50,6 +55,7 @@ export class NotificationController {
         );
     }
 
+    @ApiOperation({ summary: 'Đếm số thông báo chưa đọc' })
     @UseGuards(JwtAuthGuard)
     @Get('me/unread-count')
     async getUnreadCount(@Req() req: Request) {
@@ -57,6 +63,7 @@ export class NotificationController {
         return await this.notificationService.getUnreadCount(Number(user.id));
     }
 
+    @ApiOperation({ summary: 'Đánh dấu một thông báo đã đọc' })
     @UseGuards(JwtAuthGuard)
     @Patch(':notificationId/read')
     async markAsRead(
@@ -70,13 +77,15 @@ export class NotificationController {
         );
     }
 
+    @ApiOperation({ summary: 'Đánh dấu toàn bộ thông báo đã đọc' })
     @UseGuards(JwtAuthGuard)
     @Patch('read-all')
     async markAllAsRead(@Req() req: Request) {
         const user = req.user as { id?: number };
         return await this.notificationService.markAllAsRead(Number(user.id));
     }
-    @UseGuards(JwtAuthGuard)
+
+    @ApiOperation({ summary: 'Gửi thông báo test' })
     @Get('test') //Using for testing only - Not production
     async testSendNotification(
         @Req() req: Request

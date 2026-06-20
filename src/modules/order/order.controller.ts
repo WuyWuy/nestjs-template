@@ -11,6 +11,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrderService } from './order.service';
 import {
     CreateOrderDto,
@@ -23,11 +24,14 @@ import { Roles } from '@/bases/decorators/role.decorators';
 import { Role } from '@prisma/client';
 import type { Request } from 'express';
 
+@ApiTags('09. Đơn hàng')
+@ApiBearerAuth()
 @Controller('orders')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class OrderController {
     constructor(private readonly orderSerivce: OrderService) {}
 
+    @ApiOperation({ summary: 'Tạo đơn hàng mới' })
     @Roles(Role.CUSTOMER)
     @Post()
     async createOrder(@Body() data: CreateOrderDto, @Req() req: Request) {
@@ -35,6 +39,7 @@ export class OrderController {
         return await this.orderSerivce.createOrder(Number(user.id), data);
     }
 
+    @ApiOperation({ summary: 'Đặt lại từ đơn hàng cũ' })
     @Roles(Role.CUSTOMER)
     @Post('/:orderId/reorder')
     async reorder(
@@ -45,6 +50,7 @@ export class OrderController {
         return await this.orderSerivce.reorder(Number(user.id), orderId);
     }
 
+    @ApiOperation({ summary: 'Lấy danh sách đơn hàng' })
     @Get()
     async getAllOrders(@Req() req: Request, @Query() query: GetOrdersQueryDto) {
         const user = req.user as { id?: number; roles?: string[] };
@@ -57,6 +63,7 @@ export class OrderController {
         );
     }
 
+    @ApiOperation({ summary: 'Xem chi tiết đơn hàng' })
     @Get('/:orderId')
     async getOrderDetail(
         @Param('orderId', ParseIntPipe) orderId: number,
@@ -70,6 +77,7 @@ export class OrderController {
         );
     }
 
+    @ApiOperation({ summary: 'Xem trạng thái đơn hàng' })
     @Get('/:orderId/status')
     async getOrderStatus(
         @Param('orderId', ParseIntPipe) orderId: number,
@@ -83,6 +91,7 @@ export class OrderController {
         );
     }
 
+    @ApiOperation({ summary: 'Xóa đơn hàng' })
     @Delete('/:orderId')
     async cancelOrder(
         @Param('orderId', ParseIntPipe) orderId: number,
@@ -96,6 +105,7 @@ export class OrderController {
         );
     }
 
+    @ApiOperation({ summary: 'Hủy đơn theo endpoint tương thích' })
     @Post('/:orderId/cancel')
     async cancelOrderCompatible(
         @Param('orderId', ParseIntPipe) orderId: number,
@@ -109,6 +119,7 @@ export class OrderController {
         );
     }
 
+    @ApiOperation({ summary: 'Cập nhật trạng thái đơn hàng' })
     @Patch('/:orderId')
     async updateOrderStatus(
         @Param('orderId', ParseIntPipe) orderId: number,

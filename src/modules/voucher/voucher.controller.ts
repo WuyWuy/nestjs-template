@@ -13,6 +13,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express, Request } from 'express';
 import { Role } from '@prisma/client';
@@ -26,15 +27,18 @@ import {
     VoucherListQueryDto,
 } from './dto/voucher.dto';
 
+@ApiTags('11. Voucher')
 @Controller('vouchers')
 export class VoucherController {
     constructor(private readonly voucherService: VoucherService) {}
 
+    @ApiOperation({ summary: 'Lấy danh sách voucher' })
     @Get()
     async getVouchers(@Query() query: VoucherListQueryDto) {
         return await this.voucherService.getVouchers(query);
     }
 
+    @ApiOperation({ summary: 'Tra cứu voucher theo mã' })
     @Get('code/:code')
     async getVoucherByCode(
         @Param('code') code: string,
@@ -46,11 +50,14 @@ export class VoucherController {
         );
     }
 
+    @ApiOperation({ summary: 'Xem chi tiết voucher' })
     @Get(':id')
     async getVoucherDetail(@Param('id', ParseIntPipe) id: number) {
         return await this.voucherService.getVoucherDetail(id);
     }
 
+    @ApiOperation({ summary: 'Tạo voucher mới' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post()
@@ -69,6 +76,8 @@ export class VoucherController {
         );
     }
 
+    @ApiOperation({ summary: 'Cập nhật voucher' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch(':id')
@@ -89,6 +98,8 @@ export class VoucherController {
         );
     }
 
+    @ApiOperation({ summary: 'Kết thúc voucher' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Delete(':id')

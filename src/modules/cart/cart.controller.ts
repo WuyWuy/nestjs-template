@@ -10,6 +10,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CartService } from './cart.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Role } from '@prisma/client';
@@ -18,17 +19,21 @@ import { Roles } from '@/bases/decorators/role.decorators';
 import type { Request } from 'express';
 import { CreateCartItemDto, UpdateCartItemDto } from './dto/cart.dto';
 
+@ApiTags('08. Giỏ hàng')
+@ApiBearerAuth()
 @Roles(Role.CUSTOMER)
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('cart')
 export class CartController {
     constructor(private readonly cartService: CartService) {}
+    @ApiOperation({ summary: 'Xem giỏ hàng hiện tại' })
     @Get()
     async getCartProducts(@Req() req: Request) {
         const userId = Number((req.user as { id?: number })?.id);
         return await this.cartService.getCart(userId);
     }
 
+    @ApiOperation({ summary: 'Thêm món vào giỏ hàng' })
     @Post()
     async pushCartItem(
         @Req() req: Request,
@@ -42,6 +47,7 @@ export class CartController {
         return cartItem;
     }
 
+    @ApiOperation({ summary: 'Cập nhật một món trong giỏ' })
     @Patch('/:cartItemId')
     async updateCartItem(
         @Req() req: Request,
@@ -61,6 +67,7 @@ export class CartController {
         return await this.cartService.deleteCartById(userId, cartItemId);
     }
 
+    @ApiOperation({ summary: 'Xóa toàn bộ giỏ hàng' })
     @Delete()
     async clearCart(@Req() req: Request) {
         const userId = Number((req.user as { id?: number })?.id);

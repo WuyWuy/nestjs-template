@@ -12,6 +12,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { RestaurantService } from './restaurant.service';
 import {
@@ -35,10 +36,13 @@ type RestaurantUploadFiles = {
     coverImage?: Express.Multer.File[];
 };
 
+@ApiTags('06. Nhà hàng')
 @Controller('restaurant')
 export class RestaurantController {
     constructor(private readonly restaurantService: RestaurantService) { }
 
+    @ApiOperation({ summary: 'Xem danh sách nhà hàng của tôi' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('/my')
@@ -50,6 +54,8 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Tạo nhà hàng mới' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('/manage')
@@ -73,6 +79,8 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Cập nhật nhà hàng' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('/manage/:restaurantId')
@@ -98,6 +106,8 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Xem dashboard nhà hàng' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('/manage/:restaurantId/dashboard')
@@ -115,6 +125,8 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Xem doanh thu nhà hàng' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('/manage/:restaurantId/revenue')
@@ -130,6 +142,8 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Bật hoặc tắt trạng thái mở cửa nhà hàng' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('/manage/:restaurantId/status')
@@ -147,6 +161,8 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Cập nhật giờ hoạt động nhà hàng' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('/manage/:restaurantId/operating-hours')
@@ -164,6 +180,7 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Khám phá danh sách nhà hàng' })
     @Get()
     async getAllRestauant(@Query() query: GetRestaurantsQueryDto) {
         return this.restaurantService.getAllRestaurants(
@@ -178,6 +195,7 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Xem chi tiết nhà hàng' })
     @Get('/detail/:restaurantId')
     async getRestaurantDetail(
         @Param('restaurantId', ParseIntPipe) restaurantId: number,
@@ -185,6 +203,7 @@ export class RestaurantController {
         return this.restaurantService.getRestaurantInDetail(restaurantId);
     }
 
+    @ApiOperation({ summary: 'Xem menu của nhà hàng' })
     @Get('/menu/:restaurantId')
     async getRestaurantMenu(
         @Param('restaurantId', ParseIntPipe) restaurantId: number,
@@ -197,6 +216,7 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Xem review của nhà hàng' })
     @Get('/reviews/:restaurantId')
     async getRestaurantReviews(
         @Param('restaurantId', ParseIntPipe) restaurantId: number,
@@ -204,6 +224,8 @@ export class RestaurantController {
         return this.restaurantService.getRestaurantRatings(restaurantId);
     }
 
+    @ApiOperation({ summary: 'Tạo review cho nhà hàng, dành cho khách hàng' })
+    @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('/reviews/:restaurantId')
@@ -220,6 +242,8 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Trả lời review nhà hàng, dành cho admin/business' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('/reviews/:reviewId/reply')

@@ -13,6 +13,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Express, Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
@@ -26,9 +27,12 @@ import {
     UpdateUserProfileDto,
 } from './dto/user.dto';
 
+@ApiTags('03. User')
 @Controller('user')
 export class UserController {
     constructor(private readonly userService: UserService) {}
+    @ApiOperation({ summary: 'Upload ảnh dùng cho hồ sơ người dùng' })
+    @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Post()
     @UseInterceptors(FileInterceptor('data'))
@@ -36,6 +40,8 @@ export class UserController {
         const results = await this.userService.uploadImages(file);
         return results;
     }
+    @ApiOperation({ summary: 'Lấy danh sách người dùng, dành cho admin' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Get()
@@ -43,6 +49,8 @@ export class UserController {
         const responseData = await this.userService.getAllUsers();
         return responseData;
     }
+    @ApiOperation({ summary: 'Xem hồ sơ của chính mình' })
+    @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Get('/profile')
     async getProfile(@Req() req: Request) {
@@ -51,6 +59,8 @@ export class UserController {
         const responseData = await this.userService.getUserProfile(Number(id));
         return responseData;
     }
+    @ApiOperation({ summary: 'Cập nhật hồ sơ cá nhân' })
+    @ApiBearerAuth()
     @Roles(Role.CUSTOMER, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Put('profile')
@@ -70,6 +80,8 @@ export class UserController {
         return response;
     }
     //[CUSTOMER'S ADDRESS API RELATED]
+    @ApiOperation({ summary: 'Thêm địa chỉ mới cho khách hàng' })
+    @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('address')
@@ -86,6 +98,8 @@ export class UserController {
         );
         return responseData;
     }
+    @ApiOperation({ summary: 'Lấy toàn bộ địa chỉ của khách hàng' })
+    @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('address/all')
@@ -96,6 +110,8 @@ export class UserController {
         const response = await this.userService.getAllAddress(Number(id));
         return response;
     }
+    @ApiOperation({ summary: 'Xem chi tiết một địa chỉ của khách hàng' })
+    @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('address/:addressId')
@@ -126,6 +142,8 @@ export class UserController {
         );
         return response;
     }
+    @ApiOperation({ summary: 'Xóa địa chỉ của khách hàng' })
+    @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Delete('address/:addressId')

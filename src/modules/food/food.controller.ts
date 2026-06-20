@@ -13,6 +13,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express, Request } from 'express';
 import { Role } from '@prisma/client';
@@ -22,25 +23,31 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FoodService } from './food.service';
 import { CreateFoodDto, FoodQueryDto, UpdateFoodDto, CreateFoodRatingDto } from './dto/food.dto';
 
+@ApiTags('07. Món ăn')
 @Controller('food')
 export class FoodController {
     constructor(private readonly foodService: FoodService) {}
 
+    @ApiOperation({ summary: 'Lấy danh sách món ăn' })
     @Get()
     async getAllFood(@Query() query: FoodQueryDto) {
         return await this.foodService.getAllFood(query);
     }
 
+    @ApiOperation({ summary: 'Lấy danh sách nguyên liệu' })
     @Get('ingredients')
     async getAllIngredients() {
         return await this.foodService.getAllIngredients();
     }
 
+    @ApiOperation({ summary: 'Xem chi tiết một món ăn' })
     @Get('/:id')
     async getFoodDetail(@Param('id', ParseIntPipe) id: number) {
         return await this.foodService.getFoodDetail(id);
     }
 
+    @ApiOperation({ summary: 'Đánh giá một món ăn, dành cho khách hàng' })
+    @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('/:id/ratings')
@@ -53,6 +60,7 @@ export class FoodController {
         return await this.foodService.createFoodRating(foodId, userId, body);
     }
 
+    @ApiOperation({ summary: 'Lấy danh sách đánh giá của món ăn' })
     @Get('/:id/ratings')
     async getFoodRatings(
         @Param('id', ParseIntPipe) foodId: number,
@@ -61,6 +69,8 @@ export class FoodController {
     }
 
 
+    @ApiOperation({ summary: 'Tạo món ăn mới, dành cho admin/business' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('manage')
@@ -79,6 +89,8 @@ export class FoodController {
         );
     }
 
+    @ApiOperation({ summary: 'Cập nhật món ăn, dành cho admin/business' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('manage/:id')
@@ -99,6 +111,8 @@ export class FoodController {
         );
     }
 
+    @ApiOperation({ summary: 'Xóa món ăn, dành cho admin/business' })
+    @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Delete('manage/:id')

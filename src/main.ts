@@ -53,6 +53,23 @@ async function bootstrap() {
         const { apiReference } = await import('@scalar/nestjs-api-reference');
         const config = new DocumentBuilder()
             .setTitle('Backend API Documentation')
+            .setDescription('Tài liệu API tiếng Việt, được sắp theo luồng test từ đầu đến cuối.')
+            .addBearerAuth()
+            .addTag('01. Khởi động')
+            .addTag('02. Auth')
+            .addTag('03. User')
+            .addTag('04. Address')
+            .addTag('05. Danh mục')
+            .addTag('06. Nhà hàng')
+            .addTag('07. Món ăn')
+            .addTag('08. Giỏ hàng')
+            .addTag('09. Đơn hàng')
+            .addTag('10. Thanh toán')
+            .addTag('11. Voucher')
+            .addTag('12. Thông báo')
+            .addTag('13. Hội thoại')
+            .addTag('14. Business')
+            .addTag('15. Admin')
             .build();
         const document = SwaggerModule.createDocument(app, config);
         app.use(

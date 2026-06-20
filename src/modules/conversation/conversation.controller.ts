@@ -12,6 +12,7 @@ import {
     UploadedFile,
     BadRequestException,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConversationService } from './conversation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { Request } from 'express';
@@ -26,6 +27,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { MinioService } from '../minio/minio.service';
 import type { Express } from 'express';
 
+@ApiTags('13. Hội thoại')
+@ApiBearerAuth()
 @Controller('conversation')
 export class ConversationController {
     constructor(
@@ -33,6 +36,7 @@ export class ConversationController {
         private readonly minioService: MinioService,
     ) {}
 
+    @ApiOperation({ summary: 'Lấy danh sách hội thoại của tôi' })
     @UseGuards(JwtAuthGuard)
     @Get('/me')
     async getMyConversations(@Req() req: Request) {
@@ -43,6 +47,7 @@ export class ConversationController {
         return response;
     }
 
+    @ApiOperation({ summary: 'Lấy danh sách hội thoại theo user' })
     @UseGuards(JwtAuthGuard)
     @Get('/user/:userId')
     async getAllUsersConversations(
@@ -56,6 +61,7 @@ export class ConversationController {
         );
     }
 
+    @ApiOperation({ summary: 'Tạo hội thoại mới cho khách hàng' })
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post()
@@ -71,6 +77,7 @@ export class ConversationController {
         return response;
     }
 
+    @ApiOperation({ summary: 'Xem chi tiết hội thoại theo order' })
     @UseGuards(JwtAuthGuard)
     @Get('detail')
     async getConversationDetailById(
@@ -89,6 +96,7 @@ export class ConversationController {
         return response;
     }
 
+        @ApiOperation({ summary: 'Xem chi tiết hội thoại theo conversation id' })
     @UseGuards(JwtAuthGuard)
     @Get(':conversationId')
     async getConversationById(
@@ -105,6 +113,7 @@ export class ConversationController {
         );
     }
 
+    @ApiOperation({ summary: 'Upload ảnh chat lên MinIO' })
     @UseGuards(JwtAuthGuard)
     @Post('/upload-image')
     @UseInterceptors(FileInterceptor('file'))

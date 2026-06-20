@@ -13,6 +13,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express, Request } from 'express';
 import { Role } from '@prisma/client';
@@ -26,20 +27,24 @@ import {
     UpdateCategoryDto,
 } from './dto/category.dto';
 
+@ApiTags('05. Danh mục')
 @Controller('categories')
 export class CategoryController {
     constructor(private readonly categoryService: CategoryService) {}
 
+    @ApiOperation({ summary: 'Lấy danh sách danh mục' })
     @Get()
     async getCategories(@Query() query: CategoryQueryDto) {
         return await this.categoryService.getCategories(query);
     }
 
+    @ApiOperation({ summary: 'Xem chi tiết một danh mục' })
     @Get(':id')
     async getCategoryDetail(@Param('id', ParseIntPipe) id: number) {
         return await this.categoryService.getCategoryDetail(id);
     }
 
+    @ApiOperation({ summary: 'Tạo danh mục mới' })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post()
@@ -53,6 +58,7 @@ export class CategoryController {
         return await this.categoryService.createCategory(actorId, data, file);
     }
 
+    @ApiOperation({ summary: 'Cập nhật danh mục' })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch(':id')
@@ -72,6 +78,7 @@ export class CategoryController {
         );
     }
 
+    @ApiOperation({ summary: 'Xóa danh mục' })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Delete(':id')

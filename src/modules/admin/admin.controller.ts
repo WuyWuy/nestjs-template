@@ -10,6 +10,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Role, PaymentStatus } from '@prisma/client';
 import { Roles } from '@/bases/decorators/role.decorators';
@@ -24,30 +25,36 @@ import {
     UpdatePaymentStatusDto,
 } from './dto/admin.dto';
 
+@ApiTags('15. Admin')
+@ApiBearerAuth()
 @Controller('admin')
 @Roles(Role.ADMIN)
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
     constructor(private readonly adminService: AdminService) {}
 
+    @ApiOperation({ summary: 'Xem dashboard admin' })
     @Get('dashboard')
     async getDashboard(@Req() req: Request) {
         const actorId = Number((req.user as { id?: number })?.id);
         return await this.adminService.getDashboardSummary(actorId);
     }
 
+    @ApiOperation({ summary: 'Xem doanh thu admin' })
     @Get('revenue')
     async getRevenue(@Req() req: Request) {
         const actorId = Number((req.user as { id?: number })?.id);
         return await this.adminService.getRevenueSummary(actorId);
     }
 
+    @ApiOperation({ summary: 'Xem audit logs' })
     @Get('audit-logs')
     async getAuditLogs(@Req() req: Request, @Query() query: AuditLogQueryDto) {
         const actorId = Number((req.user as { id?: number })?.id);
         return await this.adminService.getAuditLogs(actorId, query);
     }
 
+    @ApiOperation({ summary: 'Xem danh sách thanh toán admin' })
     @Get('payments')
     async getPayments(
         @Req() req: Request,
@@ -57,6 +64,7 @@ export class AdminController {
         return await this.adminService.getPayments(actorId, query);
     }
 
+    @ApiOperation({ summary: 'Cập nhật trạng thái thanh toán' })
     @Patch('payments/:paymentId')
     async updatePaymentStatus(
         @Req() req: Request,
@@ -71,6 +79,7 @@ export class AdminController {
         );
     }
 
+    @ApiOperation({ summary: 'Reset mật khẩu user' })
     @Post('users/:userId/reset-password')
     async resetUserPassword(
         @Req() req: Request,
@@ -85,6 +94,7 @@ export class AdminController {
         );
     }
 
+    @ApiOperation({ summary: 'Duyệt hoặc từ chối nhà hàng' })
     @Patch('restaurants/:restaurantId/approval')
     async updateRestaurantApproval(
         @Req() req: Request,

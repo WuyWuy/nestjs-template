@@ -1,6 +1,7 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Param,
     ParseIntPipe,
@@ -105,5 +106,19 @@ export class NotificationController {
     ) {
         const user = (req.user) as any
         return await this.notificationService.testPushNotification(Number(user.id))
+    }
+    @UseGuards(JwtAuthGuard) 
+    @ApiOperation({summary: 'Xóa đi một thông báo'}) 
+    @Delete('/:notificationId') 
+    async deleteNotificationByid(
+        @Param('notificationId' , ParseIntPipe) notificationId : number, 
+        @Req() req : Request
+    ) 
+    {
+        const user = (req.user) as any 
+        await this.notificationService.deleteNotificationById(notificationId , Number(user.id)) 
+        return {
+            message: "Notification delete successfullt" 
+        }
     }
 }

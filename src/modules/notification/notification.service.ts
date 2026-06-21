@@ -280,4 +280,20 @@ export class NotificationService {
             throw err
         }
     }
+    async deleteNotificationById(notificationId : number , userId : number) 
+    {
+        try 
+        {
+            await this.prismaService.notification.delete({
+                where: {
+                    id : notificationId, 
+                    userId 
+                }
+            })
+        } 
+        catch (err) { 
+            console.log("Delete notification error: " , err) 
+            throw err 
+        }
+    }
 }

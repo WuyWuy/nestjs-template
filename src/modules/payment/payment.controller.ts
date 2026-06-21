@@ -9,7 +9,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CheckingPaymentDto } from './dto/payment.dto';
 import { PaymentService } from './payment.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -24,6 +24,25 @@ export class PaymentController {
     constructor(private readonly paymentService: PaymentService) {}
 
     @ApiOperation({ summary: 'Nhận webhook cập nhật trạng thái thanh toán' })
+    @ApiBody({
+        type: CheckingPaymentDto,
+        examples: {
+            success: {
+                summary: 'Thanh toán thành công',
+                value: {
+                    momoOrderId: 'MOMO-ORDER-001',
+                    status: 'DONE',
+                },
+            },
+            failed: {
+                summary: 'Thanh toán thất bại',
+                value: {
+                    momoOrderId: 'MOMO-ORDER-001',
+                    status: 'FAILED',
+                },
+            },
+        },
+    })
     @Post('check-payment')
     async checkPayment(@Body() data: CheckingPaymentDto) {
         const response = await this.paymentService.updateMoMoPaymentStatus(

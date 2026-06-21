@@ -10,7 +10,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CartService } from './cart.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Role } from '@prisma/client';
@@ -34,6 +34,19 @@ export class CartController {
     }
 
     @ApiOperation({ summary: 'Thêm món vào giỏ hàng' })
+    @ApiBody({
+        type: CreateCartItemDto,
+        examples: {
+            example: {
+                summary: 'Thêm món với size',
+                value: {
+                    foodId: 1,
+                    quantity: 2,
+                    foodSizeId: 1,
+                },
+            },
+        },
+    })
     @Post()
     async pushCartItem(
         @Req() req: Request,
@@ -48,6 +61,17 @@ export class CartController {
     }
 
     @ApiOperation({ summary: 'Cập nhật một món trong giỏ' })
+    @ApiBody({
+        type: UpdateCartItemDto,
+        examples: {
+            example: {
+                summary: 'Đổi số lượng món',
+                value: {
+                    quantity: 3,
+                },
+            },
+        },
+    })
     @Patch('/:cartItemId')
     async updateCartItem(
         @Req() req: Request,

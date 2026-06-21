@@ -18,6 +18,7 @@ import {
     LoginData,
     RefreshTokenData,
     RegisterData,
+    ResetPasswordData,
     ResetEmailData,
     SocialLoginData,
 } from './dto/auth.dto';
@@ -59,22 +60,79 @@ export class AuthController {
         return responseData;
     }
     @ApiOperation({ summary: 'Đăng nhập bằng số điện thoại' })
+    @ApiBody({
+        type: LoginData,
+        examples: {
+            example: {
+                summary: 'Đăng nhập hợp lệ',
+                value: {
+                    phone: '0901234567',
+                    password: '123456',
+                },
+            },
+        },
+    })
     @Post('login')
     async login(@Body() data: LoginData) {
         return await this.authService.loginLocal(data);
     }
 
     @ApiOperation({ summary: 'Đổi refresh token lấy access token mới' })
+    @ApiBody({
+        type: RefreshTokenData,
+        examples: {
+            example: {
+                summary: 'Refresh token hợp lệ',
+                value: {
+                    refreshToken:
+                        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.refresh.token',
+                },
+            },
+        },
+    })
     @Post('/refresh')
     async getAccessToken(@Body() data: RefreshTokenData) {
         return await this.authService.refreshAccessToken(data.refreshToken);
     }
-    @ApiOperation({ summary: 'Đổi mật khẩu' })
+    @ApiOperation({ summary: 'Đổi mật khẩu bằng email và và mật khẩu cũ' })
+    @ApiBody({
+        type: ChangePasswordData,
+        examples: {
+            byEmail: {
+                summary: 'Đổi mật khẩu bằng email',
+                value: {
+                    email: 'user@example.com',
+                    currentPassword: '123456',
+                    newPassword: '1234567',
+                },
+            },
+            byPhone: {
+                summary: 'Đổi mật khẩu bằng số điện thoại',
+                value: {
+                    phone: '0901234567',
+                    currentPassword: '123456',
+                    newPassword: '1234567',
+                },
+            },
+        },
+    })
     @Post('change-password')
     async changePassword(@Body() data: ChangePasswordData) {
         return await this.authService.changePassword(data);
     }
     @ApiOperation({ summary: 'Bắt đầu luồng đổi email' })
+    @ApiBody({
+        type: ResetEmailData,
+        examples: {
+            example: {
+                summary: 'Yêu cầu OTP đổi email',
+                value: {
+                    phone: '0901234567',
+                    password: '123456',
+                },
+            },
+        },
+    })
     @Post('reset-email')
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
@@ -100,6 +158,17 @@ export class AuthController {
         return responseData;
     }
     @ApiOperation({ summary: 'Bắt đầu luồng quên mật khẩu' })
+    @ApiBody({
+        type: ForgotPasswordData,
+        examples: {
+            example: {
+                summary: 'Nhận OTP đặt lại mật khẩu',
+                value: {
+                    email: 'user@example.com',
+                },
+            },
+        },
+    })
     @Post('forgot-password')
     async forgotPassword(@Body() data: ForgotPasswordData) {
         const email = data.email;
@@ -107,7 +176,54 @@ export class AuthController {
         const response = await this.authService.forgotPassword(email);
         return response;
     }
+    @ApiOperation({ summary: 'Đặt lại mật khẩu bằng OTP' })
+    @ApiBody({
+        type: ResetPasswordData,
+        examples: {
+            example: {
+                summary: 'Đặt lại mật khẩu với OTP',
+                value: {
+                    email: 'user@example.com',
+                    otp: '123456',
+                    newPassword: '1234567',
+                },
+            },
+        },
+    })
+    @Post('reset-password')
+    async resetPassword(@Body() data: ResetPasswordData) {
+        return await this.authService.resetPassword(data);
+    }
     @ApiOperation({ summary: 'Đăng nhập bằng Facebook' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                accessToken: {
+                    type: 'string',
+                    example: 'facebook-access-token',
+                },
+                code: {
+                    type: 'string',
+                    example: 'facebook-authorization-code',
+                },
+            },
+        },
+        examples: {
+            accessToken: {
+                summary: 'Đăng nhập bằng access token',
+                value: {
+                    accessToken: 'facebook-access-token',
+                },
+            },
+            code: {
+                summary: 'Đăng nhập bằng authorization code',
+                value: {
+                    code: 'facebook-authorization-code',
+                },
+            },
+        },
+    })
     @Post('login-facebook')
     async loginFb(@Body() data: Omit<SocialLoginData, 'provider'>) {
         const accessToken = data.accessToken || data.code;
@@ -116,6 +232,35 @@ export class AuthController {
         return response;
     }
     @ApiOperation({ summary: 'Đăng nhập bằng Google' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                accessToken: {
+                    type: 'string',
+                    example: 'ya29.a0AfH6SMC-example-token',
+                },
+                code: {
+                    type: 'string',
+                    example: '4/0AbUR2V-example-code',
+                },
+            },
+        },
+        examples: {
+            accessToken: {
+                summary: 'Đăng nhập bằng access token',
+                value: {
+                    accessToken: 'ya29.a0AfH6SMC-example-token',
+                },
+            },
+            code: {
+                summary: 'Đăng nhập bằng authorization code',
+                value: {
+                    code: '4/0AbUR2V-example-code',
+                },
+            },
+        },
+    })
     @Post('login-google')
     async loginGoogle(@Body() data: Omit<SocialLoginData, 'provider'>) {
         const accessToken = data.accessToken || data.code;
@@ -123,6 +268,25 @@ export class AuthController {
         return await this.authService.googleLogin(accessToken);
     }
     @ApiOperation({ summary: 'Đăng nhập social theo provider' })
+    @ApiBody({
+        type: SocialLoginData,
+        examples: {
+            google: {
+                summary: 'Đăng nhập Google',
+                value: {
+                    provider: 'google',
+                    accessToken: 'ya29.a0AfH6SMC-example-token',
+                },
+            },
+            facebook: {
+                summary: 'Đăng nhập Facebook',
+                value: {
+                    provider: 'facebook',
+                    accessToken: 'facebook-access-token',
+                },
+            },
+        },
+    })
     @Post('login-social')
     async loginSocial(@Body() data: SocialLoginData) {
         const accessToken = data.accessToken || data.code;

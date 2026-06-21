@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 export const hashing = (str: string) => {
     return crypto.createHash('sha256').update(str).digest('hex');

@@ -12,7 +12,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { RestaurantService } from './restaurant.service';
 import {
@@ -56,6 +56,54 @@ export class RestaurantController {
 
     @ApiOperation({ summary: 'Tạo nhà hàng mới' })
     @ApiBearerAuth()
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            required: ['name', 'phone', 'addressId'],
+            properties: {
+                name: {
+                    type: 'string',
+                    example: 'Burger Town',
+                },
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh đại diện nhà hàng',
+                },
+                coverImage: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh bìa nhà hàng',
+                },
+                description: {
+                    type: 'string',
+                    example:
+                        'Fast casual burger shop with smash patties and crispy fries.',
+                },
+                phone: {
+                    type: 'string',
+                    example: '02873000001',
+                },
+                addressId: {
+                    type: 'number',
+                    example: 1,
+                },
+                deliveryFee: {
+                    type: 'number',
+                    example: 2,
+                },
+                minimumOrder: {
+                    type: 'number',
+                    example: 8,
+                },
+                estimatedDeliveryTime: {
+                    type: 'number',
+                    example: 25,
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('/manage')
@@ -81,6 +129,52 @@ export class RestaurantController {
 
     @ApiOperation({ summary: 'Cập nhật nhà hàng' })
     @ApiBearerAuth()
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    example: 'Burger Town Express',
+                },
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh đại diện mới',
+                },
+                coverImage: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh bìa mới',
+                },
+                description: {
+                    type: 'string',
+                    example: 'Updated restaurant description.',
+                },
+                phone: {
+                    type: 'string',
+                    example: '02873000009',
+                },
+                addressId: {
+                    type: 'number',
+                    example: 1,
+                },
+                deliveryFee: {
+                    type: 'number',
+                    example: 2.5,
+                },
+                minimumOrder: {
+                    type: 'number',
+                    example: 10,
+                },
+                estimatedDeliveryTime: {
+                    type: 'number',
+                    example: 30,
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('/manage/:restaurantId')
@@ -144,6 +238,23 @@ export class RestaurantController {
 
     @ApiOperation({ summary: 'Bật hoặc tắt trạng thái mở cửa nhà hàng' })
     @ApiBearerAuth()
+    @ApiBody({
+        type: UpdateRestaurantStatusDto,
+        examples: {
+            open: {
+                summary: 'Mở cửa nhà hàng',
+                value: {
+                    isOpen: true,
+                },
+            },
+            close: {
+                summary: 'Đóng cửa nhà hàng',
+                value: {
+                    isOpen: false,
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('/manage/:restaurantId/status')
@@ -163,6 +274,34 @@ export class RestaurantController {
 
     @ApiOperation({ summary: 'Cập nhật giờ hoạt động nhà hàng' })
     @ApiBearerAuth()
+    @ApiBody({
+        type: UpdateOperatingHoursDto,
+        examples: {
+            example: {
+                summary: 'Giờ hoạt động trong tuần',
+                value: {
+                    operatingHours: {
+                        monday: {
+                            open: '08:00',
+                            close: '22:00',
+                        },
+                        tuesday: {
+                            open: '08:00',
+                            close: '22:00',
+                        },
+                        saturday: {
+                            open: '09:00',
+                            close: '23:00',
+                        },
+                        sunday: {
+                            open: '09:00',
+                            close: '21:00',
+                        },
+                    },
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('/manage/:restaurantId/operating-hours')
@@ -226,6 +365,18 @@ export class RestaurantController {
 
     @ApiOperation({ summary: 'Tạo review cho nhà hàng, dành cho khách hàng' })
     @ApiBearerAuth()
+    @ApiBody({
+        type: CreateRestaurantRatingDto,
+        examples: {
+            example: {
+                summary: 'Review nhà hàng',
+                value: {
+                    vote: 5,
+                    comment: 'Đồ ăn ngon, đóng gói cẩn thận.',
+                },
+            },
+        },
+    })
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('/reviews/:restaurantId')
@@ -244,6 +395,17 @@ export class RestaurantController {
 
     @ApiOperation({ summary: 'Trả lời review nhà hàng, dành cho admin/business' })
     @ApiBearerAuth()
+    @ApiBody({
+        type: CreateRestaurantRatingReplyDto,
+        examples: {
+            example: {
+                summary: 'Phản hồi review',
+                value: {
+                    reply: 'Cảm ơn bạn đã ủng hộ nhà hàng.',
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('/reviews/:reviewId/reply')

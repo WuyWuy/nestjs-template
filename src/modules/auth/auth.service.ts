@@ -6,10 +6,12 @@ import {
     ChangePasswordData,
     LoginData,
     RegisterData,
+    ResetPasswordData,
 } from './dto/auth.dto';
 import { AuthProvider, OTPType, Role, TokenType } from '@prisma/client';
 import { generateOtp } from '@/utilis/ranomOtp';
 import {
+    RESET_PASSWORD_OTP_LIVE_TIME,
     RESET_EMAIL_OTP_LIVE_TIME,
     VERIFY_OTP_LIVE_TIME,
 } from '@/bases/commons/constants/auth.constant';
@@ -751,33 +753,120 @@ export class AuthService {
                     email,
                 },
             });
+            console.log(email) 
             if (!user)
                 throw new BadRequestException('Email has not been registered');
-            const defaultPassword = generatePassword();
-            const hashPassword = await Bun.password.hash(defaultPassword, {
-                cost: 10,
-                algorithm: 'bcrypt',
+            const otp = generateOtp();
+            const hashedOtp = hashing(otp);
+
+            await this.prismaService.transaction(async (tx) => {
+                await tx.oTP.updateMany({
+                    where: {
+                        userId: user.id,
+                        type: OTPType.RESET_PASSWORD_OTP,
+                        usedAt: null,
+                    },
+                    data: {
+                        usedAt: new Date(),
+                    },
+                });
+
+                await tx.oTP.create({
+                    data: {
+                        otp: hashedOtp,
+                        userId: user.id,
+                        type: OTPType.RESET_PASSWORD_OTP,
+                        expiresAt: new Date(
+                            Date.now() + RESET_PASSWORD_OTP_LIVE_TIME,
+                        ),
+                    },
+                });
             });
-            await this.prismaService.client.user.update({
-                data: {
-                    password: hashPassword,
-                },
-                where: {
-                    id: user.id,
-                },
-            });
-            //send email
-            await this.emailService.forgotPasswordEmail(
+
+            await this.emailService.resetPasswordOtpEmail(
                 `[${APP_NAME}] RESET YOUR PASSWORD`,
                 user.email,
-                defaultPassword,
+                otp,
             );
             console.log('Email has been sent successfully');
             return {
-                defaultPassword,
+                message: 'Reset password OTP has been sent',
             };
         } catch (err) {
-            console.log('Reset password to default error', err);
+            console.log('Send reset password OTP error', err);
+            throw err;
+        }
+    }
+
+    async resetPassword(data: ResetPasswordData) {
+        try {
+            const user = await this.prismaService.client.user.findFirst({
+                where: {
+                    email: data.email,
+                },
+            });
+            if (!user)
+                throw new BadRequestException('Email has not been registered');
+
+            const hashedOtp = hashing(data.otp);
+            const resetOtp = await this.prismaService.client.oTP.findFirst({
+                where: {
+                    userId: user.id,
+                    otp: hashedOtp,
+                    type: OTPType.RESET_PASSWORD_OTP,
+                    usedAt: null,
+                    deleteAt: null,
+                    expiresAt: {
+                        gte: new Date(),
+                    },
+                },
+            });
+
+            if (!resetOtp) {
+                throw new BadRequestException('OTP is invalid or expired');
+            }
+
+            const hashedPassword = await Bun.password.hash(data.newPassword, {
+                cost: 10,
+                algorithm: 'bcrypt',
+            });
+
+            await this.prismaService.transaction(async (tx) => {
+                await tx.user.update({
+                    where: {
+                        id: user.id,
+                    },
+                    data: {
+                        password: hashedPassword,
+                    },
+                });
+
+                await tx.oTP.update({
+                    where: {
+                        id: resetOtp.id,
+                    },
+                    data: {
+                        usedAt: new Date(),
+                    },
+                });
+
+                await tx.authToken.updateMany({
+                    where: {
+                        userId: user.id,
+                        type: TokenType.REFRESH,
+                        usedAt: null,
+                    },
+                    data: {
+                        usedAt: new Date(),
+                    },
+                });
+            });
+
+            return {
+                message: 'Password reset successfully',
+            };
+        } catch (err) {
+            console.log('Reset password error', err);
             throw err;
         }
     }

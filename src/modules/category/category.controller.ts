@@ -13,7 +13,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express, Request } from 'express';
 import { Role } from '@prisma/client';
@@ -45,6 +45,32 @@ export class CategoryController {
     }
 
     @ApiOperation({ summary: 'Tạo danh mục mới' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            required: ['name', 'description'],
+            properties: {
+                name: {
+                    type: 'string',
+                    example: 'Burger',
+                },
+                description: {
+                    type: 'string',
+                    example: 'Smash burgers and comfort food classics.',
+                },
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh danh mục',
+                },
+                sortOrder: {
+                    type: 'number',
+                    example: 1,
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post()
@@ -59,6 +85,31 @@ export class CategoryController {
     }
 
     @ApiOperation({ summary: 'Cập nhật danh mục' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    example: 'Fast Food',
+                },
+                description: {
+                    type: 'string',
+                    example: 'Burgers, fries, and quick meals.',
+                },
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh danh mục mới',
+                },
+                sortOrder: {
+                    type: 'number',
+                    example: 2,
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch(':id')

@@ -13,7 +13,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express, Request } from 'express';
 import { Role } from '@prisma/client';
@@ -48,6 +48,19 @@ export class FoodController {
 
     @ApiOperation({ summary: 'Đánh giá một món ăn, dành cho khách hàng' })
     @ApiBearerAuth()
+    @ApiBody({
+        type: CreateFoodRatingDto,
+        examples: {
+            example: {
+                summary: 'Đánh giá món ăn',
+                value: {
+                    vote: 5,
+                    comment: 'Món ăn ngon và giao nhanh.',
+                    orderId: 1,
+                },
+            },
+        },
+    })
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('/:id/ratings')
@@ -71,6 +84,59 @@ export class FoodController {
 
     @ApiOperation({ summary: 'Tạo món ăn mới, dành cho admin/business' })
     @ApiBearerAuth()
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            required: ['name', 'categoryId', 'restaurantId'],
+            properties: {
+                name: {
+                    type: 'string',
+                    example: 'Classic Cheeseburger',
+                },
+                description: {
+                    type: 'string',
+                    example: 'Beef patty, cheddar, pickles, and burger sauce.',
+                },
+                categoryId: {
+                    type: 'number',
+                    example: 1,
+                },
+                price: {
+                    type: 'number',
+                    example: 9,
+                },
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh món ăn',
+                },
+                label: {
+                    type: 'string',
+                    example: 'Best seller',
+                },
+                restaurantId: {
+                    type: 'number',
+                    example: 1,
+                },
+                isAvailable: {
+                    type: 'boolean',
+                    example: true,
+                },
+                sizes: {
+                    type: 'string',
+                    example:
+                        '[{"sizeId":1,"price":9,"isDefault":true},{"sizeId":2,"price":12}]',
+                    description: 'JSON string khi gửi multipart/form-data',
+                },
+                ingredientIds: {
+                    type: 'string',
+                    example: '1,2,3',
+                    description: 'Danh sách ingredient id, cách nhau bằng dấu phẩy',
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('manage')
@@ -91,6 +157,51 @@ export class FoodController {
 
     @ApiOperation({ summary: 'Cập nhật món ăn, dành cho admin/business' })
     @ApiBearerAuth()
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    example: 'Double Smash Burger',
+                },
+                description: {
+                    type: 'string',
+                    example: 'Two beef patties, caramelized onions, and cheddar.',
+                },
+                categoryId: {
+                    type: 'number',
+                    example: 1,
+                },
+                price: {
+                    type: 'number',
+                    example: 12,
+                },
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh món ăn mới',
+                },
+                label: {
+                    type: 'string',
+                    example: 'Signature',
+                },
+                isAvailable: {
+                    type: 'boolean',
+                    example: true,
+                },
+                sizes: {
+                    type: 'string',
+                    example: '[{"sizeId":1,"price":12,"isDefault":true}]',
+                },
+                ingredientIds: {
+                    type: 'string',
+                    example: '1,2',
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('manage/:id')

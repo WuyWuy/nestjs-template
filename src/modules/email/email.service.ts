@@ -35,6 +35,23 @@ export class EmailService {
             throw err;
         }
     }
+    async resetPasswordOtpEmail(subject: string, to: string, otp: string) {
+        try {
+            await this.mailerService.sendMail({
+                to,
+                subject,
+                template: 'resetPasswordOtp',
+                context: {
+                    otp,
+                },
+            });
+
+            return true;
+        } catch (err) {
+            console.error('Send email error:', err);
+            throw err;
+        }
+    }
     async send(
         subject : string, template : string, to : string, 
         context : Record<string , any> 

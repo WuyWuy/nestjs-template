@@ -13,7 +13,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express, Request } from 'express';
 import { Role } from '@prisma/client';
@@ -58,6 +58,64 @@ export class VoucherController {
 
     @ApiOperation({ summary: 'Tạo voucher mới' })
     @ApiBearerAuth()
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            required: ['name', 'code', 'sale', 'type'],
+            properties: {
+                name: {
+                    type: 'string',
+                    example: 'Welcome 5',
+                },
+                code: {
+                    type: 'string',
+                    example: 'WELCOME5',
+                },
+                description: {
+                    type: 'string',
+                    example: 'Flat 5 off for first orders.',
+                },
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh voucher',
+                },
+                sale: {
+                    type: 'number',
+                    example: 5,
+                },
+                type: {
+                    type: 'string',
+                    example: 'MONEY',
+                },
+                status: {
+                    type: 'string',
+                    example: 'APPLYING',
+                },
+                restaurantId: {
+                    type: 'number',
+                    example: 1,
+                },
+                minimumOrderAmount: {
+                    type: 'number',
+                    example: 15,
+                },
+                maximumDiscountAmount: {
+                    type: 'number',
+                    example: 50,
+                },
+                startAt: {
+                    type: 'string',
+                    example: '2026-06-21T00:00:00.000Z',
+                },
+                endAt: {
+                    type: 'string',
+                    example: '2026-07-21T23:59:59.000Z',
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post()
@@ -78,6 +136,51 @@ export class VoucherController {
 
     @ApiOperation({ summary: 'Cập nhật voucher' })
     @ApiBearerAuth()
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    example: 'Burger Ten',
+                },
+                code: {
+                    type: 'string',
+                    example: 'BURGER10',
+                },
+                description: {
+                    type: 'string',
+                    example: 'Ten percent off Burger Town orders.',
+                },
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh voucher mới',
+                },
+                sale: {
+                    type: 'number',
+                    example: 10,
+                },
+                type: {
+                    type: 'string',
+                    example: 'PERCENT',
+                },
+                status: {
+                    type: 'string',
+                    example: 'APPLYING',
+                },
+                minimumOrderAmount: {
+                    type: 'number',
+                    example: 20,
+                },
+                maximumDiscountAmount: {
+                    type: 'number',
+                    example: 6,
+                },
+            },
+        },
+    })
     @Roles(Role.ADMIN, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch(':id')

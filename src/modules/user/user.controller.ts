@@ -13,7 +13,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Express, Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
@@ -33,6 +33,20 @@ export class UserController {
     constructor(private readonly userService: UserService) {}
     @ApiOperation({ summary: 'Upload ảnh dùng cho hồ sơ người dùng' })
     @ApiBearerAuth()
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            required: ['data'],
+            properties: {
+                data: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'File ảnh hồ sơ cần upload',
+                },
+            },
+        },
+    })
     @UseGuards(JwtAuthGuard)
     @Post()
     @UseInterceptors(FileInterceptor('data'))
@@ -63,6 +77,31 @@ export class UserController {
     @ApiBearerAuth()
     @Roles(Role.CUSTOMER, Role.BUSINESS)
     @UseGuards(JwtAuthGuard, RolesGuard)
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: 'string',
+                    example: 'Nguyen Van A',
+                },
+                phone: {
+                    type: 'string',
+                    example: '0901234567',
+                },
+                birthday: {
+                    type: 'string',
+                    example: '2000-01-01',
+                },
+                avatar: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh đại diện mới',
+                },
+            },
+        },
+    })
     @Put('profile')
     @UseInterceptors(FileInterceptor('avatar'))
     async updateUserProfile(
@@ -84,6 +123,24 @@ export class UserController {
     @ApiBearerAuth()
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
+    @ApiBody({
+        type: AddUserAddressDto,
+        examples: {
+            example: {
+                summary: 'Thêm địa chỉ giao hàng',
+                value: {
+                    title: 'Nhà riêng',
+                    address: {
+                        title: 'Nhà riêng',
+                        latitude: 10.776889,
+                        longitude: 106.700806,
+                        fullText:
+                            '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City',
+                    },
+                },
+            },
+        },
+    })
     @Post('address')
     async addUserAddress(
         @Body() addUserAddressData: AddUserAddressDto,
@@ -126,6 +183,24 @@ export class UserController {
     }
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
+    @ApiBody({
+        type: UpdateUserAddressDto,
+        examples: {
+            example: {
+                summary: 'Cập nhật địa chỉ giao hàng',
+                value: {
+                    title: 'Văn phòng',
+                    address: {
+                        title: 'Văn phòng',
+                        latitude: 10.786749,
+                        longitude: 106.690529,
+                        fullText:
+                            '45 Vo Van Tan, Ward 6, District 3, Ho Chi Minh City',
+                    },
+                },
+            },
+        },
+    })
     @Put('/address/:addressId')
     async updateUserAddress(
         @Param('addressId', ParseIntPipe) addressId: number,

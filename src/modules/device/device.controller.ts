@@ -1,6 +1,6 @@
 //Save device, remove device, getDevice,
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RegisterDeviceData } from './dto/device.dto';
 import { DeviceService } from './device.service';
@@ -12,6 +12,18 @@ import type { Request } from 'express';
 export class DeviceController {
     constructor(private readonly deviceService: DeviceService) {}
     @ApiOperation({ summary: 'Đăng ký device token của người dùng' })
+    @ApiBody({
+        type: RegisterDeviceData,
+        examples: {
+            example: {
+                summary: 'Đăng ký FCM token',
+                value: {
+                    deviceToken: 'fcm-device-token-example',
+                    platform: 'ios',
+                },
+            },
+        },
+    })
     @Post()
     async register(
         @Body() registerDeviceData: RegisterDeviceData,

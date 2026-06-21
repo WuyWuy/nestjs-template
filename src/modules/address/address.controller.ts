@@ -11,7 +11,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import type { Request } from 'express';
 import { Roles } from '@/bases/decorators/role.decorators';
@@ -31,6 +31,20 @@ export class AddressController {
     constructor(private readonly addressService: AddressService) {}
     
     @ApiOperation({ summary: 'Tạo địa chỉ mới' })
+    @ApiBody({
+        type: CreateAddressDto,
+        examples: {
+            example: {
+                summary: 'Địa chỉ tại TP.HCM',
+                value: {
+                    title: 'Nhà riêng',
+                    latitude: 10.776889,
+                    longitude: 106.700806,
+                    fullText: '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City',
+                },
+            },
+        },
+    })
     @Post()
     async createAddress(@Body() createAddressData: CreateAddressDto) {
         return await this.addressService.createAddress(createAddressData);
@@ -68,6 +82,20 @@ export class AddressController {
     @Roles(Role.ADMIN)
     @UseGuards(JwtAuthGuard , RolesGuard)
     @ApiBearerAuth()
+    @ApiBody({
+        type: UpdateAddressDto,
+        examples: {
+            example: {
+                summary: 'Cập nhật địa chỉ',
+                value: {
+                    title: 'Văn phòng',
+                    latitude: 10.786749,
+                    longitude: 106.690529,
+                    fullText: '45 Vo Van Tan, Ward 6, District 3, Ho Chi Minh City',
+                },
+            },
+        },
+    })
     @Patch(':addressId')
     async updateAddress(
         @Req() req: Request,

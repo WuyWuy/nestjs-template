@@ -11,7 +11,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrderService } from './order.service';
 import {
     CreateOrderDto,
@@ -32,6 +32,51 @@ export class OrderController {
     constructor(private readonly orderSerivce: OrderService) {}
 
     @ApiOperation({ summary: 'Tạo đơn hàng mới' })
+    @ApiBody({
+        type: CreateOrderDto,
+        examples: {
+            savedAddress: {
+                summary: 'Tạo đơn bằng địa chỉ đã lưu',
+                value: {
+                    restaurantId: 1,
+                    voucherId: 1,
+                    savedAddressId: 1,
+                    orderFoods: [
+                        {
+                            foodId: 1,
+                            quantity: 2,
+                            fullText: 'No onions',
+                            foodSizeId: 1,
+                        },
+                    ],
+                    note: 'Please call before delivery',
+                    paymentMethod: 'CASH',
+                    clearCartAfterOrder: true,
+                },
+            },
+            customAddress: {
+                summary: 'Tạo đơn bằng địa chỉ nhập mới',
+                value: {
+                    restaurantId: 1,
+                    customAddress: {
+                        title: 'Nhà riêng',
+                        latitude: 10.776889,
+                        longitude: 106.700806,
+                        fullText:
+                            '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City',
+                    },
+                    orderFoods: [
+                        {
+                            foodId: 2,
+                            quantity: 1,
+                            fullText: 'Extra sauce',
+                        },
+                    ],
+                    paymentMethod: 'MOMO',
+                },
+            },
+        },
+    })
     @Roles(Role.CUSTOMER)
     @Post()
     async createOrder(@Body() data: CreateOrderDto, @Req() req: Request) {
@@ -120,6 +165,17 @@ export class OrderController {
     }
 
     @ApiOperation({ summary: 'Cập nhật trạng thái đơn hàng' })
+    @ApiBody({
+        type: UpdateOrderStatus,
+        examples: {
+            example: {
+                summary: 'Chuyển trạng thái đơn hàng',
+                value: {
+                    status: 'CONFIRMED',
+                },
+            },
+        },
+    })
     @Patch('/:orderId')
     async updateOrderStatus(
         @Param('orderId', ParseIntPipe) orderId: number,

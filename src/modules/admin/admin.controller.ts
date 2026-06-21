@@ -10,7 +10,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Role, PaymentStatus } from '@prisma/client';
 import { Roles } from '@/bases/decorators/role.decorators';
@@ -65,6 +65,17 @@ export class AdminController {
     }
 
     @ApiOperation({ summary: 'Cập nhật trạng thái thanh toán' })
+    @ApiBody({
+        type: UpdatePaymentStatusDto,
+        examples: {
+            example: {
+                summary: 'Chuyển thanh toán sang đã hoàn tất',
+                value: {
+                    paymentStatus: 'DONE',
+                },
+            },
+        },
+    })
     @Patch('payments/:paymentId')
     async updatePaymentStatus(
         @Req() req: Request,
@@ -80,6 +91,23 @@ export class AdminController {
     }
 
     @ApiOperation({ summary: 'Reset mật khẩu user' })
+    @ApiBody({
+        type: AdminResetPasswordDto,
+        examples: {
+            sendEmail: {
+                summary: 'Reset và gửi email cho user',
+                value: {
+                    sendEmail: true,
+                },
+            },
+            noEmail: {
+                summary: 'Reset không gửi email',
+                value: {
+                    sendEmail: false,
+                },
+            },
+        },
+    })
     @Post('users/:userId/reset-password')
     async resetUserPassword(
         @Req() req: Request,
@@ -95,6 +123,23 @@ export class AdminController {
     }
 
     @ApiOperation({ summary: 'Duyệt hoặc từ chối nhà hàng' })
+    @ApiBody({
+        type: ApproveRestaurantDto,
+        examples: {
+            approve: {
+                summary: 'Duyệt nhà hàng',
+                value: {
+                    approved: true,
+                },
+            },
+            reject: {
+                summary: 'Từ chối nhà hàng',
+                value: {
+                    approved: false,
+                },
+            },
+        },
+    })
     @Patch('restaurants/:restaurantId/approval')
     async updateRestaurantApproval(
         @Req() req: Request,

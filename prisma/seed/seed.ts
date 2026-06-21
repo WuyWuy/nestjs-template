@@ -1254,6 +1254,9 @@ async function main() {
                 quantity: 1,
             },
         ]);
+    }, {
+        maxWait: 10000,
+        timeout: 30000,
     });
 
     console.log('Seed completed successfully.');

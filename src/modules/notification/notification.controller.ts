@@ -10,7 +10,7 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { Request } from 'express';
 import { NotificationService } from './notification.service';
@@ -26,6 +26,19 @@ export class NotificationController {
     constructor(private readonly notificationService: NotificationService) { }
 
     @ApiOperation({ summary: 'Tạo/thử gửi thông báo' })
+    @ApiBody({
+        type: CreateNotificationDto,
+        examples: {
+            example: {
+                summary: 'Thông báo hệ thống',
+                value: {
+                    title: 'Order update',
+                    body: 'Your order is being prepared.',
+                    type: 'ORDER',
+                },
+            },
+        },
+    })
     @UseGuards(JwtAuthGuard)
     @Post()
     async sendNotification(

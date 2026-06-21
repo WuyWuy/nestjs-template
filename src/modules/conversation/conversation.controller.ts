@@ -12,7 +12,7 @@ import {
     UploadedFile,
     BadRequestException,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConversationService } from './conversation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { Request } from 'express';
@@ -62,6 +62,18 @@ export class ConversationController {
     }
 
     @ApiOperation({ summary: 'Tạo hội thoại mới cho khách hàng' })
+    @ApiBody({
+        type: CreateConversationDto,
+        examples: {
+            example: {
+                summary: 'Tạo hội thoại theo đơn hàng',
+                value: {
+                    orderId: 1,
+                    sellerId: 2,
+                },
+            },
+        },
+    })
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post()
@@ -114,6 +126,20 @@ export class ConversationController {
     }
 
     @ApiOperation({ summary: 'Upload ảnh chat lên MinIO' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            required: ['file'],
+            properties: {
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Ảnh chat cần upload',
+                },
+            },
+        },
+    })
     @UseGuards(JwtAuthGuard)
     @Post('/upload-image')
     @UseInterceptors(FileInterceptor('file'))

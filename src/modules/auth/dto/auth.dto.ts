@@ -96,7 +96,7 @@ export class ResetEmailData {
 
 export class ForgotPasswordData {
     @ApiProperty({
-        description: 'Email để nhận liên kết hoặc OTP khôi phục mật khẩu',
+        description: 'Email để nhận OTP khôi phục mật khẩu',
         example: 'user@example.com',
     })
     @IsNotEmpty()
@@ -104,11 +104,36 @@ export class ForgotPasswordData {
     email: string;
 }
 
+export class ResetPasswordData {
+    @ApiProperty({
+        description: 'Email đã yêu cầu OTP khôi phục mật khẩu',
+        example: 'user@example.com',
+    })
+    @IsNotEmpty()
+    @IsEmail({}, { message: 'Must be valid email' })
+    email: string;
+
+    @ApiProperty({
+        description: 'OTP 6 chữ số được gửi qua email',
+        example: '123456',
+    })
+    @IsString()
+    @Matches(/^\d{6}$/, { message: 'OTP must contain exactly 6 digits' })
+    otp: string;
+
+    @ApiProperty({
+        description: 'Mật khẩu mới tối thiểu 6 ký tự',
+        example: '1234567',
+    })
+    @IsString()
+    @MinLength(6, { message: 'Password must be at least 6 characters' })
+    newPassword: string;
+}
+
 export class RefreshTokenData {
     @ApiProperty({
         description: 'Refresh token nhận được sau khi đăng nhập',
-        example:
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.refresh.token',
+        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.refresh.token',
     })
     @IsString()
     @IsNotEmpty()
@@ -126,7 +151,8 @@ export class ChangePasswordData {
     email?: string;
 
     @ApiPropertyOptional({
-        description: 'Số điện thoại của tài khoản, dùng thay cho email nếu muốn',
+        description:
+            'Số điện thoại của tài khoản, dùng thay cho email nếu muốn',
         example: '0901234567',
     })
     @IsOptional()

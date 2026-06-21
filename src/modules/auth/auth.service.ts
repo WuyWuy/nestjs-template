@@ -88,29 +88,45 @@ export class AuthService {
         const user = await this.prismaService.client.user.findFirst({
             where: { phone, active: true },
         });
-        if (user) {
-            const results = await Bun.password.verify(password, user.password);
-            console.log('Validate result: ', results);
-            if (results) {
-                await this.prismaService.client.identity.upsert({
-                    where: {
-                        userId_provider: {
-                            userId: user.id,
-                            provider: AuthProvider.LOCAL,
-                        },
-                    },
-                    create: {
-                        userId: user.id,
-                        provider: AuthProvider.LOCAL,
-                        providerUserId: this.getLocalProviderUserId(user.id),
-                    },
-                    update: {},
-                });
-                return user;
+        if (!user) return null;
+
+        const isValid = await this.verifyPassword(password, user.password);
+        if (!isValid) return null;
+
+        await this.prismaService.identity.upsert({
+            where: {
+                userId_provider: {
+                    userId: user.id,
+                    provider: AuthProvider.LOCAL,
+                },
+            },
+            create: {
+                userId: user.id,
+                provider: AuthProvider.LOCAL,
+                providerUserId: this.getLocalProviderUserId(user.id),
+            },
+            update: {},
+        });
+
+        return user;
+    }
+
+    private async verifyPassword(plain: string, hash: string): Promise<boolean> {
+        try {
+            if (typeof Bun !== 'undefined' && Bun?.password && Bun.password.verify) {
+                return await Bun.password.verify(plain, hash);
             }
-            return null;
+        } catch (e) {
+            // fall through to fallback
         }
-        return null;
+
+        try {
+            const bcrypt = await import('bcryptjs');
+            return await bcrypt.compare(plain, hash);
+        } catch (err) {
+            console.warn('Password verification fallback failed:', err);
+            return false;
+        }
     }
     async register(registerData: RegisterData) {
         try {

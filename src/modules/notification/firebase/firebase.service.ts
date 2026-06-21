@@ -7,14 +7,7 @@ import { join } from 'node:path';
 @Injectable()
 export class FirebaseService {
     constructor() {
-        if (!admin.apps.length) {
-            admin.initializeApp({
-                credential: admin.credential.cert(
-                    this.getServiceAccount(),
-                ),
-            });
-        }
-    }
+        let serviceAccount: ServiceAccount;
 
     private getServiceAccount(): ServiceAccount {
         const serviceAccountFromEnv: ServiceAccount = {

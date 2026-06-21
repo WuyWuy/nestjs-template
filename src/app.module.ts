@@ -22,15 +22,9 @@ import { ChatService } from './realtime/chat.service';
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { FoodModule } from './modules/food/food.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
-import { CartModule } from './modules/cart/cart.module';
-import { OrderModule } from './modules/order/order.module';
-import { PaymentModule } from './modules/payment/payment.module';
 import { CategoryModule } from './modules/category/category.module';
-import { VoucherModule } from './modules/voucher/voucher.module';
-import { AuditModule } from './modules/audit/audit.module';
-import { AdminModule } from './modules/admin/admin.module';
-import { HealthModule } from './modules/health/health.module';
-
+import { CouponModule } from './modules/coupon/coupon.module';
+//Add  e module here
 @Module({
     imports: [
         TestModule,
@@ -44,20 +38,15 @@ import { HealthModule } from './modules/health/health.module';
         TwilioModule, //Sending SmS
         DeviceModule,
         NotificationModule,
-        EmailModule,
-        MinioModule,
-        UserModule,
-        AddressModule,
-        ConversationModule,
-        FoodModule,
+        EmailModule, 
+        MinioModule, 
+        UserModule, 
+        AddressModule, 
+        ConversationModule, 
+        FoodModule, 
         RestaurantModule,
-        CartModule,
-        OrderModule,
-        PaymentModule, //Mot lat sau nho go cai nay ra
         CategoryModule,
-        VoucherModule,
-        AdminModule,
-        HealthModule
+        CouponModule,
     ],
     controllers: [AppController],
     providers: [

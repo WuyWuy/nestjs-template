@@ -435,31 +435,32 @@ async function upsertFood(
         });
     }
 
-    return await db.food.create({
-        data,
-    });
-}
+    const restaurants = [
+        { code: 'REST001', name: 'Pizza Palace', phone: '0901111111', addressId: addresses[0].id },
+        { code: 'REST002', name: 'Burger Heaven', phone: '0902222222', addressId: addresses[1].id },
+        { code: 'REST003', name: 'Pasta Magic', phone: '0903333333', addressId: addresses[2].id },
+        { code: 'REST004', name: 'Sushi Dreams', phone: '0904444444', addressId: addresses[3].id },
+        { code: 'REST005', name: 'Sweet Desserts', phone: '0905555555', addressId: addresses[4].id },
+    ];
 
-async function ensureFoodIngredient(
-    db: DbClient,
-    foodId: number,
-    ingredientId: number,
-) {
-    await db.foodIngredient.upsert({
+    // Use createMany with skipDuplicates to avoid failing when a code already exists
+    await prisma.restaurant.createMany({
+        data: restaurants.map((rest) => ({
+            ...rest,
+            ownerId: businessUser.id,
+            approved: true,
+        })),
+        skipDuplicates: true,
+    });
+
+    const createdRestaurants = await prisma.restaurant.findMany({
         where: {
-            foodId_ingredientId: {
-                foodId,
-                ingredientId,
-            },
-        },
-        create: {
-            foodId,
-            ingredientId,
-        },
-        update: {
-            deleteAt: null,
+            code: { in: restaurants.map((r) => r.code) },
         },
     });
+
+    console.log(`✅ Seeded ${createdRestaurants.length} restaurants`);
+    return createdRestaurants;
 }
 
 async function upsertSize(db: DbClient, name: string) {

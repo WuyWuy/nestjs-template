@@ -560,166 +560,125 @@ export class RestaurantService {
                             },
                         },
                     },
-                    orderBy: {
-                        createdAt: 'desc',
+                    address: {
+                        select: {
+                            id: true,
+                            street: true,
+                            ward: true,
+                            district: true,
+                            city: true,
+                        },
                     },
+                    createdAt: true,
+                    rejectionReason: true,
                 },
-            },
-        });
+                take: limit,
+                skip: offset,
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            });
 
-        if (!restaurant) {
-            throw new BadRequestException('Restaurant not found');
+            const total = await this.prismaService.restaurant.count({
+                where: {
+                    approved: false,
+                    deleteAt: null,
+                },
+            });
+
+            return {
+                data: pendingRestaurants,
+                total,
+                limit,
+                offset,
+            };
+        } catch (err) {
+            console.log("Get pending registrations error", err);
+            throw err;
         }
-
-        const { averageRating, ratingCount } =
-            this.buildRestaurantSummary(restaurant);
-
-        return {
-            id: restaurant.id,
-            name: restaurant.name,
-            averageRating,
-            ratingCount,
-            ratings: restaurant.ratings,
-        };
     }
 
-    async getMyRestaurants(actorId: number, roles: string[]) {
-        const restaurants = await this.prismaService.client.restaurant.findMany({
-            where: this.hasRole(roles, Role.ADMIN)
-                ? undefined
-                : {
-                      ownerId: actorId,
-                  },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
+    /**
+     * Approve restaurant registration (admin only)
+     */
+    async approveRestaurant(restaurantId: number) {
+        try {
+            const restaurant = await this.prismaService.restaurant.findUnique({
+                where: { id: restaurantId },
+            });
 
-        return restaurants.map((restaurant) => ({
-            ...restaurant,
-            deliveryFee: Number(restaurant.deliveryFee),
-            minimumOrder: Number(restaurant.minimumOrder),
-        }));
+            if (!restaurant) {
+                throw new NotFoundException("Restaurant not found");
+            }
+
+            if (restaurant.approved) {
+                throw new BadRequestException("Restaurant is already approved");
+            }
+
+            const updated = await this.prismaService.restaurant.update({
+                where: { id: restaurantId },
+                data: {
+                    approved: true,
+                    rejectionReason: null,
+                },
+                select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    approved: true,
+                },
+            });
+
+            return {
+                message: "Restaurant approved successfully",
+                data: updated,
+            };
+        } catch (err) {
+            console.log("Approve restaurant error", err);
+            throw err;
+        }
     }
 
-    async createRestaurant(
-        actorId: number,
-        data: CreateRestaurantDto,
-        roles: string[],
-        files?: RestaurantUploadFiles,
-    ) {
-        if (!this.hasRole(roles, Role.ADMIN) && !this.hasRole(roles, Role.BUSINESS)) {
-            throw new ForbiddenException('Only business/admin can create restaurants');
+    /**
+     * Reject restaurant registration (admin only)
+     */
+    async rejectRestaurant(restaurantId: number, rejectionReason: string) {
+        try {
+            const restaurant = await this.prismaService.restaurant.findUnique({
+                where: { id: restaurantId },
+            });
+
+            if (!restaurant) {
+                throw new NotFoundException("Restaurant not found");
+            }
+
+            if (restaurant.approved) {
+                throw new BadRequestException("Cannot reject an already approved restaurant");
+            }
+
+            const updated = await this.prismaService.restaurant.update({
+                where: { id: restaurantId },
+                data: {
+                    approved: false,
+                    rejectionReason,
+                },
+                select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    approved: true,
+                    rejectionReason: true,
+                },
+            });
+
+            return {
+                message: "Restaurant rejected successfully",
+                data: updated,
+            };
+        } catch (err) {
+            console.log("Reject restaurant error", err);
+            throw err;
         }
-
-        const restaurantPayload = await this.resolveRestaurantImagePayload(
-            data,
-            files,
-        );
-
-        await this.assertAddressExists(restaurantPayload.addressId);
-
-        const createData: Prisma.RestaurantUncheckedCreateInput = {
-            name: restaurantPayload.name,
-            phone: restaurantPayload.phone,
-            addressId: restaurantPayload.addressId,
-            description: restaurantPayload.description ?? '',
-            image: restaurantPayload.image ?? '',
-            coverImage: restaurantPayload.coverImage ?? '',
-            deliveryFee: restaurantPayload.deliveryFee ?? 0,
-            minimumOrder: restaurantPayload.minimumOrder ?? 0,
-            estimatedDeliveryTime:
-                restaurantPayload.estimatedDeliveryTime ?? 20,
-            ownerId: actorId,
-            approved: this.hasRole(roles, Role.ADMIN),
-        };
-
-        const restaurant = await this.prismaService.client.restaurant.create({
-            data: createData,
-        });
-
-        await this.auditService.log(
-            'CREATE_RESTAURANT',
-            'Restaurant',
-            restaurant.id,
-            actorId,
-            data,
-        );
-
-        return restaurant;
-    }
-
-    async updateRestaurant(
-        actorId: number,
-        roles: string[],
-        restaurantId: number,
-        data: UpdateRestaurantDto,
-        files?: RestaurantUploadFiles,
-    ) {
-        await this.assertRestaurantOwner(actorId, roles, restaurantId);
-
-        const restaurantPayload = await this.resolveRestaurantImagePayload(
-            data,
-            files,
-        );
-
-        if (restaurantPayload.addressId !== undefined) {
-            await this.assertAddressExists(restaurantPayload.addressId);
-        }
-
-        const updateData: Prisma.RestaurantUncheckedUpdateInput = {};
-
-        if (restaurantPayload.name !== undefined) {
-            updateData.name = restaurantPayload.name;
-        }
-        if (restaurantPayload.phone !== undefined) {
-            updateData.phone = restaurantPayload.phone;
-        }
-        if (restaurantPayload.addressId !== undefined) {
-            updateData.addressId = restaurantPayload.addressId;
-        }
-        if (restaurantPayload.description !== undefined) {
-            updateData.description = restaurantPayload.description;
-        }
-        if (restaurantPayload.image !== undefined) {
-            updateData.image = restaurantPayload.image;
-        }
-        if (restaurantPayload.coverImage !== undefined) {
-            updateData.coverImage = restaurantPayload.coverImage;
-        }
-        if (restaurantPayload.deliveryFee !== undefined) {
-            updateData.deliveryFee = restaurantPayload.deliveryFee;
-        }
-        if (restaurantPayload.minimumOrder !== undefined) {
-            updateData.minimumOrder = restaurantPayload.minimumOrder;
-        }
-        if (restaurantPayload.estimatedDeliveryTime !== undefined) {
-            updateData.estimatedDeliveryTime =
-                restaurantPayload.estimatedDeliveryTime;
-        }
-
-        if (!Object.keys(updateData).length) {
-            throw new BadRequestException(
-                'No valid restaurant data provided for update',
-            );
-        }
-
-        const restaurant = await this.prismaService.client.restaurant.update({
-            where: {
-                id: restaurantId,
-            },
-            data: updateData,
-        });
-
-        await this.auditService.log(
-            'UPDATE_RESTAURANT',
-            'Restaurant',
-            restaurantId,
-            actorId,
-            data,
-        );
-
-        return restaurant;
     }
 
     async getRestaurantDashboard(

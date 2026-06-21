@@ -7,10 +7,10 @@ import {
     Patch,
     Post,
     Query,
-    Req,
-    UploadedFiles,
+    Put,
+    Body,
     UseGuards,
-    UseInterceptors,
+    Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -26,15 +26,7 @@ import {
     CreateRestaurantRatingReplyDto,
 } from './dto/restaurant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '@/bases/guards/role.guard';
-import { Roles } from '@/bases/decorators/role.decorators';
-import { Role } from '@prisma/client';
-import type { Express, Request } from 'express';
-
-type RestaurantUploadFiles = {
-    image?: Express.Multer.File[];
-    coverImage?: Express.Multer.File[];
-};
+import { AdminRoleMiddleware } from '@/bases/middlewares/admin-role.middleware';
 
 @ApiTags('06. Restaurant')
 @Controller('restaurant')

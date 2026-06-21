@@ -8,14 +8,17 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
         super({
             usernameField: 'phone',
             passwordField: 'password',
-        });
+            passReqToCallback: true,
+        } as any);
     }
 
-    async validate(username: string, password: string): Promise<any> {
-        const user = await this.authService.validateUser(username, password);
+    // support login by phone or email (client may send `phone` or `email`)
+    async validate(req: any, username: string, password: string): Promise<any> {
+        const identifier = username || req?.body?.email || req?.body?.phone;
+        const user = await this.authService.validateUser(identifier, password);
         if (!user) {
             throw new UnauthorizedException();
         }
-        return user; //Tra ve user -> Tu dong luu vao ben trong req.user
+        return user; // returned user will be attached to req.user
     }
 }

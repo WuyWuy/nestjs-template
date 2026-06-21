@@ -201,6 +201,7 @@ export class UserController {
             },
         },
     })
+    @ApiOperation({ summary: 'Cập nhật địa chỉ của người dùng' })
     @Put('/address/:addressId')
     async updateUserAddress(
         @Param('addressId', ParseIntPipe) addressId: number,

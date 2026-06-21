@@ -81,7 +81,7 @@ export class CartController {
         const userId = Number((req.user as { id?: number })?.id);
         return await this.cartService.updateCartItem(userId, cartItemId, data);
     }
-
+    @ApiOperation({ summary: 'Xóa một món trong giỏ' })
     @Delete('/:cartItemId')
     async deleteCartItem(
         @Req() req: Request,

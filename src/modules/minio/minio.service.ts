@@ -43,6 +43,9 @@ export class MinioService {
             fileName,
             file.buffer,
             file.size,
+            {
+                'Content-Type': file.mimetype,
+            },
         );
         return this.buildPublicFileUrl(fileName);
     }

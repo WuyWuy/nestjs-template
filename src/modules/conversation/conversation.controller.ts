@@ -46,9 +46,11 @@ export class ConversationController {
         );
         return response;
     }
-
-    @ApiOperation({ summary: 'Lấy danh sách hội thoại theo user' })
-    @UseGuards(JwtAuthGuard)
+    // Chi danh cho admin moi duoc truy cap route nay 
+    
+    @ApiOperation({ summary: 'Lấy danh sách hội thoại theo user (admin)' })
+    @Roles(Role.ADMIN)
+    @UseGuards(JwtAuthGuard , RolesGuard)
     @Get('/user/:userId')
     async getAllUsersConversations(
         @Param('userId', ParseIntPipe) userId: number,

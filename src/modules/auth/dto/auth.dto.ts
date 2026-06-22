@@ -104,9 +104,9 @@ export class ForgotPasswordData {
     email: string;
 }
 
-export class ResetPasswordData {
+export class VerifyResetOtpDto {
     @ApiProperty({
-        description: 'Email đã yêu cầu OTP khôi phục mật khẩu',
+        description: 'Email đã nhận OTP',
         example: 'user@example.com',
     })
     @IsNotEmpty()
@@ -114,12 +114,22 @@ export class ResetPasswordData {
     email: string;
 
     @ApiProperty({
-        description: 'OTP 6 chữ số được gửi qua email',
+        description: 'OTP 6 chữ số gửi qua email',
         example: '123456',
     })
     @IsString()
     @Matches(/^\d{6}$/, { message: 'OTP must contain exactly 6 digits' })
     otp: string;
+}
+
+export class ResetPasswordData {
+    @ApiProperty({
+        description: 'Reset token (JWT) nhận được sau khi verify OTP thành công',
+        example: 'eyJhbGciOi...',
+    })
+    @IsNotEmpty()
+    @IsString()
+    resetToken: string;
 
     @ApiProperty({
         description: 'Mật khẩu mới tối thiểu 6 ký tự',

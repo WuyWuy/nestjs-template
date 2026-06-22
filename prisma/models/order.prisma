@@ -15,6 +15,7 @@ model Order {
     addressId    Int
     address      Address     @relation(fields: [addressId], references: [id])
     foodRatings  FoodRating[]
+    restaurantRating RestaurantRating?
 }
 
 model OrderFood {

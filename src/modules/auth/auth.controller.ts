@@ -21,6 +21,7 @@ import {
     ResetPasswordData,
     ResetEmailData,
     SocialLoginData,
+    VerifyResetOtpDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import type { Request } from 'express';
@@ -175,6 +176,23 @@ export class AuthController {
         if (!email) throw new BadRequestException('Email invalid');
         const response = await this.authService.forgotPassword(email);
         return response;
+    }
+    @ApiOperation({ summary: 'Xác thực OTP quên mật khẩu' })
+    @ApiBody({
+        type: VerifyResetOtpDto,
+        examples: {
+            example: {
+                summary: 'Xác thực OTP đặt lại mật khẩu',
+                value: {
+                    email: 'user@example.com',
+                    otp: '123456',
+                },
+            },
+        },
+    })
+    @Post('verify-reset-otp')
+    async verifyResetOtp(@Body() data: VerifyResetOtpDto) {
+        return await this.authService.verifyResetOtp(data);
     }
     @ApiOperation({ summary: 'Đặt lại mật khẩu bằng OTP' })
     @ApiBody({

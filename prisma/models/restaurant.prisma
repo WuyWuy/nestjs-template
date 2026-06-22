@@ -23,18 +23,23 @@ model Restaurant {
     ratings   RestaurantRating[]
     orders    Order[]
     vouchers  Voucher[]
+    favoriteByUsers UserFavoriteRestaurant[]
 }
 
 model RestaurantRating {
-    id           Int        @id @default(autoincrement())
-    restaurantId Int
-    restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
-    userId       Int
-    user         User       @relation(fields: [userId], references: [id])
-    vote         Int
-    comment      String     @default("") @db.Text
-    reply        String?    @db.Text
+    id             Int        @id @default(autoincrement())
+    restaurantId   Int
+    restaurant     Restaurant @relation(fields: [restaurantId], references: [id])
+    userId         Int
+    user           User       @relation(fields: [userId], references: [id])
+    vote           Int
+    comment        String     @default("") @db.Text
+    reply          String?    @db.Text
     replyCreatedAt DateTime?
-    createdAt    DateTime   @default(now())
-    deleteAt     DateTime?
+    createdAt      DateTime   @default(now())
+    deleteAt       DateTime?
+
+    orderId        Int        @unique
+    order          Order      @relation(fields: [orderId], references: [id])
+    tags           Json?
 }

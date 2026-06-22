@@ -43,6 +43,8 @@ describe('AuthService forgot password', () => {
     let prismaService: any;
     let tx: any;
     let emailService: any;
+    let jwtService: any;
+    let configService: any;
 
     beforeEach(() => {
         jest.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -67,12 +69,26 @@ describe('AuthService forgot password', () => {
                 },
                 oTP: {
                     findFirst: jest.fn(),
+                    update: jest.fn(),
                 },
             },
             transaction: jest.fn(async (callback) => callback(tx)),
         };
         emailService = {
             resetPasswordOtpEmail: jest.fn(),
+        };
+        jwtService = {
+            signAsync: jest.fn(async () => 'mocked-reset-token'),
+            verifyAsync: jest.fn(async () => ({
+                email: 'user@example.com',
+                purpose: 'RESET_PASSWORD',
+            })),
+        };
+        configService = {
+            get: jest.fn((key) => {
+                if (key === 'ACCESS_SECRET_KEY') return 'mocked-access-secret';
+                return null;
+            }),
         };
 
         if (!(globalThis as any).Bun) {
@@ -88,8 +104,8 @@ describe('AuthService forgot password', () => {
 
         service = new AuthService(
             prismaService,
-            {} as any,
-            {} as any,
+            jwtService as any,
+            configService as any,
             {} as any,
             emailService,
         );
@@ -137,7 +153,7 @@ describe('AuthService forgot password', () => {
         );
     });
 
-    it('resets password with a valid OTP and revokes refresh tokens', async () => {
+    it('verifies reset OTP and generates a short-lived reset token', async () => {
         prismaService.client.user.findFirst.mockResolvedValue({
             id: 10,
             email: 'user@example.com',
@@ -148,13 +164,12 @@ describe('AuthService forgot password', () => {
         });
 
         await expect(
-            service.resetPassword({
+            service.verifyResetOtp({
                 email: 'user@example.com',
                 otp: '123456',
-                newPassword: 'new-pass',
             }),
         ).resolves.toEqual({
-            message: 'Password reset successfully',
+            resetToken: 'mocked-reset-token',
         });
 
         expect(prismaService.client.oTP.findFirst).toHaveBeenCalledWith({
@@ -169,20 +184,62 @@ describe('AuthService forgot password', () => {
                 },
             },
         });
+        expect(prismaService.client.oTP.update).toHaveBeenCalledWith({
+            where: {
+                id: 99,
+            },
+            data: {
+                usedAt: expect.any(Date),
+            },
+        });
+        expect(jwtService.signAsync).toHaveBeenCalledWith(
+            { email: 'user@example.com', purpose: 'RESET_PASSWORD' },
+            {
+                secret: 'mocked-access-secret',
+                expiresIn: 600,
+            },
+        );
+    });
+
+    it('rejects invalid or expired OTP verification', async () => {
+        prismaService.client.user.findFirst.mockResolvedValue({
+            id: 10,
+            email: 'user@example.com',
+        });
+        prismaService.client.oTP.findFirst.mockResolvedValue(null);
+
+        await expect(
+            service.verifyResetOtp({
+                email: 'user@example.com',
+                otp: '000000',
+            }),
+        ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('resets password with a valid reset token and revokes refresh tokens', async () => {
+        prismaService.client.user.findFirst.mockResolvedValue({
+            id: 10,
+            email: 'user@example.com',
+        });
+
+        await expect(
+            service.resetPassword({
+                resetToken: 'mocked-reset-token',
+                newPassword: 'new-password',
+            }),
+        ).resolves.toEqual({
+            message: 'Password reset successfully',
+        });
+
+        expect(jwtService.verifyAsync).toHaveBeenCalledWith('mocked-reset-token', {
+            secret: 'mocked-access-secret',
+        });
         expect(tx.user.update).toHaveBeenCalledWith({
             where: {
                 id: 10,
             },
             data: {
                 password: 'hashed-new-password',
-            },
-        });
-        expect(tx.oTP.update).toHaveBeenCalledWith({
-            where: {
-                id: 99,
-            },
-            data: {
-                usedAt: expect.any(Date),
             },
         });
         expect(tx.authToken.updateMany).toHaveBeenCalledWith({
@@ -197,21 +254,17 @@ describe('AuthService forgot password', () => {
         });
     });
 
-    it('rejects invalid or expired reset password OTP', async () => {
-        prismaService.client.user.findFirst.mockResolvedValue({
-            id: 10,
+    it('rejects reset password with token containing invalid purpose', async () => {
+        jwtService.verifyAsync.mockResolvedValueOnce({
             email: 'user@example.com',
+            purpose: 'INVALID_PURPOSE',
         });
-        prismaService.client.oTP.findFirst.mockResolvedValue(null);
 
         await expect(
             service.resetPassword({
-                email: 'user@example.com',
-                otp: '000000',
-                newPassword: 'new-pass',
+                resetToken: 'mocked-reset-token',
+                newPassword: 'new-password',
             }),
         ).rejects.toBeInstanceOf(BadRequestException);
-        expect(tx.user.update).not.toHaveBeenCalled();
-        expect(tx.authToken.updateMany).not.toHaveBeenCalled();
     });
 });

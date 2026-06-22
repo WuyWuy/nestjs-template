@@ -498,6 +498,8 @@ export class RestaurantService {
                       data: {
                           vote: data.vote,
                           comment: data.comment ?? '',
+                          orderId: data.orderId,
+                          tags: data.tags ?? undefined,
                       },
                   })
                 : await this.prismaService.client.restaurantRating.create({
@@ -506,6 +508,8 @@ export class RestaurantService {
                           userId,
                           vote: data.vote,
                           comment: data.comment ?? '',
+                          orderId: data.orderId,
+                          tags: data.tags ?? undefined,
                       },
                   });
 

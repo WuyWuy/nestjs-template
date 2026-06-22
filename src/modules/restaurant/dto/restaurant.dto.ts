@@ -13,6 +13,7 @@ import {
     Max,
     Min,
     ValidateNested,
+    IsArray,
 } from 'class-validator';
 
 export class GetRestaurantsQueryDto {
@@ -82,6 +83,16 @@ export class CreateRestaurantRatingDto {
     @IsOptional()
     @IsString()
     comment?: string = '';
+
+    @Type(() => Number)
+    @IsInt()
+    @IsNotEmpty()
+    orderId: number;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    tags?: string[];
 }
 
 export class RestaurantIdParamDto {

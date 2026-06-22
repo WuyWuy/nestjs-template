@@ -557,6 +557,7 @@ async function upsertRating(
         userId: number;
         vote: number;
         comment: string;
+        orderId: number;
     },
 ) {
     const existing = await db.restaurantRating.findFirst({
@@ -572,6 +573,7 @@ async function upsertRating(
             data: {
                 vote: data.vote,
                 comment: data.comment,
+                orderId: data.orderId,
                 deleteAt: null,
             },
         });
@@ -1073,20 +1075,6 @@ async function main() {
             }),
         };
 
-        await upsertRating(tx, {
-            restaurantId: restaurants.burgerTown.id,
-            userId: customer1.id,
-            vote: 5,
-            comment: 'Fast delivery and the burger was still hot.',
-        });
-
-        await upsertRating(tx, {
-            restaurantId: restaurants.riceExpress.id,
-            userId: customer2.id,
-            vote: 4,
-            comment: 'Solid lunch option and portion size was good.',
-        });
-
         const orderOne = await upsertOrder(tx, {
             restaurantId: restaurants.burgerTown.id,
             userId: customer1.id,
@@ -1129,7 +1117,7 @@ async function main() {
             userId: customer2.id,
             voucherId: null,
             addressId: thuDuc.id,
-            status: OrderStatus.CONFIRMED,
+            status: OrderStatus.DELIVERED,
             totalPrice: 18,
             note: '[seed] confirmed rice order',
         });
@@ -1153,6 +1141,22 @@ async function main() {
             method: PaymentMethod.MOMO,
             amount: 18,
             paymentStatus: PaymentStatus.SOLVING,
+        });
+
+        await upsertRating(tx, {
+            restaurantId: restaurants.burgerTown.id,
+            userId: customer1.id,
+            vote: 5,
+            comment: 'Fast delivery and the burger was still hot.',
+            orderId: orderOne.id,
+        });
+
+        await upsertRating(tx, {
+            restaurantId: restaurants.riceExpress.id,
+            userId: customer2.id,
+            vote: 4,
+            comment: 'Solid lunch option and portion size was good.',
+            orderId: orderTwo.id,
         });
 
         const orderThree = await upsertOrder(tx, {

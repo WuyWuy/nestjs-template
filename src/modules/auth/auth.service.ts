@@ -7,6 +7,7 @@ import {
     LoginData,
     RegisterData,
     ResetPasswordData,
+    VerifyResetOtpDto,
 } from './dto/auth.dto';
 import { AuthProvider, OTPType, Role, TokenType } from '@prisma/client';
 import { generateOtp } from '@/utilis/ranomOtp';
@@ -798,7 +799,7 @@ export class AuthService {
         }
     }
 
-    async resetPassword(data: ResetPasswordData) {
+    async verifyResetOtp(data: VerifyResetOtpDto) {
         try {
             const user = await this.prismaService.client.user.findFirst({
                 where: {
@@ -826,6 +827,56 @@ export class AuthService {
                 throw new BadRequestException('OTP is invalid or expired');
             }
 
+            // Đánh dấu OTP đã được dùng
+            await this.prismaService.client.oTP.update({
+                where: {
+                    id: resetOtp.id,
+                },
+                data: {
+                    usedAt: new Date(),
+                },
+            });
+
+            // Sinh resetToken ngắn hạn (10 phút)
+            const resetToken = await this.jwtService.signAsync(
+                { email: user.email, purpose: 'RESET_PASSWORD' },
+                {
+                    secret: this.getAccessSecretKey(),
+                    expiresIn: 600, // 10 minutes in seconds
+                },
+            );
+
+            return {
+                resetToken,
+            };
+        } catch (err) {
+            console.log('Verify reset OTP error', err);
+            throw err;
+        }
+    }
+
+    async resetPassword(data: ResetPasswordData) {
+        try {
+            const payload = await this.jwtService.verifyAsync<{
+                email: string;
+                purpose: string;
+            }>(data.resetToken, {
+                secret: this.getAccessSecretKey(),
+            });
+
+            if (payload.purpose !== 'RESET_PASSWORD') {
+                throw new BadRequestException('Invalid reset token purpose');
+            }
+
+            const user = await this.prismaService.client.user.findFirst({
+                where: {
+                    email: payload.email,
+                },
+            });
+            if (!user) {
+                throw new BadRequestException('User not found or has been deleted');
+            }
+
             const hashedPassword = await Bun.password.hash(data.newPassword, {
                 cost: 10,
                 algorithm: 'bcrypt',
@@ -838,15 +889,6 @@ export class AuthService {
                     },
                     data: {
                         password: hashedPassword,
-                    },
-                });
-
-                await tx.oTP.update({
-                    where: {
-                        id: resetOtp.id,
-                    },
-                    data: {
-                        usedAt: new Date(),
                     },
                 });
 
@@ -866,8 +908,11 @@ export class AuthService {
                 message: 'Password reset successfully',
             };
         } catch (err) {
+            if (err instanceof BadRequestException) {
+                throw err;
+            }
             console.log('Reset password error', err);
-            throw err;
+            throw new BadRequestException('Reset token is invalid or expired');
         }
     }
 

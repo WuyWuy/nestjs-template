@@ -26,6 +26,8 @@ model User {
     stripeCustomerId      String?
     userCards             UserCard[]
     foodRatings           FoodRating[]
+    searchHistories       SearchHistory[]
+    favoriteRestaurants   UserFavoriteRestaurant[]
 }
 
 model UserRole {

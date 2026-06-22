@@ -19,12 +19,26 @@ export class TransformInterceptor<T> implements NestInterceptor<
     intercept(
         context: ExecutionContext,
         next: CallHandler,
-    ): Observable<Response<T>> {
+    ): Observable<any> {
         return next.handle().pipe(
-            map((data) => ({
-                success: true,
-                data,
-            })),
+            map((data) => {
+                if (
+                    data &&
+                    typeof data === 'object' &&
+                    'data' in data &&
+                    'pagination' in data
+                ) {
+                    return {
+                        success: true,
+                        data: data.data,
+                        pagination: data.pagination,
+                    };
+                }
+                return {
+                    success: true,
+                    data,
+                };
+            }),
         );
     }
 }

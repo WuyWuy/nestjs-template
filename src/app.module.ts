@@ -32,6 +32,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { SearchModule } from './modules/search/search.module';
 import { FavoriteModule } from './modules/favorite/favorite.module';
+import { HomeModule } from './modules/home/home.module';
 
 @Module({
     imports: [
@@ -62,6 +63,7 @@ import { FavoriteModule } from './modules/favorite/favorite.module';
         HealthModule,
         SearchModule,
         FavoriteModule,
+        HomeModule,
     ],
     controllers: [AppController],
     providers: [

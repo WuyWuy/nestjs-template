@@ -539,3 +539,95 @@ describe('RestaurantService - getRestaurantRatingStats', () => {
         ).rejects.toThrow(ForbiddenException);
     });
 });
+
+describe('RestaurantService - getAllRestaurants', () => {
+    let service: RestaurantService;
+    let prismaService: any;
+
+    beforeEach(() => {
+        prismaService = {
+            client: {
+                restaurant: {
+                    findMany: jest.fn(),
+                },
+                userFavoriteRestaurant: {
+                    findMany: jest.fn(),
+                },
+            },
+        };
+
+        service = new RestaurantService(
+            prismaService,
+            {} as any,
+            {} as any,
+            {} as any,
+        );
+    });
+
+    it('should return list of restaurants with isLiked: false if userId is not provided', async () => {
+        const mockRestaurants = [
+            {
+                id: 101,
+                name: 'Pizza Shop',
+                image: 'pizza.jpg',
+                deliveryFee: 1.5,
+                ratings: [],
+                foods: [],
+                createdAt: new Date(),
+            },
+        ];
+
+        prismaService.client.restaurant.findMany.mockResolvedValueOnce(mockRestaurants);
+
+        const result = await service.getAllRestaurants(20, 0, '', undefined, undefined, undefined, undefined, undefined);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].isLiked).toBe(false);
+    });
+
+    it('should return list of restaurants with correct isLiked value if userId is provided', async () => {
+        const mockRestaurants = [
+            {
+                id: 101,
+                name: 'Pizza Shop',
+                image: 'pizza.jpg',
+                deliveryFee: 1.5,
+                ratings: [],
+                foods: [],
+                createdAt: new Date(),
+            },
+            {
+                id: 102,
+                name: 'Burger Shop',
+                image: 'burger.jpg',
+                deliveryFee: 2.0,
+                ratings: [],
+                foods: [],
+                createdAt: new Date(),
+            },
+        ];
+
+        const mockFavorites = [
+            { restaurantId: 101 },
+        ];
+
+        prismaService.client.restaurant.findMany.mockResolvedValueOnce(mockRestaurants);
+        prismaService.client.userFavoriteRestaurant.findMany.mockResolvedValueOnce(mockFavorites);
+
+        const result = await service.getAllRestaurants(20, 0, '', undefined, undefined, undefined, undefined, undefined, 5);
+
+        expect(result).toHaveLength(2);
+        expect(result[0].id).toBe(101);
+        expect(result[0].isLiked).toBe(true);
+        expect(result[1].id).toBe(102);
+        expect(result[1].isLiked).toBe(false);
+
+        expect(prismaService.client.userFavoriteRestaurant.findMany).toHaveBeenCalledWith({
+            where: {
+                userId: 5,
+                restaurantId: { in: [101, 102] },
+            },
+            select: { restaurantId: true },
+        });
+    });
+});

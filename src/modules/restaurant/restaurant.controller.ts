@@ -28,6 +28,7 @@ import {
     UpdateRestaurantRatingDto,
 } from './dto/restaurant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard } from '@/bases/guards/role.guard';
 import { Roles } from '@/bases/decorators/role.decorators';
 import { Role } from '@prisma/client';
@@ -322,8 +323,10 @@ export class RestaurantController {
     }
 
     @ApiOperation({ summary: 'Khám phá danh sách nhà hàng' })
+    @UseGuards(OptionalJwtAuthGuard)
     @Get()
-    async getAllRestauant(@Query() query: GetRestaurantsQueryDto) {
+    async getAllRestauant(@Query() query: GetRestaurantsQueryDto, @Req() req: Request) {
+        const userId = (req.user as { id?: number })?.id ? Number((req.user as { id?: number })?.id) : undefined;
         return this.restaurantService.getAllRestaurants(
             query.limit ?? 20,
             query.offset ?? 0,
@@ -333,6 +336,7 @@ export class RestaurantController {
             query.longitude,
             query.minRating,
             query.sortBy,
+            userId,
         );
     }
 

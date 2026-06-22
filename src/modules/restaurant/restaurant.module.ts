@@ -4,7 +4,7 @@ import { RestaurantService } from './restaurant.service';
 import { AuthModule } from '../auth/auth.module';
 @Module({
     imports: [AuthModule],
-    exports: [],
+    exports: [RestaurantService],
     providers: [RestaurantService],
     controllers: [RestaurantController],
 })

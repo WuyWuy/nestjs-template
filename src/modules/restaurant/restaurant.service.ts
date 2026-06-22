@@ -154,6 +154,7 @@ export class RestaurantService {
         longitude?: number,
         minRating?: number,
         sortBy?: string,
+        userId?: number,
     ) {
         try {
             const restaurants = await this.prismaService.client.restaurant.findMany(
@@ -306,7 +307,22 @@ export class RestaurantService {
 
             const paginated = mapped.slice(offset, offset + limit);
 
-            return paginated.map(({ createdAt, ...rest }) => rest);
+            const restaurantIds = paginated.map((r) => r.id);
+            const userFavorites = userId
+                ? await this.prismaService.client.userFavoriteRestaurant.findMany({
+                      where: {
+                          userId,
+                          restaurantId: { in: restaurantIds },
+                      },
+                      select: { restaurantId: true },
+                  })
+                : [];
+            const favoriteSet = new Set(userFavorites.map((f) => f.restaurantId));
+
+            return paginated.map(({ createdAt, ...rest }) => ({
+                ...rest,
+                isLiked: favoriteSet.has(rest.id),
+            }));
         } catch (err) {
             console.log("get all restaurant error: " , err) 
             throw err;

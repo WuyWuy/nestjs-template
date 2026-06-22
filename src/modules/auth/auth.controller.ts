@@ -201,8 +201,7 @@ export class AuthController {
             example: {
                 summary: 'Đặt lại mật khẩu với OTP',
                 value: {
-                    email: 'user@example.com',
-                    otp: '123456',
+                    resetToken: 'eyJhbGciOi...',
                     newPassword: '1234567',
                 },
             },

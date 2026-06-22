@@ -377,8 +377,10 @@ export class RestaurantController {
             example: {
                 summary: 'Review nhà hàng',
                 value: {
+                    orderId: 162432,
                     vote: 5,
                     comment: 'Đồ ăn ngon, đóng gói cẩn thận.',
+                    tags: ['Món ăn ngon', 'Giao hàng nhanh'],
                 },
             },
         },
@@ -401,6 +403,19 @@ export class RestaurantController {
 
     @ApiOperation({ summary: 'Cập nhật đánh giá, dành cho khách hàng' })
     @ApiBearerAuth()
+    @ApiBody({
+        type: UpdateRestaurantRatingDto,
+        examples: {
+            example: {
+                summary: 'Cập nhật review',
+                value: {
+                    vote: 4,
+                    comment: 'Đồ ăn vẫn ngon nhưng nay giao hơi chậm tí.',
+                    tags: ['Món ăn ngon'],
+                },
+            },
+        },
+    })
     @Roles(Role.CUSTOMER)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Patch('/reviews/:reviewId')

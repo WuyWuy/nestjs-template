@@ -307,4 +307,43 @@ export class UserService {
             throw err;
         }
     }
+
+    async getMyReviews(userId: number, limit: number, offset: number) {
+        try {
+            const ratings = await this.prismaService.client.restaurantRating.findMany({
+                where: {
+                    userId,
+                    deleteAt: null,
+                },
+                take: limit,
+                skip: offset,
+                orderBy: {
+                    createdAt: 'desc',
+                },
+                include: {
+                    restaurant: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                },
+            });
+
+            return ratings.map((r) => ({
+                id: r.id,
+                restaurantId: r.restaurantId,
+                restaurantName: r.restaurant.name,
+                vote: r.vote,
+                comment: r.comment,
+                tags: r.tags,
+                orderId: r.orderId,
+                createdAt: r.createdAt,
+                reply: r.reply,
+                replyCreatedAt: r.replyCreatedAt,
+            }));
+        } catch (err) {
+            console.log('Get my reviews error', err);
+            throw err;
+        }
+    }
 }

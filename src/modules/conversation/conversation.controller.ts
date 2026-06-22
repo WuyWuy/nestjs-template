@@ -11,6 +11,7 @@ import {
     UseInterceptors,
     UploadedFile,
     BadRequestException,
+    Patch,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConversationService } from './conversation.service';
@@ -153,5 +154,20 @@ export class ConversationController {
         }
         const imageUrl = await this.minioService.uploadFile(file);
         return { imageUrl };
+    }
+
+    @ApiOperation({ summary: 'Đánh dấu đã đọc toàn bộ tin nhắn trong cuộc hội thoại' })
+    @UseGuards(JwtAuthGuard)
+    @Patch('/:conversationId/read')
+    async markAsRead(
+        @Param('conversationId', ParseIntPipe) conversationId: number,
+        @Req() req: Request,
+    ) {
+        const userId = Number((req.user as { id?: number })?.id);
+        await this.conversationService.markAsRead(userId, conversationId);
+        return {
+            success: true,
+            message: 'Marked all messages as read',
+        };
     }
 }

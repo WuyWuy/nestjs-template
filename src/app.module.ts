@@ -30,6 +30,8 @@ import { VoucherModule } from './modules/voucher/voucher.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
+import { SearchModule } from './modules/search/search.module';
+import { FavoriteModule } from './modules/favorite/favorite.module';
 
 @Module({
     imports: [
@@ -57,7 +59,9 @@ import { HealthModule } from './modules/health/health.module';
         CategoryModule,
         VoucherModule,
         AdminModule,
-        HealthModule
+        HealthModule,
+        SearchModule,
+        FavoriteModule,
     ],
     controllers: [AppController],
     providers: [

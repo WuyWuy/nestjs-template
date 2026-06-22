@@ -1,6 +1,7 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Param,
     ParseIntPipe,
@@ -24,6 +25,7 @@ import {
     UpdateRestaurantStatusDto,
     UpdateOperatingHoursDto,
     CreateRestaurantRatingReplyDto,
+    UpdateRestaurantRatingDto,
 } from './dto/restaurant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '@/bases/guards/role.guard';
@@ -393,6 +395,72 @@ export class RestaurantController {
         );
     }
 
+    @ApiOperation({ summary: 'Cập nhật đánh giá, dành cho khách hàng' })
+    @ApiBearerAuth()
+    @Roles(Role.CUSTOMER)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Patch('/reviews/:reviewId')
+    async updateRestaurantReview(
+        @Param('reviewId', ParseIntPipe) reviewId: number,
+        @Body() data: UpdateRestaurantRatingDto,
+        @Req() req: Request,
+    ) {
+        const userId = Number((req.user as { id?: number })?.id);
+        const result = await this.restaurantService.updateRestaurantRating(
+            reviewId,
+            userId,
+            data,
+        );
+        return {
+            success: true,
+            message: 'Update review successfully',
+            data: {
+                id: result.id,
+                vote: result.vote,
+                comment: result.comment,
+                tags: result.tags,
+                updatedAt: new Date(),
+            },
+        };
+    }
+
+    @ApiOperation({ summary: 'Xóa đánh giá, dành cho khách hàng hoặc admin' })
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @Delete('/reviews/:reviewId')
+    async deleteRestaurantReview(
+        @Param('reviewId', ParseIntPipe) reviewId: number,
+        @Req() req: Request,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.restaurantService.deleteRestaurantRating(
+            reviewId,
+            Number(user.id),
+            user.roles ?? [],
+        );
+    }
+
+    @ApiOperation({ summary: 'Lấy danh sách review của nhà hàng (Vendor View)' })
+    @ApiBearerAuth()
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Get('/manage/:restaurantId/reviews')
+    async getRestaurantReviewsForVendor(
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Req() req: Request,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        const data = await this.restaurantService.getRestaurantRatingsForVendor(
+            restaurantId,
+            Number(user.id),
+            user.roles ?? [],
+        );
+        return {
+            success: true,
+            data,
+        };
+    }
+
     @ApiOperation({ summary: 'Trả lời review nhà hàng, dành cho admin/business' })
     @ApiBearerAuth()
     @ApiBody({
@@ -415,11 +483,41 @@ export class RestaurantController {
         @Req() req: Request,
     ) {
         const user = req.user as { id?: number; roles?: string[] };
-        return await this.restaurantService.replyToRestaurantRating(
+        const result = await this.restaurantService.replyToRestaurantRating(
             reviewId,
             Number(user.id),
             user.roles ?? [],
             body.reply,
         );
+        return {
+            success: true,
+            message: 'Reply added successfully',
+            data: {
+                id: result.id,
+                reply: result.reply,
+                replyCreatedAt: result.replyCreatedAt,
+            },
+        };
+    }
+
+    @ApiOperation({ summary: 'Thống kê đánh giá tại Dashboard (Rating Stats)' })
+    @ApiBearerAuth()
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Get('/manage/:restaurantId/stats/ratings')
+    async getRestaurantRatingStats(
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Req() req: Request,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        const data = await this.restaurantService.getRestaurantRatingStats(
+            restaurantId,
+            Number(user.id),
+            user.roles ?? [],
+        );
+        return {
+            success: true,
+            data,
+        };
     }
 }

@@ -10,6 +10,8 @@ import {
     CreateRestaurantDto,
     CreateRestaurantRatingDto,
     UpdateRestaurantDto,
+    ALLOWED_REVIEW_TAGS,
+    UpdateRestaurantRatingDto,
 } from './dto/restaurant.dto';
 import { AuditService } from '../audit/audit.service';
 import { MinioService } from '../minio/minio.service';
@@ -482,36 +484,55 @@ export class RestaurantService {
                 throw new NotFoundException('Restaurant not found');
             }
 
-            const existingRating =
-                await this.prismaService.client.restaurantRating.findFirst({
-                    where: {
-                        restaurantId,
-                        userId,
-                    },
-                });
+            const order = await this.prismaService.client.order.findFirst({
+                where: {
+                    id: data.orderId,
+                },
+            });
 
-            const rating = existingRating
-                ? await this.prismaService.client.restaurantRating.update({
-                      where: {
-                          id: existingRating.id,
-                      },
-                      data: {
-                          vote: data.vote,
-                          comment: data.comment ?? '',
-                          orderId: data.orderId,
-                          tags: data.tags ?? undefined,
-                      },
-                  })
-                : await this.prismaService.client.restaurantRating.create({
-                      data: {
-                          restaurantId,
-                          userId,
-                          vote: data.vote,
-                          comment: data.comment ?? '',
-                          orderId: data.orderId,
-                          tags: data.tags ?? undefined,
-                      },
-                  });
+            if (!order) {
+                throw new NotFoundException('Order not found');
+            }
+
+            if (order.userId !== userId) {
+                throw new ForbiddenException('You do not have permission to rate this order');
+            }
+
+            if (order.restaurantId !== restaurantId) {
+                throw new BadRequestException('This order does not belong to the specified restaurant');
+            }
+
+            if (order.status !== 'DELIVERED') {
+                throw new BadRequestException('Only delivered orders can be rated');
+            }
+
+            const existingRating = await this.prismaService.client.restaurantRating.findFirst({
+                where: {
+                    orderId: data.orderId,
+                },
+            });
+
+            if (existingRating) {
+                throw new BadRequestException('This order has already been rated');
+            }
+
+            if (data.tags && data.tags.length > 0) {
+                const invalidTags = data.tags.filter(t => !ALLOWED_REVIEW_TAGS.includes(t));
+                if (invalidTags.length > 0) {
+                    throw new BadRequestException('Invalid review tags');
+                }
+            }
+
+            const rating = await this.prismaService.client.restaurantRating.create({
+                data: {
+                    restaurantId,
+                    userId,
+                    vote: data.vote,
+                    comment: data.comment ?? '',
+                    orderId: data.orderId,
+                    tags: data.tags ?? undefined,
+                },
+            });
 
             try {
                 this.eventEmitter.emit('notification.send', {
@@ -936,5 +957,186 @@ export class RestaurantService {
         );
 
         return updatedRating;
+    }
+
+    async updateRestaurantRating(
+        reviewId: number,
+        userId: number,
+        data: UpdateRestaurantRatingDto,
+    ) {
+        const rating = await this.prismaService.client.restaurantRating.findFirst({
+            where: {
+                id: reviewId,
+                deleteAt: null,
+            },
+        });
+
+        if (!rating) {
+            throw new NotFoundException('Review not found');
+        }
+
+        if (rating.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to update this review');
+        }
+
+        if (data.tags && data.tags.length > 0) {
+            const invalidTags = data.tags.filter(t => !ALLOWED_REVIEW_TAGS.includes(t));
+            if (invalidTags.length > 0) {
+                throw new BadRequestException('Invalid review tags');
+            }
+        }
+
+        const updatedRating = await this.prismaService.client.restaurantRating.update({
+            where: { id: reviewId },
+            data: {
+                vote: data.vote ?? undefined,
+                comment: data.comment ?? undefined,
+                tags: data.tags ?? undefined,
+            },
+        });
+
+        return updatedRating;
+    }
+
+    async deleteRestaurantRating(
+        reviewId: number,
+        userId: number,
+        roles: string[],
+    ) {
+        const rating = await this.prismaService.client.restaurantRating.findFirst({
+            where: {
+                id: reviewId,
+                deleteAt: null,
+            },
+        });
+
+        if (!rating) {
+            throw new NotFoundException('Review not found');
+        }
+
+        const isAdmin = roles.includes('ADMIN');
+        if (rating.userId !== userId && !isAdmin) {
+            throw new ForbiddenException('You do not have permission to delete this review');
+        }
+
+        await this.prismaService.client.restaurantRating.delete({
+            id: reviewId,
+        });
+
+        return {
+            success: true,
+            message: 'Delete review successfully',
+        };
+    }
+
+    async getRestaurantRatingsForVendor(
+        restaurantId: number,
+        actorId: number,
+        roles: string[],
+    ) {
+        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+
+        const ratings = await this.prismaService.client.restaurantRating.findMany({
+            where: {
+                restaurantId,
+                deleteAt: null,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        avatar: true,
+                    },
+                },
+            },
+        });
+
+        return await Promise.all(
+            ratings.map(async (r) => {
+                let avatarUrl = '';
+                if (r.user?.avatar) {
+                    if (/^https?:\/\//i.test(r.user.avatar)) {
+                        avatarUrl = r.user.avatar;
+                    } else {
+                        avatarUrl = await this.minioService.getFileUrl(r.user.avatar);
+                    }
+                }
+                return {
+                    id: r.id,
+                    vote: r.vote,
+                    comment: r.comment,
+                    tags: r.tags,
+                    createdAt: r.createdAt,
+                    reply: r.reply,
+                    user: {
+                        id: r.user.id,
+                        name: r.user.name,
+                        avatar: avatarUrl,
+                    },
+                    orderId: r.orderId,
+                };
+            }),
+        );
+    }
+
+    async getRestaurantRatingStats(
+        restaurantId: number,
+        actorId: number,
+        roles: string[],
+    ) {
+        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+
+        const ratings = await this.prismaService.client.restaurantRating.findMany({
+            where: {
+                restaurantId,
+                deleteAt: null,
+            },
+            select: {
+                vote: true,
+                tags: true,
+            },
+        });
+
+        const totalReviews = ratings.length;
+        const starCount = {
+            '1': 0,
+            '2': 0,
+            '3': 0,
+            '4': 0,
+            '5': 0,
+        };
+        let sumVote = 0;
+        const tagMap = new Map<string, number>();
+
+        for (const r of ratings) {
+            const star = r.vote.toString() as '1' | '2' | '3' | '4' | '5';
+            if (starCount[star] !== undefined) {
+                starCount[star]++;
+            }
+            sumVote += r.vote;
+
+            if (r.tags) {
+                const tagsList = Array.isArray(r.tags) ? (r.tags as string[]) : [];
+                for (const t of tagsList) {
+                    tagMap.set(t, (tagMap.get(t) || 0) + 1);
+                }
+            }
+        }
+
+        const averageRating = totalReviews > 0 ? Number((sumVote / totalReviews).toFixed(1)) : 0;
+        const popularTags = Array.from(tagMap.entries())
+            .map(([tag, count]) => ({ tag, count }))
+            .sort((a, b) => b.count - a.count);
+
+        return {
+            averageRating,
+            totalReviews,
+            starCount,
+            popularTags,
+        };
     }
 }

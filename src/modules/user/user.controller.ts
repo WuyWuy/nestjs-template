@@ -8,12 +8,13 @@ import {
     Post,
     Put,
     Req,
+    Query,
     UnauthorizedException,
     UploadedFile,
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Express, Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
@@ -235,5 +236,29 @@ export class UserController {
             Number(id),
         );
         return response;
+    }
+
+    @ApiOperation({ summary: 'Lấy danh sách review của tôi (My Reviews)' })
+    @ApiBearerAuth()
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Số lượng bản ghi tối đa' })
+    @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Số bản ghi bỏ qua' })
+    @Roles(Role.CUSTOMER)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Get('reviews')
+    async getMyReviews(
+        @Req() req: Request,
+        @Query('limit') limit?: number,
+        @Query('offset') offset?: number,
+    ) {
+        const id = (req.user as any).id;
+        if (!id || isNaN(id))
+            throw new UnauthorizedException('User Not Found or token invalid');
+        const parsedLimit = limit ? Number(limit) : 20;
+        const parsedOffset = offset ? Number(offset) : 0;
+        const data = await this.userService.getMyReviews(Number(id), parsedLimit, parsedOffset);
+        return {
+            success: true,
+            data,
+        };
     }
 }

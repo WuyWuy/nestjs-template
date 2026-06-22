@@ -14,6 +14,7 @@ import {
     Min,
     ValidateNested,
     IsArray,
+    IsIn,
 } from 'class-validator';
 
 export class GetRestaurantsQueryDto {
@@ -73,6 +74,14 @@ export class GetRestaurantMenuQueryDto {
     categoryId?: number;
 }
 
+export const ALLOWED_REVIEW_TAGS = [
+    'Món ăn ngon',
+    'Giao hàng nhanh',
+    'Đóng gói cẩn thận',
+    'Thái độ tốt',
+    'Giá cả hợp lý',
+];
+
 export class CreateRestaurantRatingDto {
     @Type(() => Number)
     @IsInt()
@@ -92,6 +101,7 @@ export class CreateRestaurantRatingDto {
     @IsOptional()
     @IsArray()
     @IsString({ each: true })
+    @IsIn(ALLOWED_REVIEW_TAGS, { each: true, message: 'Invalid review tags' })
     tags?: string[];
 }
 
@@ -216,5 +226,24 @@ export class CreateRestaurantRatingReplyDto {
     @IsString()
     @IsNotEmpty()
     reply: string;
+}
+
+export class UpdateRestaurantRatingDto {
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(5)
+    vote?: number;
+
+    @IsOptional()
+    @IsString()
+    comment?: string;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    @IsIn(ALLOWED_REVIEW_TAGS, { each: true, message: 'Invalid review tags' })
+    tags?: string[];
 }
 

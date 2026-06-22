@@ -132,6 +132,7 @@ export class ConversationService {
                             senderId: true,
                             createdAt: true,
                             image: true,
+                            isRead: true,
                         },
                     },
                     customer: {
@@ -176,12 +177,34 @@ export class ConversationService {
         });
         const orderMap = new Map(orders.map((order) => [order.id, order]));
 
+        const unreadCounts = await this.prismaService.client.message.groupBy({
+            by: ['conversationId'],
+            where: {
+                conversationId: {
+                    in: conversations.map((c) => c.id),
+                },
+                senderId: {
+                    not: userId,
+                },
+                isRead: false,
+            },
+            _count: {
+                id: true,
+            },
+        });
+        const unreadCountMap = new Map(
+            unreadCounts.map((item) => [item.conversationId, item._count.id]),
+        );
+
         return conversations.map((conversation) => {
             const { messages, ...rest } = conversation;
+            const order = orderMap.get(conversation.orderId) ?? null;
+            const restaurant = order?.restaurant ?? null;
             return {
                 ...rest,
-                order: orderMap.get(conversation.orderId) ?? null,
+                restaurant,
                 lastMessage: messages[0] ?? null,
+                unreadCount: unreadCountMap.get(conversation.id) ?? 0,
             };
         });
     }
@@ -205,13 +228,42 @@ export class ConversationService {
                     sellerId: true,
                     createdAt: true,
                     updatedAt: true,
+                    customer: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                    seller: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
                 },
             },
         );
 
         if (!conversation) {
-            throw new BadRequestException('Conversation not found');
+            throw new NotFoundException('Conversation not found');
         }
+
+        const order = await this.prismaService.client.order.findUnique({
+            where: {
+                id: orderId,
+            },
+            select: {
+                restaurant: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true,
+                    },
+                },
+            },
+        });
 
         const messages = await this.prismaService.client.message.findMany({
             where: {
@@ -229,36 +281,14 @@ export class ConversationService {
                 content: true,
                 image: true,
                 createdAt: true,
-                sender: {
-                    select: {
-                        id: true,
-                        name: true,
-                        avatar: true,
-                    },
-                },
+                isRead: true,
             },
         });
 
         return {
             conversation: {
                 ...conversation,
-                order:
-                    (await this.prismaService.client.order.findFirst({
-                        where: {
-                            id: conversation.orderId,
-                        },
-                        select: {
-                            id: true,
-                            status: true,
-                            restaurant: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                    image: true,
-                                },
-                            },
-                        },
-                    })) ?? null,
+                restaurant: order?.restaurant ?? null,
             },
             messages: messages.map((message) => ({
                 ...message,
@@ -273,10 +303,55 @@ export class ConversationService {
         limit: number = 20,
         offset: number = 0,
     ) {
-        const conversation = await this.findConversationForUserOrThrow(
-            userId,
-            conversationId,
+        const conversation = await this.prismaService.client.conversation.findFirst(
+            {
+                where: {
+                    id: conversationId,
+                    OR: [{ sellerId: userId }, { customerId: userId }],
+                },
+                select: {
+                    id: true,
+                    orderId: true,
+                    customerId: true,
+                    sellerId: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    customer: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                    seller: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                },
+            },
         );
+
+        if (!conversation) {
+            throw new NotFoundException('Conversation not found');
+        }
+
+        const order = await this.prismaService.client.order.findUnique({
+            where: {
+                id: conversation.orderId,
+            },
+            select: {
+                restaurant: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true,
+                    },
+                },
+            },
+        });
 
         const messages = await this.prismaService.client.message.findMany({
             where: {
@@ -294,22 +369,47 @@ export class ConversationService {
                 content: true,
                 image: true,
                 createdAt: true,
-                sender: {
-                    select: {
-                        id: true,
-                        name: true,
-                        avatar: true,
-                    },
-                },
+                isRead: true,
             },
         });
 
         return {
-            conversation,
+            conversation: {
+                ...conversation,
+                restaurant: order?.restaurant ?? null,
+            },
             messages: messages.map((message) => ({
                 ...message,
                 who: userId === message.senderId ? 'me' : 'other',
             })),
         };
+    }
+
+    async markAsRead(userId: number, conversationId: number) {
+        const conversation = await this.prismaService.client.conversation.findFirst(
+            {
+                where: {
+                    id: conversationId,
+                    OR: [{ sellerId: userId }, { customerId: userId }],
+                },
+            },
+        );
+
+        if (!conversation) {
+            throw new NotFoundException('Conversation not found');
+        }
+
+        await this.prismaService.client.message.updateMany({
+            where: {
+                conversationId: conversation.id,
+                senderId: {
+                    not: userId,
+                },
+                isRead: false,
+            },
+            data: {
+                isRead: true,
+            },
+        });
     }
 }

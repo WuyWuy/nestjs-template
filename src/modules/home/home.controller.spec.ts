@@ -1,3 +1,16 @@
+jest.mock('@prisma/client', () => ({
+    Prisma: {
+        defineExtension: jest.fn((extension) => extension),
+        getExtensionContext: jest.fn(),
+        TransactionIsolationLevel: {},
+    },
+    PrismaClient: class {
+        $extends() {
+            return this;
+        }
+    },
+}));
+
 import { HomeController } from './home.controller';
 import { GetDashboardQueryDto } from './dto/home.dto';
 
@@ -38,5 +51,14 @@ describe('HomeController', () => {
 
         expect(result).toEqual({ featured: ['item'] });
         expect(homeService.getDashboard).toHaveBeenCalledWith(10, 20, 456);
+    });
+
+    it('should forward dashboard request with undefined coordinates when query is empty', async () => {
+        homeService.getDashboard.mockResolvedValue({ restaurants: [] });
+
+        const result = await controller.getDashboard({} as GetDashboardQueryDto, { user: undefined } as any);
+
+        expect(result).toEqual({ restaurants: [] });
+        expect(homeService.getDashboard).toHaveBeenCalledWith(undefined, undefined, undefined);
     });
 });

@@ -109,6 +109,21 @@ describe('HomeService', () => {
                 },
             });
         });
+
+        it('should default cart item count to zero when aggregate sum is null', async () => {
+            prismaService.client.cart.findFirst.mockResolvedValueOnce({ id: 10 });
+            prismaService.client.cartItem.aggregate.mockResolvedValueOnce({
+                _sum: { quantity: null },
+            });
+            prismaService.client.message.count.mockResolvedValueOnce(1);
+
+            const result = await service.getCounters(1);
+
+            expect(result).toEqual({
+                cartItemCount: 0,
+                unreadMessageCount: 1,
+            });
+        });
     });
 
     describe('getDashboard', () => {
@@ -227,6 +242,106 @@ describe('HomeService', () => {
                 undefined,
                 1,
             );
+        });
+
+        it('should not resolve already absolute image urls through Minio', async () => {
+            prismaService.client.user.findFirst.mockResolvedValueOnce({
+                id: 1,
+                name: 'Nguyen Van A',
+                avatar: 'https://cdn.example.com/avatar.png',
+            });
+            prismaService.client.cart.findFirst.mockResolvedValueOnce(null);
+            prismaService.client.message.count.mockResolvedValueOnce(0);
+            restaurantService.getAllRestaurants.mockResolvedValueOnce([
+                {
+                    id: 102,
+                    name: 'Pizza Place',
+                    image: 'https://cdn.example.com/pizza.png',
+                    averageRating: 4.2,
+                    deliveryFee: 12000,
+                    distanceKm: undefined,
+                    categories: [{ id: 2, name: 'Pizza' }],
+                    estimatedDeliveryTime: 30,
+                    isLiked: undefined,
+                },
+            ]);
+
+            const result = await service.getDashboard(undefined, undefined, 1);
+
+            expect(minioService.getFileUrl).not.toHaveBeenCalledWith(
+                'https://cdn.example.com/avatar.png',
+            );
+            expect(result.user).toEqual({
+                id: 1,
+                fullName: 'Nguyen Van A',
+                avatarUrl: 'https://cdn.example.com/avatar.png',
+            });
+            expect(result.restaurants[0]).toEqual({
+                id: 102,
+                name: 'Pizza Place',
+                imageUrl: 'https://cdn.example.com/pizza.png',
+                averageRating: 4.2,
+                deliveryFee: 12000,
+                distance: undefined,
+                tags: ['Pizza'],
+                estimatedDeliveryTime: 30,
+                isLiked: false,
+            });
+        });
+
+        it('should return empty image urls when file resolution fails or image is missing', async () => {
+            restaurantService.getAllRestaurants.mockResolvedValueOnce([
+                {
+                    id: 103,
+                    name: 'Noodle Shop',
+                    image: 'broken-image.png',
+                    averageRating: 4,
+                    deliveryFee: 10000,
+                    distanceKm: 1.5,
+                    categories: [],
+                    estimatedDeliveryTime: 20,
+                },
+                {
+                    id: 104,
+                    name: 'Soup Shop',
+                    image: null,
+                    averageRating: 3.5,
+                    deliveryFee: 9000,
+                    distanceKm: 2,
+                    categories: [],
+                    estimatedDeliveryTime: 18,
+                },
+            ]);
+            minioService.getFileUrl.mockRejectedValueOnce(
+                new Error('minio unavailable'),
+            );
+
+            const result = await service.getDashboard();
+
+            expect(result.restaurants).toEqual([
+                {
+                    id: 103,
+                    name: 'Noodle Shop',
+                    imageUrl: '',
+                    averageRating: 4,
+                    deliveryFee: 10000,
+                    distance: 1.5,
+                    tags: [],
+                    estimatedDeliveryTime: 20,
+                    isLiked: false,
+                },
+                {
+                    id: 104,
+                    name: 'Soup Shop',
+                    imageUrl: '',
+                    averageRating: 3.5,
+                    deliveryFee: 9000,
+                    distance: 2,
+                    tags: [],
+                    estimatedDeliveryTime: 18,
+                    isLiked: false,
+                },
+            ]);
         });
     });
 });

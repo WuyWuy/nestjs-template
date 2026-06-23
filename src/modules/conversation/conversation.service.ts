@@ -109,6 +109,7 @@ export class ConversationService {
     }
 
     async getAllUserConversation(userId: number) {
+        console.log(userId) 
         const conversations = await this.prismaService.client.conversation.findMany(
             {
                 where: {

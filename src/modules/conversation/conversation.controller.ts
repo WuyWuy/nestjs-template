@@ -54,13 +54,10 @@ export class ConversationController {
     @UseGuards(JwtAuthGuard , RolesGuard)
     @Get('/user/:userId')
     async getAllUsersConversations(
-        @Param('userId', ParseIntPipe) userId: number,
-        @Req() req: Request,
+        @Param('userId', ParseIntPipe) userId: number
     ) {
-        const requesterId = Number((req.user as { id?: number })?.id);
-        const safeUserId = requesterId === userId ? userId : requesterId;
         return await this.conversationService.getAllUserConversation(
-            safeUserId,
+            userId,
         );
     }
 

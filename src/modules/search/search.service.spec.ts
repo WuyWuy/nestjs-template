@@ -28,6 +28,7 @@ jest.mock('@prisma/client', () => ({
     },
 }));
 
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SearchService } from './search.service';
 import { SearchQueryDto } from './dto/search.dto';
 
@@ -149,6 +150,109 @@ describe('SearchService', () => {
             expect(result.restaurants[0].hasVoucher).toBe(true);
             expect(result.restaurants[0].tags).toContain('Fast Food');
         });
+
+        it('should apply category filters, sort foods by price, paginate results and omit food distance metadata', async () => {
+            prismaService.client.voucher.findMany.mockResolvedValueOnce([]);
+            prismaService.client.orderFood.groupBy.mockResolvedValueOnce([
+                { foodId: 1, _sum: { quantity: 2 } },
+                { foodId: 2, _sum: { quantity: 5 } },
+            ]);
+            prismaService.client.restaurantRating.groupBy.mockResolvedValueOnce([]);
+            prismaService.client.food.findMany.mockResolvedValueOnce([
+                {
+                    id: 1,
+                    name: 'Expensive Pizza',
+                    price: 100,
+                    image: 'expensive.jpg',
+                    restaurantId: 101,
+                    rating: 4,
+                    updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+                    restaurant: {
+                        name: 'Pizza Town',
+                        address: { latitude: null, longitude: null },
+                    },
+                    ratings: [],
+                },
+                {
+                    id: 2,
+                    name: 'Cheap Pizza',
+                    price: 50,
+                    image: 'cheap.jpg',
+                    restaurantId: 101,
+                    rating: 3,
+                    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+                    restaurant: {
+                        name: 'Pizza Town',
+                        address: { latitude: null, longitude: null },
+                    },
+                    ratings: [{ vote: 5 }, { vote: 3 }],
+                },
+            ]);
+            prismaService.client.restaurant.findMany.mockResolvedValueOnce([
+                {
+                    id: 101,
+                    name: 'Pizza Town',
+                    image: 'pizza-town.jpg',
+                    deliveryFee: '1.25',
+                    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+                    address: { latitude: null, longitude: null },
+                    foods: [{ category: { name: 'Pizza' } }],
+                },
+            ]);
+
+            const result = await service.search({
+                q: 'pizza',
+                limit: 1,
+                offset: 0,
+                sort: 'price_low_to_high',
+                categoryId: 7,
+            });
+
+            expect(prismaService.client.food.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        deleteAt: null,
+                        isAvailable: true,
+                        categoryId: 7,
+                    }),
+                }),
+            );
+            expect(prismaService.client.restaurant.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        foods: {
+                            some: {
+                                categoryId: 7,
+                                deleteAt: null,
+                                isAvailable: true,
+                            },
+                        },
+                    }),
+                }),
+            );
+            expect(result.foods).toEqual([
+                {
+                    id: 2,
+                    name: 'Cheap Pizza',
+                    price: 50,
+                    imageUrl: 'cheap.jpg',
+                    restaurantId: 101,
+                    restaurantName: 'Pizza Town',
+                    rating: 4,
+                    soldCount: 5,
+                    promoTag: null,
+                },
+            ]);
+            expect(result.foods[0]).not.toHaveProperty('distance');
+            expect(result.foods[0]).not.toHaveProperty('updatedAt');
+            expect(result.restaurants[0]).toEqual(
+                expect.objectContaining({
+                    id: 101,
+                    deliveryFee: 1.25,
+                    distance: 0,
+                }),
+            );
+        });
     });
 
     describe('getSuggestions', () => {
@@ -221,15 +325,133 @@ describe('SearchService', () => {
             expect(result.restaurants[0].distance).toBeLessThanOrEqual(1.0); // Within 10km
             expect(result.restaurants[0].hasVoucher).toBe(true);
         });
+
+        it('should fill suggestion foods with rating fallback and sort restaurants by rating when location is missing', async () => {
+            prismaService.client.voucher.findMany.mockResolvedValueOnce([
+                { id: 1, restaurantId: 102, type: 'FIXED', sale: 5 },
+            ]);
+            prismaService.client.restaurantRating.groupBy.mockResolvedValueOnce([
+                { restaurantId: 101, _avg: { vote: 4.6 } },
+                { restaurantId: 102, _avg: { vote: 4.9 } },
+            ]);
+            prismaService.client.orderFood.groupBy
+                .mockResolvedValueOnce([{ foodId: 1, _sum: { quantity: 4 } }])
+                .mockResolvedValueOnce([
+                    { foodId: 1, _sum: { quantity: 4 } },
+                    { foodId: 2, _sum: { quantity: 0 } },
+                ]);
+            prismaService.client.food.findMany
+                .mockResolvedValueOnce([
+                    {
+                        id: 1,
+                        name: 'Top Burger',
+                        price: '70',
+                        image: 'top.jpg',
+                        restaurantId: 101,
+                        rating: 4,
+                        restaurant: {
+                            name: 'Burger Town',
+                            address: { latitude: 10.7, longitude: 106.6 },
+                        },
+                        ratings: [],
+                    },
+                ])
+                .mockResolvedValueOnce([
+                    {
+                        id: 2,
+                        name: 'Extra Burger',
+                        price: '60',
+                        image: 'extra.jpg',
+                        restaurantId: 102,
+                        rating: 3,
+                        restaurant: {
+                            name: 'Voucher Burger',
+                            address: { latitude: 10.8, longitude: 106.7 },
+                        },
+                        ratings: [{ vote: 5 }, { vote: 4 }],
+                    },
+                ]);
+            prismaService.client.restaurant.findMany.mockResolvedValueOnce([
+                {
+                    id: 101,
+                    name: 'Burger Town',
+                    image: 'burger.jpg',
+                    deliveryFee: '2',
+                    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+                    address: { latitude: 10.7, longitude: 106.6 },
+                    foods: [{ category: { name: 'Burger' } }],
+                },
+                {
+                    id: 102,
+                    name: 'Voucher Burger',
+                    image: 'voucher.jpg',
+                    deliveryFee: '1.5',
+                    createdAt: new Date('2026-01-02T00:00:00.000Z'),
+                    address: { latitude: 10.8, longitude: 106.7 },
+                    foods: [{ category: { name: 'Fast Food' } }],
+                },
+            ]);
+
+            const result = await service.getSuggestions({ limit: 2 });
+
+            expect(prismaService.client.food.findMany).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        id: { notIn: [1] },
+                    }),
+                    take: 1,
+                    orderBy: {
+                        rating: 'desc',
+                    },
+                }),
+            );
+            expect(result.foods).toEqual([
+                expect.objectContaining({
+                    id: 1,
+                    price: 70,
+                    rating: 4,
+                    soldCount: 4,
+                }),
+                expect.objectContaining({
+                    id: 2,
+                    price: 60,
+                    rating: 4.5,
+                    soldCount: 0,
+                }),
+            ]);
+            expect(result.restaurants.map((restaurant) => restaurant.id)).toEqual([
+                102,
+                101,
+            ]);
+            expect(result.restaurants[0]).toEqual(
+                expect.objectContaining({
+                    averageRating: 4.9,
+                    hasVoucher: true,
+                    distance: 0,
+                }),
+            );
+        });
     });
 
     describe('history management', () => {
         it('should get search history list', async () => {
-            prismaService.client.searchHistory.findMany.mockResolvedValueOnce([
-                { id: 1, keyword: 'pizza', createdAt: new Date() },
-            ]);
+            const historyRows = [{ id: 1, keyword: 'pizza', createdAt: new Date() }];
+            prismaService.client.searchHistory.findMany.mockResolvedValueOnce(
+                historyRows,
+            );
+
             const history = await service.getHistory(1);
-            expect(history).toBeDefined();
+
+            expect(prismaService.client.searchHistory.findMany).toHaveBeenCalledWith({
+                where: {
+                    userId: 1,
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            });
+            expect(history).toBe(historyRows);
         });
 
         it('should save/upsert keyword to history', async () => {
@@ -240,11 +462,30 @@ describe('SearchService', () => {
                 createdAt: mockDate,
             });
             const result = await service.saveHistory(1, { keyword: 'pizza' });
+            expect(prismaService.client.searchHistory.upsert).toHaveBeenCalledWith({
+                where: {
+                    userId_keyword: {
+                        userId: 1,
+                        keyword: 'pizza',
+                    },
+                },
+                update: {
+                    createdAt: expect.any(Date),
+                },
+                create: {
+                    userId: 1,
+                    keyword: 'pizza',
+                },
+            });
             expect(result.keyword).toBe('pizza');
         });
 
         it('should clear all history', async () => {
             const result = await service.clearHistory(1);
+
+            expect(prismaService.client.searchHistory.deleteMany).toHaveBeenCalledWith({
+                userId: 1,
+            });
             expect(result.success).toBe(true);
         });
 
@@ -255,13 +496,22 @@ describe('SearchService', () => {
                 keyword: 'pizza',
             });
             const result = await service.deleteHistoryItem(1, 99);
+
+            expect(prismaService.client.searchHistory.findFirst).toHaveBeenCalledWith({
+                where: {
+                    id: 99,
+                },
+            });
+            expect(prismaService.client.searchHistory.delete).toHaveBeenCalledWith({
+                id: 99,
+            });
             expect(result.success).toBe(true);
         });
 
         it('should throw NotFoundException if history item does not exist', async () => {
             prismaService.client.searchHistory.findFirst.mockResolvedValueOnce(null);
             await expect(service.deleteHistoryItem(1, 99)).rejects.toThrow(
-                'History item not found',
+                NotFoundException,
             );
         });
 
@@ -272,8 +522,9 @@ describe('SearchService', () => {
                 keyword: 'pizza',
             });
             await expect(service.deleteHistoryItem(1, 99)).rejects.toThrow(
-                'You do not have permission to delete this history item',
+                ForbiddenException,
             );
+            expect(prismaService.client.searchHistory.delete).not.toHaveBeenCalled();
         });
     });
 

@@ -73,7 +73,6 @@ export class LoginData {
     })
     phone: string;
 }
-
 export class ResetEmailData {
     @ApiProperty({
         description: 'Mật khẩu hiện tại để xác thực yêu cầu đổi email',

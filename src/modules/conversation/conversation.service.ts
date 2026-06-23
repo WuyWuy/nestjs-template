@@ -39,9 +39,13 @@ export class ConversationService {
             select: {
                 id: true,
                 userId: true,
+                user: {
+                    
+                }, 
                 restaurant: {
                     select: {
                         ownerId: true,
+                        image: true 
                     },
                 },
             },
@@ -68,6 +72,18 @@ export class ConversationService {
                 where: {
                     orderId: data.orderId,
                 },
+                select: {
+                    customer: {
+                        select: {
+                            id: true, name: true, avatar : true 
+                        }
+                    }, 
+                    seller: {
+                        select: {
+                            id : true, name: true, avatar: true 
+                        }
+                    }
+                }
             });
 
         if (existsConversation) {
@@ -99,13 +115,31 @@ export class ConversationService {
             return existsConversation;
         }
 
-        return await this.prismaService.client.conversation.create({
+        const conversation =  await this.prismaService.client.conversation.create({
             data: {
                 orderId,
                 customerId,
                 sellerId,
             },
+            select: {
+                customer: {
+                    select: {
+                        id: true, 
+                        name: true, 
+                        avatar: true 
+                    }
+                }, 
+                seller: {
+                    select: {
+                        id: true, 
+                        name: true, 
+                        avatar: true 
+                    }
+                }
+            }
         });
+        console.log(conversation) 
+        return conversation
     }
 
     async getAllUserConversation(userId: number) {

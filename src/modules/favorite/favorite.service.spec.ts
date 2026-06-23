@@ -125,12 +125,57 @@ describe('FavoriteService', () => {
 
             const result = await service.getFavorites(1, 20, 0);
 
+            expect(prismaService.client.userFavoriteRestaurant.count).toHaveBeenCalledWith({
+                where: { userId: 1 },
+            });
             expect(result).toEqual({
                 data: [],
                 pagination: {
                     total: 0,
                     limit: 20,
                     offset: 0,
+                },
+            });
+        });
+
+        it('should return zero rating and convert delivery fee when restaurant has no ratings', async () => {
+            const deliveryFee = {
+                valueOf: () => 2.75,
+            };
+            prismaService.client.userFavoriteRestaurant.count.mockResolvedValueOnce(1);
+            prismaService.client.userFavoriteRestaurant.findMany.mockResolvedValueOnce([
+                {
+                    restaurant: {
+                        id: 102,
+                        name: 'Noodle Shop',
+                        image: 'noodle.jpg',
+                        deliveryFee,
+                        ratings: [],
+                        foods: [
+                            { category: { name: 'Noodles' } },
+                        ],
+                    },
+                },
+            ]);
+
+            const result = await service.getFavorites(1, 10, 5);
+
+            expect(result).toEqual({
+                data: [
+                    {
+                        id: 102,
+                        name: 'Noodle Shop',
+                        image: 'noodle.jpg',
+                        rating: 0,
+                        deliveryFee: 2.75,
+                        tags: ['Noodles'],
+                        isLiked: true,
+                    },
+                ],
+                pagination: {
+                    total: 1,
+                    limit: 10,
+                    offset: 5,
                 },
             });
         });

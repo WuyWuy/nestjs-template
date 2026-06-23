@@ -75,10 +75,10 @@ export class GetRestaurantMenuQueryDto {
 }
 
 export const ALLOWED_REVIEW_TAGS = [
-    'Món ăn ngon',
-    'Giao hàng nhanh',
-    'Đóng gói cẩn thận',
-    'Thái độ tốt',
+    'Thuc an ngon',
+    'Giao hang nhanh',
+    'Dong goi can than',
+    'Thai do tot',
     'Giá cả hợp lý',
 ];
 

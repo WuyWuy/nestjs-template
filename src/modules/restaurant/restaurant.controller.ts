@@ -379,8 +379,8 @@ export class RestaurantController {
                 value: {
                     orderId: 162432,
                     vote: 5,
-                    comment: 'Đồ ăn ngon, đóng gói cẩn thận.',
-                    tags: ['Món ăn ngon', 'Giao hàng nhanh'],
+                    comment: 'Thuc an ngon, dong goi can than',
+                    tags: ['Mon an ngon', 'Giao hang nhanh'],
                 },
             },
         },

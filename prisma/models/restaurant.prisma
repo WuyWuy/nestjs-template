@@ -6,11 +6,9 @@ model Restaurant {
     description String           @default("") @db.Text
     phone     String             @unique
     approved  Boolean            @default(false)
-    deliveryFee Decimal          @default(0)
     minimumOrder Decimal         @default(0)
     estimatedDeliveryTime Int    @default(20)
     isOpen    Boolean            @default(true)
-    operatingHours Json?
     isFeatured Boolean           @default(false)
     addressId Int
     address   Address            @relation(fields: [addressId], references: [id])

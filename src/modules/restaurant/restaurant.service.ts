@@ -126,7 +126,7 @@ export class RestaurantService {
         }
     }
 
-    private calculateDistance(
+    public calculateDistance(
         lat1: number,
         lon1: number,
         lat2: number,
@@ -196,7 +196,6 @@ export class RestaurantService {
                         coverImage: true,
                         description: true,
                         phone: true,
-                        deliveryFee: true,
                         minimumOrder: true,
                         estimatedDeliveryTime: true,
                         createdAt: true,
@@ -260,7 +259,6 @@ export class RestaurantService {
                     coverImage: restaurant.coverImage,
                     description: restaurant.description,
                     phone: restaurant.phone,
-                    deliveryFee: Number(restaurant.deliveryFee),
                     minimumOrder: Number(restaurant.minimumOrder),
                     estimatedDeliveryTime: restaurant.estimatedDeliveryTime,
                     createdAt: restaurant.createdAt,
@@ -405,11 +403,9 @@ export class RestaurantService {
                         coverImage: true,
                         phone: true,
                         description: true,
-                        deliveryFee: true,
                         minimumOrder: true,
                         estimatedDeliveryTime: true,
                         isOpen: true,
-                        operatingHours: true,
                         address: true,
                         ownerId: true,
                         foods: {
@@ -462,7 +458,6 @@ export class RestaurantService {
 
             return {
                 ...restaurant,
-                deliveryFee: Number(restaurant.deliveryFee),
                 minimumOrder: Number(restaurant.minimumOrder),
                 averageRating,
                 ratingCount,
@@ -638,7 +633,6 @@ export class RestaurantService {
 
         return restaurants.map((restaurant) => ({
             ...restaurant,
-            deliveryFee: Number(restaurant.deliveryFee),
             minimumOrder: Number(restaurant.minimumOrder),
         }));
     }
@@ -667,7 +661,6 @@ export class RestaurantService {
             description: restaurantPayload.description ?? '',
             image: restaurantPayload.image ?? '',
             coverImage: restaurantPayload.coverImage ?? '',
-            deliveryFee: restaurantPayload.deliveryFee ?? 0,
             minimumOrder: restaurantPayload.minimumOrder ?? 0,
             estimatedDeliveryTime:
                 restaurantPayload.estimatedDeliveryTime ?? 20,
@@ -727,9 +720,6 @@ export class RestaurantService {
         }
         if (restaurantPayload.coverImage !== undefined) {
             updateData.coverImage = restaurantPayload.coverImage;
-        }
-        if (restaurantPayload.deliveryFee !== undefined) {
-            updateData.deliveryFee = restaurantPayload.deliveryFee;
         }
         if (restaurantPayload.minimumOrder !== undefined) {
             updateData.minimumOrder = restaurantPayload.minimumOrder;
@@ -913,29 +903,29 @@ export class RestaurantService {
         return restaurant;
     }
 
-    async updateRestaurantOperatingHours(
-        restaurantId: number,
-        actorId: number,
-        roles: string[],
-        operatingHours: any,
-    ) {
-        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+    // async updateRestaurantOperatingHours(
+    //     restaurantId: number,
+    //     actorId: number,
+    //     roles: string[],
+    //     operatingHours: any,
+    // ) {
+    //     await this.assertRestaurantOwner(actorId, roles, restaurantId);
 
-        const restaurant = await this.prismaService.client.restaurant.update({
-            where: { id: restaurantId },
-            data: { operatingHours },
-        });
+    //     const restaurant = await this.prismaService.client.restaurant.update({
+    //         where: { id: restaurantId },
+    //         data: { operatingHours },
+    //     });
 
-        await this.auditService.log(
-            'UPDATE_RESTAURANT_OPERATING_HOURS',
-            'Restaurant',
-            restaurantId,
-            actorId,
-            { operatingHours },
-        );
+    //     await this.auditService.log(
+    //         'UPDATE_RESTAURANT_OPERATING_HOURS',
+    //         'Restaurant',
+    //         restaurantId,
+    //         actorId,
+    //         { operatingHours },
+    //     );
 
-        return restaurant;
-    }
+    //     return restaurant;
+    // }
 
     async replyToRestaurantRating(
         reviewId: number,

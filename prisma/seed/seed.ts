@@ -386,7 +386,6 @@ async function upsertRestaurant(
         approved: boolean;
         image: string;
         coverImage: string;
-        deliveryFee: number;
         minimumOrder: number;
         estimatedDeliveryTime: number;
     },
@@ -871,7 +870,6 @@ async function main() {
                 approved: true,
                 image: '',
                 coverImage: '',
-                deliveryFee: 2,
                 minimumOrder: 8,
                 estimatedDeliveryTime: 25,
             }),
@@ -885,7 +883,6 @@ async function main() {
                 approved: true,
                 image: '',
                 coverImage: '',
-                deliveryFee: 1.5,
                 minimumOrder: 6,
                 estimatedDeliveryTime: 20,
             }),
@@ -899,7 +896,6 @@ async function main() {
                 approved: false,
                 image: '',
                 coverImage: '',
-                deliveryFee: 3,
                 minimumOrder: 10,
                 estimatedDeliveryTime: 35,
             }),

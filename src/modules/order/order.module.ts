@@ -5,9 +5,10 @@ import { OrderService } from './order.service';
 import { PaymentModule } from '../payment/payment.module';
 import { AuthModule } from '../auth/auth.module';
 import { CartModule } from '../cart/cart.module';
+import { RestaurantModule } from '../restaurant/restaurant.module';
 
 @Module({
-    imports: [AddressModule, PaymentModule, AuthModule, CartModule],
+    imports: [AddressModule, PaymentModule, AuthModule, CartModule , RestaurantModule],
     controllers: [OrderController],
     providers: [OrderService],
     exports: [OrderService],

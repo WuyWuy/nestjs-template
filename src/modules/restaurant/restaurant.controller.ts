@@ -305,22 +305,22 @@ export class RestaurantController {
             },
         },
     })
-    @Roles(Role.ADMIN, Role.BUSINESS)
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Patch('/manage/:restaurantId/operating-hours')
-    async updateRestaurantOperatingHours(
-        @Req() req: Request,
-        @Param('restaurantId', ParseIntPipe) restaurantId: number,
-        @Body() body: UpdateOperatingHoursDto,
-    ) {
-        const user = req.user as { id?: number; roles?: string[] };
-        return await this.restaurantService.updateRestaurantOperatingHours(
-            restaurantId,
-            Number(user.id),
-            user.roles ?? [],
-            body.operatingHours,
-        );
-    }
+    // @Roles(Role.ADMIN, Role.BUSINESS)
+    // @UseGuards(JwtAuthGuard, RolesGuard)
+    // @Patch('/manage/:restaurantId/operating-hours')
+    // async updateRestaurantOperatingHours(
+    //     @Req() req: Request,
+    //     @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    //     @Body() body: UpdateOperatingHoursDto,
+    // ) {
+    //     const user = req.user as { id?: number; roles?: string[] };
+    //     return await this.restaurantService.updateRestaurantOperatingHours(
+    //         restaurantId,
+    //         Number(user.id),
+    //         user.roles ?? [],
+    //         body.operatingHours,
+    //     );
+    // }
 
     @ApiOperation({ summary: 'Khám phá danh sách nhà hàng' })
     @UseGuards(OptionalJwtAuthGuard)
@@ -411,7 +411,7 @@ export class RestaurantController {
                 value: {
                     vote: 4,
                     comment: 'Đồ ăn vẫn ngon nhưng nay giao hơi chậm tí.',
-                    tags: ['Món ăn ngon'],
+                    tags: ['Delicious food'],
                 },
             },
         },

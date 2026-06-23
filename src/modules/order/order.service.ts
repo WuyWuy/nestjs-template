@@ -23,12 +23,18 @@ import { PaymentService } from '../payment/payment.service';
 import { CartService } from '../cart/cart.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationEvent } from '../notification/events/notification.event';
+import { RestaurantService } from '../restaurant/restaurant.service';
 
 type FoodSnapshot = {
     id: number;
     name: string;
     price: Prisma.Decimal;
     restaurantId: number;
+};
+
+type AddressCoordinates = {
+    latitude: number | null;
+    longitude: number | null;
 };
 
 @Injectable()
@@ -38,6 +44,7 @@ export class OrderService {
         private readonly addressService: AddressService,
         private readonly paymentService: PaymentService,
         private readonly cartService: CartService,
+        private readonly restaurantService: RestaurantService,
         private readonly eventEmitter: EventEmitter2,
     ) {}
 
@@ -134,6 +141,32 @@ export class OrderService {
         return order;
     }
 
+    private assertAddressCoordinates(
+        address: AddressCoordinates | null | undefined,
+        label: string,
+    ): asserts address is { latitude: number; longitude: number } {
+        if (address?.latitude == null || address?.longitude == null) {
+            throw new BadRequestException(
+                `${label} address coordinates are required to calculate delivery fee`,
+            );
+        }
+    }
+
+    calculateDeliveryFee(
+        lat1: number,
+        lon1: number,
+        lat2: number,
+        lon2: number,
+    ): number {
+        const distance = this.restaurantService.calculateDistance(
+            lat1,
+            lon1,
+            lat2,
+            lon2,
+        );
+        return 3 + Math.max(0, (distance - 2) * 0.4);
+    }
+
     async createOrder(userId: number, data: CreateOrderDto) {
         const result = await this.prismaService.transaction(async (tx) => {
             let totalPrice = new Prisma.Decimal(0);
@@ -155,18 +188,32 @@ export class OrderService {
                 | null = null;
 
             let addressId: number;
+            let deliveryAddress: AddressCoordinates;
             if (data.customAddress) {
                 const address = await this.addressService.createAddress(
                     data.customAddress,
                     tx,
                 );
                 addressId = address.id;
+                deliveryAddress = {
+                    latitude: address.latitude,
+                    longitude: address.longitude,
+                };
             } else if (data.savedAddressId) {
                 const userAddress = await tx.userAddress.findFirst({
                     where: {
                         id: data.savedAddressId,
                         userId,
                         deleteAt: null,
+                    },
+                    select: {
+                        addressId: true,
+                        address: {
+                            select: {
+                                latitude: true,
+                                longitude: true,
+                            },
+                        },
                     },
                 });
 
@@ -177,6 +224,7 @@ export class OrderService {
                 }
 
                 addressId = userAddress.addressId;
+                deliveryAddress = userAddress.address;
             } else {
                 throw new BadRequestException('Address is required');
             }
@@ -230,6 +278,12 @@ export class OrderService {
                 select: {
                     id: true,
                     ownerId: true,
+                    address: {
+                        select: {
+                            latitude: true,
+                            longitude: true,
+                        },
+                    },
                 },
             });
 
@@ -245,6 +299,15 @@ export class OrderService {
                     'Voucher does not belong to this restaurant',
                 );
             }
+
+            this.assertAddressCoordinates(restaurant.address, 'Restaurant');
+            this.assertAddressCoordinates(deliveryAddress, 'Delivery');
+            const deliveryFee = this.calculateDeliveryFee(
+                restaurant.address.latitude,
+                restaurant.address.longitude,
+                deliveryAddress.latitude,
+                deliveryAddress.longitude,
+            );
 
             const foodIds = data.orderFoods.map(item => item.foodId);
             const foods = await tx.food.findMany({
@@ -365,6 +428,7 @@ export class OrderService {
                     Number(totalPrice) -
                     Number(currentVoucher.maximumDiscountAmount);
             }
+            finalPrice += deliveryFee;
 
             const updatedOrder = await tx.order.update({
                 where: {
@@ -440,6 +504,7 @@ export class OrderService {
                 order: {
                     ...updatedOrder,
                     totalPrice: Number(updatedOrder.totalPrice),
+                    deliveryFee,
                 },
                 items: orderFoodData.map((item) => ({
                     ...item,
@@ -793,6 +858,22 @@ export class OrderService {
         const order = await this.prismaService.client.order.findUnique({
             where: { id: orderId },
             include: {
+                address: {
+                    select: {
+                        latitude: true,
+                        longitude: true,
+                    },
+                },
+                restaurant: {
+                    select: {
+                        address: {
+                            select: {
+                                latitude: true,
+                                longitude: true,
+                            },
+                        },
+                    },
+                },
                 orderFoods: {
                     include: {
                         food: true,
@@ -808,6 +889,15 @@ export class OrderService {
         if (order.userId !== userId) {
             throw new ForbiddenException('You can only reorder your own orders');
         }
+
+        this.assertAddressCoordinates(order.restaurant.address, 'Restaurant');
+        this.assertAddressCoordinates(order.address, 'Delivery');
+        const deliveryFee = this.calculateDeliveryFee(
+            order.restaurant.address.latitude,
+            order.restaurant.address.longitude,
+            order.address.latitude,
+            order.address.longitude,
+        );
 
         const activeCartItems: { foodId: number; foodSizeId: number; quantity: number }[] = [];
         for (const orderFood of order.orderFoods) {
@@ -909,7 +999,13 @@ export class OrderService {
             }
         });
 
-        return await this.cartService.getCart(userId);
+        const cart = await this.cartService.getCart(userId);
+
+        return {
+            ...cart,
+            deliveryFee,
+            totalPrice: cart.subtotal + deliveryFee,
+        };
     }
 
     async deleteOrderById(userId: number, roles: string[], orderId: number) {

@@ -75,11 +75,15 @@ export class GetRestaurantMenuQueryDto {
 }
 
 export const ALLOWED_REVIEW_TAGS = [
-    'Thuc an ngon',
-    'Giao hang nhanh',
-    'Dong goi can than',
-    'Thai do tot',
-    'Giá cả hợp lý',
+    'Delicious food',
+    'Fast delivery',
+    'Careful packaging',
+    'Friendly attitude',
+    'Reasonable price',
+    'Food arrived hot',
+    'Fresh ingredients',
+    'Accurate order',
+    'Large portions',
 ];
 
 export class CreateRestaurantRatingDto {

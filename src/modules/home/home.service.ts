@@ -63,6 +63,7 @@ export class HomeService {
             cartItemCount: 0,
             unreadMessageCount: 0,
         };
+        let addresses: { id: number; title: string; fullText: string }[] = [];
 
         if (userId) {
             const userDb = await this.prismaService.client.user.findFirst({
@@ -71,6 +72,7 @@ export class HomeService {
                     id: true,
                     name: true,
                     avatar: true,
+                    phone: true,
                 },
             });
 
@@ -79,8 +81,31 @@ export class HomeService {
                     id: userDb.id,
                     fullName: userDb.name,
                     avatarUrl: await this.resolveFileUrl(userDb.avatar),
+                    phone: userDb.phone ?? '',
                 };
             }
+
+            const userAddresses = await this.prismaService.client.userAddress.findMany({
+                where: { userId, deleteAt: null },
+                select: {
+                    id: true,
+                    title: true,
+                    address: {
+                        select: {
+                            fullText: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    id: 'asc',
+                },
+            });
+
+            addresses = userAddresses.map((item) => ({
+                id: item.id,
+                title: item.title,
+                fullText: item.address?.fullText ?? '',
+            }));
 
             counters = await this.getCounters(userId);
         }
@@ -107,23 +132,32 @@ export class HomeService {
         );
 
         const restaurants = await Promise.all(
-            restaurantsResult.map(async (res) => ({
-                id: res.id,
-                name: res.name,
-                imageUrl: await this.resolveFileUrl(res.image),
-                averageRating: res.averageRating,
-                deliveryFee: res.deliveryFee,
-                distance: res.distanceKm,
-                tags: res.categories.map((c) => c.name),
-                estimatedDeliveryTime: res.estimatedDeliveryTime,
-                isLiked: res.isLiked ?? false,
-            })),
+            restaurantsResult.map(async (res) => {
+                const restaurant = res as typeof res & {
+                    deliveryFee?: number;
+                    ratingCount?: number | null;
+                };
+
+                return {
+                    id: restaurant.id,
+                    name: restaurant.name,
+                    imageUrl: await this.resolveFileUrl(restaurant.image),
+                    averageRating: restaurant.averageRating,
+                    reviewCount: restaurant.ratingCount ?? 0,
+                    deliveryFee: restaurant.deliveryFee,
+                    distance: restaurant.distanceKm,
+                    tags: restaurant.categories.map((c) => c.name),
+                    estimatedDeliveryTime: restaurant.estimatedDeliveryTime,
+                    isLiked: restaurant.isLiked ?? false,
+                };
+            }),
         );
 
         return {
             user,
             categories,
             restaurants,
+            addresses,
             counters,
         };
     }

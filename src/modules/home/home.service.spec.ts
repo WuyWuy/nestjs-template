@@ -35,6 +35,9 @@ describe('HomeService', () => {
                 user: {
                     findFirst: jest.fn(),
                 },
+                userAddress: {
+                    findMany: jest.fn(),
+                },
             },
         };
 
@@ -138,6 +141,7 @@ describe('HomeService', () => {
                 name: 'Burger Town',
                 image: 'burger_town.png',
                 averageRating: 4.8,
+                ratingCount: 120,
                 deliveryFee: 15000,
                 distanceKm: 2.3,
                 categories: [{ id: 1, name: 'Burger' }],
@@ -160,6 +164,7 @@ describe('HomeService', () => {
                 cartItemCount: 0,
                 unreadMessageCount: 0,
             });
+            expect(result.addresses).toEqual([]);
             expect(result.categories).toEqual([
                 { id: 1, name: 'Burger', imageUrl: 'burger.png' },
                 { id: 2, name: 'Pizza', imageUrl: 'pizza.png' },
@@ -170,6 +175,7 @@ describe('HomeService', () => {
                     name: 'Burger Town',
                     imageUrl: 'http://localhost/burger_town.png',
                     averageRating: 4.8,
+                    reviewCount: 120,
                     deliveryFee: 15000,
                     distance: 2.3,
                     tags: ['Burger'],
@@ -189,6 +195,7 @@ describe('HomeService', () => {
                 'DISTANCE',
                 undefined,
             );
+            expect(prismaService.client.userAddress.findMany).not.toHaveBeenCalled();
         });
 
         it('should return dashboard data with user profile and counters for logged-in user', async () => {
@@ -196,7 +203,26 @@ describe('HomeService', () => {
                 id: 1,
                 name: 'Nguyen Van A',
                 avatar: 'avatar.png',
+                phone: '0901234567',
             });
+            prismaService.client.userAddress.findMany.mockResolvedValueOnce([
+                {
+                    id: 10,
+                    title: 'Home',
+                    address: {
+                        fullText:
+                            '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City',
+                    },
+                },
+                {
+                    id: 11,
+                    title: 'Work',
+                    address: {
+                        fullText:
+                            '45 Vo Van Tan, Ward 6, District 3, Ho Chi Minh City',
+                    },
+                },
+            ]);
             prismaService.client.cart.findFirst.mockResolvedValueOnce({ id: 10 });
             prismaService.client.cartItem.aggregate.mockResolvedValueOnce({
                 _sum: { quantity: 2 },
@@ -209,7 +235,22 @@ describe('HomeService', () => {
                 id: 1,
                 fullName: 'Nguyen Van A',
                 avatarUrl: 'http://localhost/avatar.png',
+                phone: '0901234567',
             });
+            expect(result.addresses).toEqual([
+                {
+                    id: 10,
+                    title: 'Home',
+                    fullText:
+                        '123 Nguyen Hue, Ben Nghe, District 1, Ho Chi Minh City',
+                },
+                {
+                    id: 11,
+                    title: 'Work',
+                    fullText:
+                        '45 Vo Van Tan, Ward 6, District 3, Ho Chi Minh City',
+                },
+            ]);
             expect(result.counters).toEqual({
                 cartItemCount: 2,
                 unreadMessageCount: 4,
@@ -224,6 +265,7 @@ describe('HomeService', () => {
                     name: 'Burger Town',
                     imageUrl: 'http://localhost/burger_town.png',
                     averageRating: 4.8,
+                    reviewCount: 120,
                     deliveryFee: 15000,
                     distance: 2.3,
                     tags: ['Burger'],
@@ -242,6 +284,30 @@ describe('HomeService', () => {
                 undefined,
                 1,
             );
+            expect(prismaService.client.user.findFirst).toHaveBeenCalledWith({
+                where: { id: 1 },
+                select: {
+                    id: true,
+                    name: true,
+                    avatar: true,
+                    phone: true,
+                },
+            });
+            expect(prismaService.client.userAddress.findMany).toHaveBeenCalledWith({
+                where: { userId: 1, deleteAt: null },
+                select: {
+                    id: true,
+                    title: true,
+                    address: {
+                        select: {
+                            fullText: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    id: 'asc',
+                },
+            });
         });
 
         it('should not resolve already absolute image urls through Minio', async () => {
@@ -249,7 +315,9 @@ describe('HomeService', () => {
                 id: 1,
                 name: 'Nguyen Van A',
                 avatar: 'https://cdn.example.com/avatar.png',
+                phone: null,
             });
+            prismaService.client.userAddress.findMany.mockResolvedValueOnce([]);
             prismaService.client.cart.findFirst.mockResolvedValueOnce(null);
             prismaService.client.message.count.mockResolvedValueOnce(0);
             restaurantService.getAllRestaurants.mockResolvedValueOnce([
@@ -258,6 +326,7 @@ describe('HomeService', () => {
                     name: 'Pizza Place',
                     image: 'https://cdn.example.com/pizza.png',
                     averageRating: 4.2,
+                    ratingCount: undefined,
                     deliveryFee: 12000,
                     distanceKm: undefined,
                     categories: [{ id: 2, name: 'Pizza' }],
@@ -275,12 +344,14 @@ describe('HomeService', () => {
                 id: 1,
                 fullName: 'Nguyen Van A',
                 avatarUrl: 'https://cdn.example.com/avatar.png',
+                phone: '',
             });
             expect(result.restaurants[0]).toEqual({
                 id: 102,
                 name: 'Pizza Place',
                 imageUrl: 'https://cdn.example.com/pizza.png',
                 averageRating: 4.2,
+                reviewCount: 0,
                 deliveryFee: 12000,
                 distance: undefined,
                 tags: ['Pizza'],
@@ -296,6 +367,7 @@ describe('HomeService', () => {
                     name: 'Noodle Shop',
                     image: 'broken-image.png',
                     averageRating: 4,
+                    ratingCount: 0,
                     deliveryFee: 10000,
                     distanceKm: 1.5,
                     categories: [],
@@ -306,6 +378,7 @@ describe('HomeService', () => {
                     name: 'Soup Shop',
                     image: null,
                     averageRating: 3.5,
+                    ratingCount: undefined,
                     deliveryFee: 9000,
                     distanceKm: 2,
                     categories: [],
@@ -324,6 +397,7 @@ describe('HomeService', () => {
                     name: 'Noodle Shop',
                     imageUrl: '',
                     averageRating: 4,
+                    reviewCount: 0,
                     deliveryFee: 10000,
                     distance: 1.5,
                     tags: [],
@@ -335,6 +409,7 @@ describe('HomeService', () => {
                     name: 'Soup Shop',
                     imageUrl: '',
                     averageRating: 3.5,
+                    reviewCount: 0,
                     deliveryFee: 9000,
                     distance: 2,
                     tags: [],

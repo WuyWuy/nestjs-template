@@ -5,9 +5,9 @@ describe('CreateRestaurantRatingDto validation', () => {
     it('should validate successfully for a valid payload', async () => {
         const dto = new CreateRestaurantRatingDto();
         dto.vote = 5;
-        dto.comment = 'Đồ ăn rất ngon, giao hàng siêu nhanh!';
+        dto.comment = 'Thuc an rat ngon, giao hang sieu nhanh!';
         dto.orderId = 162432;
-        dto.tags = ['Món ăn ngon', 'Giao hàng nhanh'];
+        dto.tags = ['Thuc an ngon', 'Giao hang nhanh'];
 
         const errors = await validate(dto);
         expect(errors.length).toBe(0);
@@ -39,14 +39,14 @@ describe('CreateRestaurantRatingDto validation', () => {
 
         const errors = await validate(dto);
         expect(errors.length).toBeGreaterThan(0);
-        expect(errors.some(e => e.property === 'orderId')).toBe(true);
+        expect(errors.some((e) => e.property === 'orderId')).toBe(true);
     });
 
     it('should fail validation if tags contain an invalid tag', async () => {
         const dto = new CreateRestaurantRatingDto();
         dto.vote = 5;
         dto.orderId = 162432;
-        dto.tags = ['Món ăn ngon', 'Giao quá trễ']; // 'Giao quá trễ' is not in allowed list
+        dto.tags = ['Thuc an ngon', 'Giao qua tre'];
 
         const errors = await validate(dto);
         expect(errors.length).toBeGreaterThan(0);

@@ -88,14 +88,14 @@ describe('RestaurantService - createRestaurantRating', () => {
             vote: 5,
             comment: 'Ngon',
             orderId: 162432,
-            tags: ['Món ăn ngon'],
+            tags: ['Thuc an ngon'],
         });
 
         const result = await service.createRestaurantRating(101, 5, {
             orderId: 162432,
             vote: 5,
             comment: 'Ngon',
-            tags: ['Món ăn ngon'],
+            tags: ['Thuc an ngon'],
         });
 
         expect(result).toBeDefined();
@@ -106,7 +106,7 @@ describe('RestaurantService - createRestaurantRating', () => {
                 vote: 5,
                 comment: 'Ngon',
                 orderId: 162432,
-                tags: ['Món ăn ngon'],
+                tags: ['Thuc an ngon'],
             },
         });
         expect(eventEmitter.emit).toHaveBeenCalledWith('notification.send', expect.any(Object));
@@ -258,14 +258,14 @@ describe('RestaurantService - updateRestaurantRating', () => {
             id: 12,
             userId: 5,
             vote: 4,
-            comment: 'Ngon nhưng giao hơi chậm',
-            tags: ['Món ăn ngon'],
+            comment: 'Ngon nhung giao hoi cham',
+            tags: ['Thuc an ngon'],
         });
 
         const result = await service.updateRestaurantRating(12, 5, {
             vote: 4,
-            comment: 'Ngon nhưng giao hơi chậm',
-            tags: ['Món ăn ngon'],
+            comment: 'Ngon nhung giao hoi cham',
+            tags: ['Thuc an ngon'],
         });
 
         expect(result.vote).toBe(4);
@@ -273,8 +273,8 @@ describe('RestaurantService - updateRestaurantRating', () => {
             where: { id: 12 },
             data: {
                 vote: 4,
-                comment: 'Ngon nhưng giao hơi chậm',
-                tags: ['Món ăn ngon'],
+                comment: 'Ngon nhung giao hoi cham',
+                tags: ['Thuc an ngon'],
             },
         });
     });
@@ -425,7 +425,7 @@ describe('RestaurantService - getRestaurantRatingsForVendor', () => {
                 id: 12,
                 vote: 5,
                 comment: 'Ngon',
-                tags: ['Món ăn ngon'],
+                tags: ['Thuc an ngon'],
                 createdAt: new Date(),
                 reply: null,
                 orderId: 162432,
@@ -504,9 +504,9 @@ describe('RestaurantService - getRestaurantRatingStats', () => {
         });
 
         prismaService.client.restaurantRating.findMany.mockResolvedValueOnce([
-            { vote: 5, tags: ['Món ăn ngon', 'Giao hàng nhanh'] },
-            { vote: 5, tags: ['Món ăn ngon'] },
-            { vote: 3, tags: ['Giao hàng nhanh'] },
+            { vote: 5, tags: ['Thuc an ngon', 'Giao hang nhanh'] },
+            { vote: 5, tags: ['Thuc an ngon'] },
+            { vote: 3, tags: ['Giao hang nhanh'] },
         ]);
 
         const result = await service.getRestaurantRatingStats(101, 2, ['BUSINESS']);
@@ -522,8 +522,8 @@ describe('RestaurantService - getRestaurantRatingStats', () => {
                 '5': 2,
             },
             popularTags: [
-                { tag: 'Món ăn ngon', count: 2 },
-                { tag: 'Giao hàng nhanh', count: 2 },
+                { tag: 'Thuc an ngon', count: 2 },
+                { tag: 'Giao hang nhanh', count: 2 },
             ],
         });
     });
@@ -629,5 +629,561 @@ describe('RestaurantService - getAllRestaurants', () => {
             },
             select: { restaurantId: true },
         });
+    });
+});
+
+describe('RestaurantService - menu and details', () => {
+    let service: RestaurantService;
+    let prismaService: any;
+
+    beforeEach(() => {
+        prismaService = {
+            client: {
+                restaurant: {
+                    findFirst: jest.fn(),
+                },
+            },
+        };
+
+        service = new RestaurantService(
+            prismaService,
+            {} as any,
+            {} as any,
+            {} as any,
+        );
+    });
+
+    it('should return restaurant menu filtered by keyword and category', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            name: 'Burger Town',
+            foods: [{ id: 1, name: 'Cheese Burger' }],
+        });
+
+        const result = await service.getRestaurantMenu(101, 'burger', 2);
+
+        expect(prismaService.client.restaurant.findFirst).toHaveBeenCalledWith({
+            where: {
+                id: 101,
+                approved: true,
+            },
+            select: expect.objectContaining({
+                id: true,
+                name: true,
+                foods: expect.objectContaining({
+                    where: {
+                        name: {
+                            contains: 'burger',
+                            mode: 'insensitive',
+                        },
+                        categoryId: 2,
+                    },
+                }),
+            }),
+        });
+        expect(result).toEqual({
+            id: 101,
+            name: 'Burger Town',
+            foods: [{ id: 1, name: 'Cheese Burger' }],
+        });
+    });
+
+    it('should throw NotFoundException when menu restaurant is missing', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce(null);
+
+        await expect(service.getRestaurantMenu(404, '', undefined)).rejects.toThrow(
+            NotFoundException,
+        );
+    });
+
+    it('should return restaurant detail with numeric fees, rating summary and categories', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            name: 'Burger Town',
+            deliveryFee: '2.50',
+            minimumOrder: '10.00',
+            foods: [
+                {
+                    id: 1,
+                    name: 'Cheese Burger',
+                    category: { id: 2, name: 'Burger' },
+                },
+                {
+                    id: 2,
+                    name: 'Double Burger',
+                    category: { id: 2, name: 'Burger' },
+                },
+            ],
+            ratings: [{ vote: 5 }, { vote: 4 }],
+        });
+
+        const result = await service.getRestaurantInDetail(101);
+
+        expect(result).toEqual(
+            expect.objectContaining({
+                id: 101,
+                deliveryFee: 2.5,
+                minimumOrder: 10,
+                averageRating: 4.5,
+                ratingCount: 2,
+                categories: [{ id: 2, name: 'Burger' }],
+            }),
+        );
+    });
+});
+
+describe('RestaurantService - management', () => {
+    let service: RestaurantService;
+    let prismaService: any;
+    let auditService: { log: jest.Mock };
+    let minioService: { uploadFile: jest.Mock };
+
+    beforeEach(() => {
+        prismaService = {
+            client: {
+                address: {
+                    findFirst: jest.fn(),
+                },
+                restaurant: {
+                    findFirst: jest.fn(),
+                    findMany: jest.fn(),
+                    create: jest.fn(),
+                    update: jest.fn(),
+                },
+                order: {
+                    aggregate: jest.fn(),
+                    findMany: jest.fn(),
+                },
+            },
+        };
+        auditService = {
+            log: jest.fn(),
+        };
+        minioService = {
+            uploadFile: jest.fn(),
+        };
+
+        service = new RestaurantService(
+            prismaService,
+            auditService as any,
+            minioService as any,
+            {} as any,
+        );
+    });
+
+    it('should list only owned restaurants for business users and convert money fields to numbers', async () => {
+        prismaService.client.restaurant.findMany.mockResolvedValueOnce([
+            {
+                id: 101,
+                name: 'Burger Town',
+                deliveryFee: '2.50',
+                minimumOrder: '10.00',
+            },
+        ]);
+
+        const result = await service.getMyRestaurants(99, ['BUSINESS']);
+
+        expect(prismaService.client.restaurant.findMany).toHaveBeenCalledWith({
+            where: {
+                ownerId: 99,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+        expect(result).toEqual([
+            {
+                id: 101,
+                name: 'Burger Town',
+                deliveryFee: 2.5,
+                minimumOrder: 10,
+            },
+        ]);
+    });
+
+    it('should allow admins to list all restaurants', async () => {
+        prismaService.client.restaurant.findMany.mockResolvedValueOnce([]);
+
+        await service.getMyRestaurants(1, ['ADMIN']);
+
+        expect(prismaService.client.restaurant.findMany).toHaveBeenCalledWith({
+            where: undefined,
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+    });
+
+    it('should reject restaurant creation for users without business or admin role', async () => {
+        await expect(
+            service.createRestaurant(
+                99,
+                {
+                    name: 'Burger Town',
+                    phone: '02873000001',
+                    addressId: 1,
+                } as any,
+                ['CUSTOMER'],
+            ),
+        ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should create a restaurant with uploaded images and write an audit log', async () => {
+        const imageFile = { originalname: 'logo.jpg' } as any;
+        const coverFile = { originalname: 'cover.jpg' } as any;
+        const data = {
+            name: 'Burger Town',
+            phone: '02873000001',
+            addressId: 1,
+            description: 'Fast casual',
+            deliveryFee: 2,
+            minimumOrder: 8,
+            estimatedDeliveryTime: 25,
+        };
+        prismaService.client.address.findFirst.mockResolvedValueOnce({ id: 1 });
+        minioService.uploadFile
+            .mockResolvedValueOnce('https://cdn.example.com/logo.jpg')
+            .mockResolvedValueOnce('https://cdn.example.com/cover.jpg');
+        prismaService.client.restaurant.create.mockResolvedValueOnce({
+            id: 101,
+            ...data,
+            image: 'https://cdn.example.com/logo.jpg',
+            coverImage: 'https://cdn.example.com/cover.jpg',
+            ownerId: 99,
+            approved: false,
+        });
+
+        const result = await service.createRestaurant(99, data as any, ['BUSINESS'], {
+            image: [imageFile],
+            coverImage: [coverFile],
+        });
+
+        expect(prismaService.client.address.findFirst).toHaveBeenCalledWith({
+            where: { id: 1 },
+            select: { id: true },
+        });
+        expect(prismaService.client.restaurant.create).toHaveBeenCalledWith({
+            data: {
+                name: 'Burger Town',
+                phone: '02873000001',
+                addressId: 1,
+                description: 'Fast casual',
+                image: 'https://cdn.example.com/logo.jpg',
+                coverImage: 'https://cdn.example.com/cover.jpg',
+                deliveryFee: 2,
+                minimumOrder: 8,
+                estimatedDeliveryTime: 25,
+                ownerId: 99,
+                approved: false,
+            },
+        });
+        expect(auditService.log).toHaveBeenCalledWith(
+            'CREATE_RESTAURANT',
+            'Restaurant',
+            101,
+            99,
+            data,
+        );
+        expect(result.id).toBe(101);
+    });
+
+    it('should throw BadRequestException when creating with a missing address', async () => {
+        prismaService.client.address.findFirst.mockResolvedValueOnce(null);
+
+        await expect(
+            service.createRestaurant(
+                99,
+                {
+                    name: 'Burger Town',
+                    phone: '02873000001',
+                    addressId: 404,
+                } as any,
+                ['BUSINESS'],
+            ),
+        ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should update an owned restaurant with uploaded image and write an audit log', async () => {
+        const data = {
+            name: 'Burger Express',
+            addressId: 2,
+            deliveryFee: 3,
+        };
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 99,
+        });
+        prismaService.client.address.findFirst.mockResolvedValueOnce({ id: 2 });
+        minioService.uploadFile.mockResolvedValueOnce(
+            'https://cdn.example.com/new-logo.jpg',
+        );
+        prismaService.client.restaurant.update.mockResolvedValueOnce({
+            id: 101,
+            ...data,
+            image: 'https://cdn.example.com/new-logo.jpg',
+        });
+
+        const result = await service.updateRestaurant(
+            99,
+            ['BUSINESS'],
+            101,
+            data as any,
+            { image: [{ originalname: 'new-logo.jpg' } as any] },
+        );
+
+        expect(prismaService.client.restaurant.update).toHaveBeenCalledWith({
+            where: {
+                id: 101,
+            },
+            data: {
+                name: 'Burger Express',
+                addressId: 2,
+                image: 'https://cdn.example.com/new-logo.jpg',
+                deliveryFee: 3,
+            },
+        });
+        expect(auditService.log).toHaveBeenCalledWith(
+            'UPDATE_RESTAURANT',
+            'Restaurant',
+            101,
+            99,
+            data,
+        );
+        expect(result.id).toBe(101);
+    });
+
+    it('should throw ForbiddenException when updating another owner restaurant', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 55,
+        });
+
+        await expect(
+            service.updateRestaurant(99, ['BUSINESS'], 101, { name: 'Nope' }),
+        ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException when update payload has no supported fields', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 99,
+        });
+
+        await expect(
+            service.updateRestaurant(99, ['BUSINESS'], 101, {}),
+        ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should calculate dashboard metrics from delivered and cancelled orders', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 99,
+        });
+        prismaService.client.order.findMany.mockResolvedValueOnce([
+            {
+                status: 'DELIVERED',
+                totalPrice: '30.50',
+                orderFoods: [
+                    {
+                        foodId: 1,
+                        quantity: 2,
+                        price: '20',
+                        food: { name: 'Burger', image: 'burger.jpg' },
+                    },
+                    {
+                        foodId: 2,
+                        quantity: 1,
+                        price: '10.50',
+                        food: { name: 'Fries', image: 'fries.jpg' },
+                    },
+                ],
+            },
+            {
+                status: 'CANCELLED',
+                totalPrice: '12',
+                orderFoods: [],
+            },
+        ]);
+
+        const result = await service.getRestaurantDashboard(
+            101,
+            99,
+            ['BUSINESS'],
+            'day',
+        );
+
+        expect(result).toEqual({
+            deliveredRevenue: 30.5,
+            deliveredOrderCount: 1,
+            cancelledOrderCount: 1,
+            topFoods: [
+                {
+                    id: 1,
+                    name: 'Burger',
+                    image: 'burger.jpg',
+                    quantity: 2,
+                    revenue: 20,
+                },
+                {
+                    id: 2,
+                    name: 'Fries',
+                    image: 'fries.jpg',
+                    quantity: 1,
+                    revenue: 10.5,
+                },
+            ],
+        });
+    });
+
+    it('should calculate revenue split and write an audit log', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 99,
+        });
+        prismaService.client.order.aggregate.mockResolvedValueOnce({
+            _sum: {
+                totalPrice: '125.50',
+            },
+        });
+
+        const result = await service.getRestaurantRevenue(101, 99, ['BUSINESS']);
+
+        expect(prismaService.client.order.aggregate).toHaveBeenCalledWith({
+            where: {
+                restaurantId: 101,
+                status: 'DELIVERED',
+            },
+            _sum: {
+                totalPrice: true,
+            },
+        });
+        expect(auditService.log).toHaveBeenCalledWith(
+            'VIEW_RESTAURANT_REVENUE',
+            'Restaurant',
+            101,
+            99,
+        );
+        expect(result).toEqual({
+            grossRevenue: 125.5,
+            platformCommissionRate: 0.2,
+            platformCommission: 25.1,
+            restaurantNetRevenue: 100.4,
+        });
+    });
+
+    it('should update restaurant open status and operating hours', async () => {
+        prismaService.client.restaurant.findFirst
+            .mockResolvedValueOnce({ id: 101, ownerId: 99 })
+            .mockResolvedValueOnce({ id: 101, ownerId: 99 });
+        prismaService.client.restaurant.update
+            .mockResolvedValueOnce({ id: 101, isOpen: false })
+            .mockResolvedValueOnce({
+                id: 101,
+                operatingHours: { monday: { open: '08:00', close: '22:00' } },
+            });
+
+        await expect(
+            service.updateRestaurantStatus(101, 99, ['BUSINESS'], false),
+        ).resolves.toEqual({ id: 101, isOpen: false });
+        await expect(
+            service.updateRestaurantOperatingHours(101, 99, ['BUSINESS'], {
+                monday: { open: '08:00', close: '22:00' },
+            }),
+        ).resolves.toEqual({
+            id: 101,
+            operatingHours: { monday: { open: '08:00', close: '22:00' } },
+        });
+
+        expect(auditService.log).toHaveBeenCalledWith(
+            'UPDATE_RESTAURANT_STATUS',
+            'Restaurant',
+            101,
+            99,
+            { isOpen: false },
+        );
+        expect(auditService.log).toHaveBeenCalledWith(
+            'UPDATE_RESTAURANT_OPERATING_HOURS',
+            'Restaurant',
+            101,
+            99,
+            { operatingHours: { monday: { open: '08:00', close: '22:00' } } },
+        );
+    });
+});
+
+describe('RestaurantService - replyToRestaurantRating', () => {
+    let service: RestaurantService;
+    let prismaService: any;
+    let auditService: { log: jest.Mock };
+
+    beforeEach(() => {
+        prismaService = {
+            client: {
+                restaurant: {
+                    findFirst: jest.fn(),
+                },
+                restaurantRating: {
+                    findFirst: jest.fn(),
+                    update: jest.fn(),
+                },
+            },
+        };
+        auditService = {
+            log: jest.fn(),
+        };
+
+        service = new RestaurantService(
+            prismaService,
+            auditService as any,
+            {} as any,
+            {} as any,
+        );
+    });
+
+    it('should reply to a review when actor owns the restaurant', async () => {
+        prismaService.client.restaurantRating.findFirst.mockResolvedValueOnce({
+            id: 12,
+            restaurantId: 101,
+        });
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 99,
+        });
+        prismaService.client.restaurantRating.update.mockResolvedValueOnce({
+            id: 12,
+            reply: 'Thanks for your review',
+            replyCreatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        });
+
+        const result = await service.replyToRestaurantRating(
+            12,
+            99,
+            ['BUSINESS'],
+            'Thanks for your review',
+        );
+
+        expect(prismaService.client.restaurantRating.update).toHaveBeenCalledWith({
+            where: { id: 12 },
+            data: {
+                reply: 'Thanks for your review',
+                replyCreatedAt: expect.any(Date),
+            },
+        });
+        expect(auditService.log).toHaveBeenCalledWith(
+            'REPLY_RESTAURANT_REVIEW',
+            'RestaurantRating',
+            12,
+            99,
+            { reply: 'Thanks for your review' },
+        );
+        expect(result.reply).toBe('Thanks for your review');
+    });
+
+    it('should throw NotFoundException when replying to a missing review', async () => {
+        prismaService.client.restaurantRating.findFirst.mockResolvedValueOnce(null);
+
+        await expect(
+            service.replyToRestaurantRating(12, 99, ['BUSINESS'], 'Thanks'),
+        ).rejects.toThrow(NotFoundException);
     });
 });

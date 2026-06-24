@@ -86,6 +86,10 @@ export class VoucherService {
                     minimumOrderAmount: {
                         lte: (cost? cost : 0)
                     }, 
+                    endAt: {
+                        gte: new Date() 
+                    }, 
+                    status: VoucherStatus.APPLYING
                 }
             })
             return vouchers 

@@ -205,6 +205,14 @@ export class AuthService {
                     },
                 });
                 // Sending email to user 
+                await this.emailService.send(
+                    'Verify Register', 
+                    'register', 
+                    registerData.email, 
+                    {
+                        otp
+                    }
+                )
                 return {
                     otp,
                     id: user.id,

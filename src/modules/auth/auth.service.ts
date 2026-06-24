@@ -204,7 +204,7 @@ export class AuthService {
                         expiresAt: new Date(Date.now() + VERIFY_OTP_LIVE_TIME),
                     },
                 });
-
+                // Sending email to user 
                 return {
                     otp,
                     id: user.id,

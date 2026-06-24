@@ -25,6 +25,7 @@ describe('RestaurantController', () => {
         createRestaurant: jest.Mock;
         updateRestaurant: jest.Mock;
         getRestaurantDashboard: jest.Mock;
+        generateRestaurantDashboard: jest.Mock;
         getRestaurantRevenue: jest.Mock;
         updateRestaurantStatus: jest.Mock;
         updateRestaurantOperatingHours: jest.Mock;
@@ -46,6 +47,7 @@ describe('RestaurantController', () => {
             createRestaurant: jest.fn(),
             updateRestaurant: jest.fn(),
             getRestaurantDashboard: jest.fn(),
+            generateRestaurantDashboard: jest.fn(),
             getRestaurantRevenue: jest.fn(),
             updateRestaurantStatus: jest.fn(),
             updateRestaurantOperatingHours: jest.fn(),
@@ -117,6 +119,33 @@ describe('RestaurantController', () => {
             data,
             files,
         );
+    });
+
+    it('should generate the restaurant dashboard for the authenticated owner', async () => {
+        const dashboard = {
+            runningOrders: 2,
+            orderRequest: 1,
+            revenue: 2241,
+            rating: 4.9,
+            totalReviews: 25,
+            totalOrders: 142,
+            activeVouchers: 3,
+            recentOrders: [],
+            bestSellers: [],
+        };
+        restaurantService.generateRestaurantDashboard.mockResolvedValue(
+            dashboard,
+        );
+
+        await expect(
+            controller.generateRestaurantDashboard(
+                { user: { id: 99, roles: ['BUSINESS'] } } as any,
+                101,
+            ),
+        ).resolves.toEqual(dashboard);
+        expect(
+            restaurantService.generateRestaurantDashboard,
+        ).toHaveBeenCalledWith(101, 99, ['BUSINESS']);
     });
 
     it('should use default public list query values and optional user id', async () => {

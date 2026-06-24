@@ -5,7 +5,13 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Role, OrderStatus, NotificationType } from '@prisma/client';
+import {
+    Prisma,
+    Role,
+    OrderStatus,
+    NotificationType,
+    VoucherStatus,
+} from '@prisma/client';
 import {
     CreateRestaurantDto,
     CreateRestaurantRatingDto,
@@ -839,6 +845,208 @@ export class RestaurantService {
             deliveredOrderCount,
             cancelledOrderCount,
             topFoods,
+        };
+    }
+
+    async generateRestaurantDashboard(
+        restaurantId: number,
+        actorId: number,
+        roles: string[],
+    ) {
+        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+
+        const now = new Date();
+        const [
+            orderStats,
+            recentPayments,
+            bestSellerStats,
+            ratingStats,
+            activeVouchers,
+        ] = await Promise.all([
+            this.prismaService.client.order.groupBy({
+                by: ['status'],
+                where: {
+                    restaurantId,
+                    deleteAt: null,
+                },
+                _count: {
+                    id: true,
+                },
+                _sum: {
+                    totalPrice: true,
+                },
+            }),
+            this.prismaService.client.payment.findMany({
+                where: {
+                    deleteAt: null,
+                    order: {
+                        restaurantId,
+                        deleteAt: null,
+                    },
+                },
+                select: {
+                    createdAt: true,
+                    order: {
+                        select: {
+                            id: true,
+                            totalPrice: true,
+                            status: true,
+                            user: {
+                                select: {
+                                    name: true,
+                                },
+                            },
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+                take: 5,
+            }),
+            this.prismaService.client.orderFood.groupBy({
+                by: ['foodId'],
+                where: {
+                    deleteAt: null,
+                    order: {
+                        restaurantId,
+                        status: OrderStatus.DELIVERED,
+                        deleteAt: null,
+                    },
+                },
+                _sum: {
+                    quantity: true,
+                },
+                orderBy: {
+                    _sum: {
+                        quantity: 'desc',
+                    },
+                },
+                take: 5,
+            }),
+            this.prismaService.client.restaurantRating.aggregate({
+                where: {
+                    restaurantId,
+                    deleteAt: null,
+                },
+                _avg: {
+                    vote: true,
+                },
+                _count: {
+                    id: true,
+                },
+            }),
+            this.prismaService.client.voucher.count({
+                where: {
+                    restaurantId,
+                    status: VoucherStatus.APPLYING,
+                    deleteAt: null,
+                    AND: [
+                        {
+                            OR: [{ startAt: null }, { startAt: { lte: now } }],
+                        },
+                        {
+                            OR: [{ endAt: null }, { endAt: { gte: now } }],
+                        },
+                    ],
+                },
+            }),
+        ]);
+
+        const foodIds = bestSellerStats.map((item) => item.foodId);
+        const foods = foodIds.length
+            ? await this.prismaService.client.food.findMany({
+                  where: {
+                      id: {
+                          in: foodIds,
+                      },
+                      deleteAt: null,
+                  },
+                  select: {
+                      id: true,
+                      name: true,
+                      price: true,
+                      image: true,
+                      rating: true,
+                      ratings: {
+                          where: {
+                              deleteAt: null,
+                          },
+                          select: {
+                              vote: true,
+                          },
+                      },
+                  },
+              })
+            : [];
+        const foodsById = new Map(foods.map((food) => [food.id, food]));
+        const getOrderCount = (statuses: OrderStatus[]) =>
+            orderStats
+                .filter((item) => statuses.includes(item.status))
+                .reduce((total, item) => total + item._count.id, 0);
+        const deliveredStats = orderStats.find(
+            (item) => item.status === OrderStatus.DELIVERED,
+        );
+
+        return {
+            runningOrders: getOrderCount([
+                OrderStatus.CONFIRMED,
+                OrderStatus.PREPARING,
+                OrderStatus.DELIVERING,
+            ]),
+            orderRequest: getOrderCount([OrderStatus.PENDING]),
+            revenue: Number(deliveredStats?._sum.totalPrice ?? 0),
+            rating: Number((ratingStats._avg.vote ?? 0).toFixed(1)),
+            totalReviews: ratingStats._count.id,
+            totalOrders: orderStats.reduce(
+                (total, item) => total + item._count.id,
+                0,
+            ),
+            activeVouchers,
+            recentOrders: recentPayments.map(({ order, createdAt }) => ({
+                id: String(order.id),
+                orderNumber: String(order.id).padStart(4, '0'),
+                customerName: order.user.name,
+                totalPrice: Number(order.totalPrice),
+                status: order.status
+                    .toLowerCase()
+                    .split('_')
+                    .map(
+                        (word) =>
+                            word.charAt(0).toUpperCase() + word.slice(1),
+                    )
+                    .join(' '),
+                time: createdAt.toLocaleTimeString('en-US', {
+                    timeZone: 'Asia/Ho_Chi_Minh',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                }),
+            })),
+            bestSellers: bestSellerStats.flatMap((item) => {
+                const food = foodsById.get(item.foodId);
+                if (!food) {
+                    return [];
+                }
+
+                const rating = food.ratings.length
+                    ? food.ratings.reduce(
+                          (total, review) => total + review.vote,
+                          0,
+                      ) / food.ratings.length
+                    : food.rating;
+
+                return [
+                    {
+                        id: food.id,
+                        name: food.name,
+                        price: Number(food.price),
+                        rating: Number(rating.toFixed(1)),
+                        soldCount: item._sum.quantity ?? 0,
+                        imageUrl: food.image,
+                    },
+                ];
+            }),
         };
     }
 

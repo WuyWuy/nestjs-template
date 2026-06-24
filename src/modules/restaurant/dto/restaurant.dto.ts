@@ -1,4 +1,5 @@
 import { PartialType } from '@nestjs/mapped-types';
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
     IsBoolean,
@@ -251,3 +252,74 @@ export class UpdateRestaurantRatingDto {
     tags?: string[];
 }
 
+export class DashboardRecentOrderResponse {
+    @ApiProperty({ example: '9842' })
+    id: string;
+
+    @ApiProperty({ example: '9842' })
+    orderNumber: string;
+
+    @ApiProperty({ example: 'Nguyen Van A' })
+    customerName: string;
+
+    @ApiProperty({ example: 24.5 })
+    totalPrice: number;
+
+    @ApiProperty({ example: 'Delivered' })
+    status: string;
+
+    @ApiProperty({ example: '10:30 AM' })
+    time: string;
+}
+
+export class DashboardBestSellerResponse {
+    @ApiProperty({ example: 1 })
+    id: number;
+
+    @ApiProperty({ example: 'Burger Classic' })
+    name: string;
+
+    @ApiProperty({ example: 5.99 })
+    price: number;
+
+    @ApiProperty({ example: 4.5 })
+    rating: number;
+
+    @ApiProperty({ example: 120 })
+    soldCount: number;
+
+    @ApiProperty({ example: 'https://example.com/burger.jpg' })
+    imageUrl: string;
+}
+
+export class DashboardResponse {
+    @ApiProperty({ example: 20 })
+    runningOrders: number;
+
+    @ApiProperty({ example: 5 })
+    orderRequest: number;
+
+    @ApiProperty({ example: 2241 })
+    revenue: number;
+
+    @ApiProperty({ example: 4.9 })
+    rating: number;
+
+    @ApiProperty({ example: 25 })
+    totalReviews: number;
+
+    @ApiProperty({ example: 142 })
+    totalOrders: number;
+
+    @ApiProperty({
+        description: 'Số voucher đang hoạt động và còn hiệu lực',
+        example: 3,
+    })
+    activeVouchers: number;
+
+    @ApiProperty({ type: [DashboardRecentOrderResponse] })
+    recentOrders: DashboardRecentOrderResponse[];
+
+    @ApiProperty({ type: [DashboardBestSellerResponse] })
+    bestSellers: DashboardBestSellerResponse[];
+}

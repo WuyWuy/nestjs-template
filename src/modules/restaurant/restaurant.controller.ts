@@ -13,7 +13,15 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+    ApiBearerAuth,
+    ApiBody,
+    ApiConsumes,
+    ApiOkResponse,
+    ApiOperation,
+    ApiQuery,
+    ApiTags,
+} from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { RestaurantService } from './restaurant.service';
 import {
@@ -25,6 +33,7 @@ import {
     UpdateRestaurantStatusDto,
     UpdateOperatingHoursDto,
     CreateRestaurantRatingReplyDto,
+    DashboardResponse,
     UpdateRestaurantRatingDto,
 } from './dto/restaurant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -219,6 +228,33 @@ export class RestaurantController {
             Number(user.id),
             user.roles ?? [],
             range,
+        );
+    }
+
+    @ApiOperation({ summary: 'Tổng quan về dashboard nhà hàng' })
+    @ApiBearerAuth()
+    @ApiQuery({
+        name: 'restaurantId',
+        type: Number,
+        required: true,
+        example: 1,
+    })
+    @ApiOkResponse({
+        description: 'Thông tin tổng quan dashboard nhà hàng',
+        type: DashboardResponse,
+    })
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Get('/generate-dashboard')
+    async generateRestaurantDashboard(
+        @Req() req: Request,
+        @Query('restaurantId', ParseIntPipe) restaurantId: number,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.restaurantService.generateRestaurantDashboard(
+            restaurantId,
+            Number(user.id),
+            user.roles ?? [],
         );
     }
 

@@ -1,5 +1,6 @@
 import {
     AuthProvider,
+    ConfirmedBy,
     OrderStatus,
     PaymentMethod,
     PaymentStatus,
@@ -92,6 +93,12 @@ const categories = [
         sortOrder: 5,
         image: '',
     },
+    {
+        name: 'Fantasy Gourmet',
+        description: 'Rare fantasy dishes and ingredients for manual testing.',
+        sortOrder: 6,
+        image: '',
+    },
 ] as const;
 
 const ingredients = [
@@ -103,6 +110,20 @@ const ingredients = [
     { name: 'Seaweed', icon: 'seaweed' },
     { name: 'Chicken', icon: 'chicken' },
     { name: 'Chocolate', icon: 'chocolate' },
+    { name: 'Bắp rang BB', icon: 'popcorn' },
+    { name: 'Súp thể kỉ', icon: 'soup' },
+    { name: 'Sò quỷ (Ký ức viễn hải)', icon: 'devil-shell' },
+    {
+        name: 'Tuyệt tượng - Ma mút kết thúc',
+        icon: 'ending-mammoth',
+    },
+    { name: 'GOD', icon: 'god' },
+    { name: 'Air', icon: 'air' },
+    { name: 'Trái cầu vồng', icon: 'rainbow-fruit' },
+    { name: 'Trứng thập ức điểu', icon: 'billion-bird-egg' },
+    { name: 'Thịt kim cương', icon: 'diamond-meat' },
+    { name: 'Cá nóc trắng', icon: 'white-pufferfish' },
+    { name: 'Cỏ ozone', icon: 'ozone-grass' },
 ] as const;
 
 const users = {
@@ -612,6 +633,10 @@ async function upsertOrder(
         voucherId?: number | null;
         addressId: number;
         note: string;
+        deliveredAt?: Date | null;
+        confirmedAt?: Date | null;
+        confirmedBy?: ConfirmedBy | null;
+        autoConfirmAt?: Date | null;
     },
 ) {
     const existing = await db.order.findFirst({
@@ -633,6 +658,10 @@ async function upsertOrder(
                 voucherId: data.voucherId ?? null,
                 addressId: data.addressId,
                 note: data.note,
+                deliveredAt: data.deliveredAt ?? null,
+                confirmedAt: data.confirmedAt ?? null,
+                confirmedBy: data.confirmedBy ?? null,
+                autoConfirmAt: data.autoConfirmAt ?? null,
                 deleteAt: null,
             },
         });
@@ -647,6 +676,10 @@ async function upsertOrder(
             voucherId: data.voucherId ?? null,
             addressId: data.addressId,
             note: data.note,
+            deliveredAt: data.deliveredAt ?? null,
+            confirmedAt: data.confirmedAt ?? null,
+            confirmedBy: data.confirmedBy ?? null,
+            autoConfirmAt: data.autoConfirmAt ?? null,
         },
     });
 }
@@ -795,6 +828,29 @@ async function replaceCartItems(
     });
 }
 
+async function upsertSearchHistory(
+    db: DbClient,
+    userId: number,
+    keyword: string,
+) {
+    return await db.searchHistory.upsert({
+        where: {
+            userId_keyword: {
+                userId,
+                keyword,
+            },
+        },
+        create: {
+            userId,
+            keyword,
+            createdAt: new Date(),
+        },
+        update: {
+            createdAt: new Date(),
+        },
+    });
+}
+
 async function main() {
     await prisma.$transaction(async (tx) => {
         const addressMap = new Map<string, Awaited<ReturnType<typeof upsertAddress>>>();
@@ -868,13 +924,15 @@ async function main() {
         const sushiCategory = categoryMap.get('Sushi');
         const noodlesCategory = categoryMap.get('Noodles');
         const dessertCategory = categoryMap.get('Dessert');
+        const fantasyGourmetCategory = categoryMap.get('Fantasy Gourmet');
 
         if (
             !burgerCategory ||
             !riceCategory ||
             !sushiCategory ||
             !noodlesCategory ||
-            !dessertCategory
+            !dessertCategory ||
+            !fantasyGourmetCategory
         ) {
             throw new Error('Seed categories were not created correctly');
         }
@@ -882,8 +940,9 @@ async function main() {
         const district1 = addressMap.get('district-1');
         const district3 = addressMap.get('district-3');
         const thuDuc = addressMap.get('thu-duc');
+        const binhThanh = addressMap.get('binh-thanh');
 
-        if (!district1 || !district3 || !thuDuc) {
+        if (!district1 || !district3 || !thuDuc || !binhThanh) {
             throw new Error('Seed addresses were not created correctly');
         }
 
@@ -926,6 +985,32 @@ async function main() {
                 coverImage: '',
                 minimumOrder: 10,
                 estimatedDeliveryTime: 35,
+            }),
+            bepVietSearchLab: await upsertRestaurant(tx, {
+                name: 'Bếp Việt Search Lab',
+                phone: '02873000004',
+                description:
+                    'Vietnamese comfort food and drinks seeded for manual search testing.',
+                addressId: binhThanh.id,
+                ownerId: business3.id,
+                status: RestaurantApprovalStatus.APPROVED,
+                image: '',
+                coverImage: '',
+                minimumOrder: 5,
+                estimatedDeliveryTime: 18,
+            }),
+            gourmetWorld: await upsertRestaurant(tx, {
+                name: 'Gourmet World Manual Test',
+                phone: '02873000005',
+                description:
+                    'Rare fantasy dishes prepared for food, ingredient, voucher, and order testing.',
+                addressId: district1.id,
+                ownerId: business.id,
+                status: RestaurantApprovalStatus.APPROVED,
+                image: '',
+                coverImage: '',
+                minimumOrder: 15,
+                estimatedDeliveryTime: 40,
             }),
         };
 
@@ -993,6 +1078,125 @@ async function main() {
                 image: '',
                 isAvailable: true,
             }),
+            bunBoHue: await upsertFood(tx, {
+                restaurantId: restaurants.bepVietSearchLab.id,
+                categoryId: noodlesCategory.id,
+                name: 'Bún bò Huế đặc biệt',
+                description:
+                    'Spicy beef noodle soup with pork sausage and fresh herbs.',
+                price: 9,
+                label: 'Bún Huế best seller',
+                image: '',
+                isAvailable: true,
+            }),
+            bunChaHaNoi: await upsertFood(tx, {
+                restaurantId: restaurants.bepVietSearchLab.id,
+                categoryId: noodlesCategory.id,
+                name: 'Bún chả Hà Nội',
+                description:
+                    'Grilled pork, rice noodles, herbs, and sweet fish sauce.',
+                price: 7,
+                label: 'Món Việt',
+                image: '',
+                isAvailable: true,
+            }),
+            milkTea: await upsertFood(tx, {
+                restaurantId: restaurants.bepVietSearchLab.id,
+                categoryId: dessertCategory.id,
+                name: 'Trà sữa trân châu đường đen',
+                description:
+                    'Fresh milk tea with brown sugar pearls.',
+                price: 4,
+                label: 'Trà sữa phổ biến',
+                image: '',
+                isAvailable: true,
+            }),
+            bbPopcorn: await upsertFood(tx, {
+                restaurantId: restaurants.gourmetWorld.id,
+                categoryId: fantasyGourmetCategory.id,
+                name: 'Bắp rang bơ tẩm gia vị ăn kèm bánh Quicke gà và tôm càng 5 cánh',
+                description:
+                    'A fantasy popcorn course prepared for manual food and ingredient testing.',
+                price: 18,
+                label: 'Fantasy appetizer',
+                image: '',
+                isAvailable: true,
+            }),
+            centurySoup: await upsertFood(tx, {
+                restaurantId: restaurants.gourmetWorld.id,
+                categoryId: fantasyGourmetCategory.id,
+                name: 'Súp thế kỉ, ăn kèm với bánh gạo thuốc',
+                description:
+                    'A century soup course served with medicinal rice cake.',
+                price: 25,
+                label: 'Century menu',
+                image: '',
+                isAvailable: true,
+            }),
+            devilShellCourse: await upsertFood(tx, {
+                restaurantId: restaurants.gourmetWorld.id,
+                categoryId: fantasyGourmetCategory.id,
+                name: 'Sò quỷ, cá quý bà, cá voi trắng, another',
+                description:
+                    'A rare seafood assortment from the fantasy gourmet menu.',
+                price: 32,
+                label: 'Rare seafood',
+                image: '',
+                isAvailable: true,
+            }),
+            endingMammothCourse: await upsertFood(tx, {
+                restaurantId: restaurants.gourmetWorld.id,
+                categoryId: fantasyGourmetCategory.id,
+                name: 'Ma mút kết thúc ăn kèm thịt kim cương, Gia vị bụi sao Melk',
+                description:
+                    'Ending mammoth served with diamond meat and Melk stardust seasoning.',
+                price: 45,
+                label: 'Legendary meat',
+                image: '',
+                isAvailable: true,
+            }),
+            god: await upsertFood(tx, {
+                restaurantId: restaurants.gourmetWorld.id,
+                categoryId: fantasyGourmetCategory.id,
+                name: 'God',
+                description: 'The final fantasy main course.',
+                price: 60,
+                label: 'Ultimate dish',
+                image: '',
+                isAvailable: true,
+            }),
+            airCourse: await upsertFood(tx, {
+                restaurantId: restaurants.gourmetWorld.id,
+                categoryId: fantasyGourmetCategory.id,
+                name: 'Air ăn kèm với cỏ Ozone',
+                description: 'Air served with freshly harvested ozone grass.',
+                price: 50,
+                label: 'Sky course',
+                image: '',
+                isAvailable: true,
+            }),
+            rainbowPudding: await upsertFood(tx, {
+                restaurantId: restaurants.gourmetWorld.id,
+                categoryId: fantasyGourmetCategory.id,
+                name: 'Pudding trái cầu vồng và sầu riêng bomb',
+                description:
+                    'Rainbow fruit pudding paired with explosive durian flavor.',
+                price: 22,
+                label: 'Fantasy dessert',
+                image: '',
+                isAvailable: true,
+            }),
+            billionBirdDrink: await upsertFood(tx, {
+                restaurantId: restaurants.gourmetWorld.id,
+                categoryId: fantasyGourmetCategory.id,
+                name: 'Thức uống thập ức điểu, pha với Cola say mèm.',
+                description:
+                    'A billion-bird drink mixed with strongly fermented cola.',
+                price: 15,
+                label: 'Fantasy drink',
+                image: '',
+                isAvailable: true,
+            }),
         };
 
         const sizeM = sizeMap.get('M');
@@ -1031,6 +1235,23 @@ async function main() {
         const cucumber = ingredientMap.get('Cucumber');
         const seaweed = ingredientMap.get('Seaweed');
         const chocolate = ingredientMap.get('Chocolate');
+        const bbPopcornIngredient = ingredientMap.get('Bắp rang BB');
+        const centurySoupIngredient = ingredientMap.get('Súp thể kỉ');
+        const devilShellIngredient = ingredientMap.get(
+            'Sò quỷ (Ký ức viễn hải)',
+        );
+        const endingMammothIngredient = ingredientMap.get(
+            'Tuyệt tượng - Ma mút kết thúc',
+        );
+        const godIngredient = ingredientMap.get('GOD');
+        const airIngredient = ingredientMap.get('Air');
+        const rainbowFruitIngredient = ingredientMap.get('Trái cầu vồng');
+        const billionBirdEggIngredient = ingredientMap.get(
+            'Trứng thập ức điểu',
+        );
+        const diamondMeatIngredient = ingredientMap.get('Thịt kim cương');
+        const whitePufferfishIngredient = ingredientMap.get('Cá nóc trắng');
+        const ozoneGrassIngredient = ingredientMap.get('Cỏ ozone');
 
         if (
             !beefPatty ||
@@ -1039,7 +1260,18 @@ async function main() {
             !salmon ||
             !cucumber ||
             !seaweed ||
-            !chocolate
+            !chocolate ||
+            !bbPopcornIngredient ||
+            !centurySoupIngredient ||
+            !devilShellIngredient ||
+            !endingMammothIngredient ||
+            !godIngredient ||
+            !airIngredient ||
+            !rainbowFruitIngredient ||
+            !billionBirdEggIngredient ||
+            !diamondMeatIngredient ||
+            !whitePufferfishIngredient ||
+            !ozoneGrassIngredient
         ) {
             throw new Error('Seed ingredients were not created correctly');
         }
@@ -1053,6 +1285,53 @@ async function main() {
         await ensureFoodIngredient(tx, foods.salmonRoll.id, cucumber.id);
         await ensureFoodIngredient(tx, foods.salmonRoll.id, seaweed.id);
         await ensureFoodIngredient(tx, foods.lavaCake.id, chocolate.id);
+        await ensureFoodIngredient(
+            tx,
+            foods.bbPopcorn.id,
+            bbPopcornIngredient.id,
+        );
+        await ensureFoodIngredient(
+            tx,
+            foods.centurySoup.id,
+            centurySoupIngredient.id,
+        );
+        await ensureFoodIngredient(
+            tx,
+            foods.devilShellCourse.id,
+            devilShellIngredient.id,
+        );
+        await ensureFoodIngredient(
+            tx,
+            foods.devilShellCourse.id,
+            whitePufferfishIngredient.id,
+        );
+        await ensureFoodIngredient(
+            tx,
+            foods.endingMammothCourse.id,
+            endingMammothIngredient.id,
+        );
+        await ensureFoodIngredient(
+            tx,
+            foods.endingMammothCourse.id,
+            diamondMeatIngredient.id,
+        );
+        await ensureFoodIngredient(tx, foods.god.id, godIngredient.id);
+        await ensureFoodIngredient(tx, foods.airCourse.id, airIngredient.id);
+        await ensureFoodIngredient(
+            tx,
+            foods.airCourse.id,
+            ozoneGrassIngredient.id,
+        );
+        await ensureFoodIngredient(
+            tx,
+            foods.rainbowPudding.id,
+            rainbowFruitIngredient.id,
+        );
+        await ensureFoodIngredient(
+            tx,
+            foods.billionBirdDrink.id,
+            billionBirdEggIngredient.id,
+        );
 
         const vouchers = {
             welcome5: await upsertVoucher(tx, {
@@ -1097,6 +1376,51 @@ async function main() {
                 startAt: new Date(now.getTime() - 30 * oneDay),
                 endAt: new Date(now.getTime() - 7 * oneDay),
             }),
+            bepViet15: await upsertVoucher(tx, {
+                name: 'Bếp Việt Fifteen',
+                code: 'BEPVIET15',
+                description:
+                    'Fifteen percent off for testing search promotion tags.',
+                image: '',
+                sale: 15,
+                type: VoucherType.PERCENT,
+                status: VoucherStatus.APPLYING,
+                restaurantId: restaurants.bepVietSearchLab.id,
+                minimumOrderAmount: 12,
+                maximumDiscountAmount: 5,
+                startAt: new Date(now.getTime() - oneDay),
+                endAt: new Date(now.getTime() + 14 * oneDay),
+            }),
+            gourmet20: await upsertVoucher(tx, {
+                name: 'Gourmet World Twenty',
+                code: 'GOURMET20',
+                description:
+                    'Twenty percent off fantasy gourmet orders for manual testing.',
+                image: '',
+                sale: 20,
+                type: VoucherType.PERCENT,
+                status: VoucherStatus.APPLYING,
+                restaurantId: restaurants.gourmetWorld.id,
+                minimumOrderAmount: 50,
+                maximumDiscountAmount: 30,
+                startAt: new Date(now.getTime() - oneDay),
+                endAt: new Date(now.getTime() + 30 * oneDay),
+            }),
+            fantasy10: await upsertVoucher(tx, {
+                name: 'Fantasy Ten',
+                code: 'FANTASY10',
+                description:
+                    'Flat discount for testing voucher application on fantasy orders.',
+                image: '',
+                sale: 10,
+                type: VoucherType.MONEY,
+                status: VoucherStatus.APPLYING,
+                restaurantId: restaurants.gourmetWorld.id,
+                minimumOrderAmount: 30,
+                maximumDiscountAmount: null,
+                startAt: new Date(now.getTime() - oneDay),
+                endAt: new Date(now.getTime() + 21 * oneDay),
+            }),
         };
 
         const orderOne = await upsertOrder(tx, {
@@ -1107,6 +1431,8 @@ async function main() {
             status: OrderStatus.DELIVERED,
             totalPrice: 22,
             note: '[seed] delivered burger order',
+            deliveredAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+            autoConfirmAt: new Date(now.getTime() + 22 * 60 * 60 * 1000),
         });
 
         await replaceOrderFoods(tx, orderOne.id, [
@@ -1144,6 +1470,8 @@ async function main() {
             status: OrderStatus.DELIVERED,
             totalPrice: 18,
             note: '[seed] confirmed rice order',
+            deliveredAt: new Date(now.getTime() - 4 * 60 * 60 * 1000),
+            autoConfirmAt: new Date(now.getTime() + 20 * 60 * 60 * 1000),
         });
 
         await replaceOrderFoods(tx, orderTwo.id, [
@@ -1214,6 +1542,146 @@ async function main() {
             paymentStatus: PaymentStatus.UNPAID,
         });
 
+        const searchOrder = await upsertOrder(tx, {
+            restaurantId: restaurants.bepVietSearchLab.id,
+            userId: customer2.id,
+            voucherId: vouchers.bepViet15.id,
+            addressId: thuDuc.id,
+            status: OrderStatus.CONFIRMED,
+            totalPrice: 35,
+            note: '[seed] confirmed search test order',
+            deliveredAt: new Date(now.getTime() - 2 * oneDay),
+            confirmedAt: new Date(now.getTime() - oneDay),
+            confirmedBy: ConfirmedBy.CUSTOMER,
+        });
+
+        await replaceOrderFoods(tx, searchOrder.id, [
+            {
+                foodId: foods.bunBoHue.id,
+                quantity: 3,
+                fullText: 'Medium spicy',
+                price: 9,
+            },
+            {
+                foodId: foods.milkTea.id,
+                quantity: 2,
+                fullText: 'Less ice',
+                price: 4,
+            },
+        ]);
+
+        await upsertPayment(tx, searchOrder.id, {
+            method: PaymentMethod.CASH,
+            amount: 35,
+            paymentStatus: PaymentStatus.DONE,
+        });
+
+        await upsertRating(tx, {
+            restaurantId: restaurants.bepVietSearchLab.id,
+            userId: customer2.id,
+            vote: 5,
+            comment: 'Great seeded restaurant for search suggestions.',
+            orderId: searchOrder.id,
+        });
+
+        const gourmetConfirmedOrder = await upsertOrder(tx, {
+            restaurantId: restaurants.gourmetWorld.id,
+            userId: customer1.id,
+            voucherId: vouchers.gourmet20.id,
+            addressId: district3.id,
+            status: OrderStatus.CONFIRMED,
+            totalPrice: 88,
+            note: '[seed] confirmed gourmet world order',
+            deliveredAt: new Date(now.getTime() - 3 * oneDay),
+            confirmedAt: new Date(now.getTime() - 2 * oneDay),
+            confirmedBy: ConfirmedBy.CUSTOMER,
+        });
+
+        await replaceOrderFoods(tx, gourmetConfirmedOrder.id, [
+            {
+                foodId: foods.god.id,
+                quantity: 1,
+                fullText: 'Serve as the final course',
+                price: 60,
+            },
+            {
+                foodId: foods.airCourse.id,
+                quantity: 1,
+                fullText: 'Extra ozone grass',
+                price: 50,
+            },
+        ]);
+
+        await upsertPayment(tx, gourmetConfirmedOrder.id, {
+            method: PaymentMethod.MOMO,
+            amount: 88,
+            paymentStatus: PaymentStatus.DONE,
+        });
+
+        const gourmetPreparingOrder = await upsertOrder(tx, {
+            restaurantId: restaurants.gourmetWorld.id,
+            userId: customer2.id,
+            voucherId: vouchers.fantasy10.id,
+            addressId: thuDuc.id,
+            status: OrderStatus.PREPARING,
+            totalPrice: 33,
+            note: '[seed] preparing gourmet world order',
+        });
+
+        await replaceOrderFoods(tx, gourmetPreparingOrder.id, [
+            {
+                foodId: foods.bbPopcorn.id,
+                quantity: 1,
+                fullText: 'Pack Quicke cake separately',
+                price: 18,
+            },
+            {
+                foodId: foods.centurySoup.id,
+                quantity: 1,
+                fullText: 'Serve hot',
+                price: 25,
+            },
+        ]);
+
+        await upsertPayment(tx, gourmetPreparingOrder.id, {
+            method: PaymentMethod.CASH,
+            amount: 33,
+            paymentStatus: PaymentStatus.UNPAID,
+        });
+
+        const gourmetDeliveredOrder = await upsertOrder(tx, {
+            restaurantId: restaurants.gourmetWorld.id,
+            userId: customer1.id,
+            voucherId: null,
+            addressId: binhThanh.id,
+            status: OrderStatus.DELIVERED,
+            totalPrice: 67,
+            note: '[seed] delivered gourmet world order',
+            deliveredAt: new Date(now.getTime() - 60 * 60 * 1000),
+            autoConfirmAt: new Date(now.getTime() + 23 * 60 * 60 * 1000),
+        });
+
+        await replaceOrderFoods(tx, gourmetDeliveredOrder.id, [
+            {
+                foodId: foods.endingMammothCourse.id,
+                quantity: 1,
+                fullText: 'Extra Melk stardust seasoning',
+                price: 45,
+            },
+            {
+                foodId: foods.rainbowPudding.id,
+                quantity: 1,
+                fullText: 'Keep chilled',
+                price: 22,
+            },
+        ]);
+
+        await upsertPayment(tx, gourmetDeliveredOrder.id, {
+            method: PaymentMethod.CASH,
+            amount: 67,
+            paymentStatus: PaymentStatus.DONE,
+        });
+
         const conversationOne = await upsertConversation(tx, {
             orderId: orderOne.id,
             customerId: customer1.id,
@@ -1281,7 +1749,32 @@ async function main() {
                 foodId: foods.grilledChickenRice.id,
                 quantity: 1,
             },
+            {
+                foodId: foods.devilShellCourse.id,
+                quantity: 1,
+            },
+            {
+                foodId: foods.billionBirdDrink.id,
+                quantity: 2,
+            },
         ]);
+
+        const searchHistories = [
+            { userId: customer1.id, keyword: 'bún bò' },
+            { userId: customer1.id, keyword: 'trà sữa' },
+            { userId: customer1.id, keyword: 'burger' },
+            { userId: customer2.id, keyword: 'bún bò' },
+            { userId: customer2.id, keyword: 'trà sữa' },
+            { userId: admin.id, keyword: 'bún bò' },
+            { userId: business.id, keyword: 'bún bò' },
+            { userId: business2.id, keyword: 'trà sữa' },
+            { userId: customer1.id, keyword: 'God' },
+            { userId: customer2.id, keyword: 'Ma mút kết thúc' },
+        ];
+
+        for (const history of searchHistories) {
+            await upsertSearchHistory(tx, history.userId, history.keyword);
+        }
     }, {
         maxWait: 10000,
         timeout: 30000,
@@ -1293,7 +1786,12 @@ async function main() {
     console.log('BUSINESS phone=0900000002 password=business123');
     console.log('CUSTOMER phone=0900000003 password=customer123');
     console.log('CUSTOMER phone=0900000004 password=customer456');
-    console.log('Voucher codes: WELCOME5, BURGER10, RICEOLD');
+    console.log(
+        'Search keywords: bún, trà sữa, God, Air, Ma mút, Gourmet World',
+    );
+    console.log(
+        'Voucher codes: WELCOME5, BURGER10, RICEOLD, BEPVIET15, GOURMET20, FANTASY10',
+    );
 }
 
 main()

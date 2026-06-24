@@ -923,7 +923,6 @@ export class OrderService {
                 userId: true,
             },
         });
-
         for (const order of staleOrders) {
             await this.prismaService.client.order.update({
                 where: { id: order.id },

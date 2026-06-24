@@ -1,6 +1,7 @@
 jest.mock('@prisma/client', () => ({
     OrderStatus: {
         DELIVERED: 'DELIVERED',
+        CONFIRMED: 'CONFIRMED',
     },
     PaymentStatus: {
         DONE: 'DONE',
@@ -115,7 +116,7 @@ describe('AdminService', () => {
 
         expect(prismaService.client.order.aggregate).toHaveBeenCalledWith({
             where: {
-                status: 'DELIVERED',
+                status: 'CONFIRMED',
             },
             _sum: {
                 totalPrice: true,

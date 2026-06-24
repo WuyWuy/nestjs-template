@@ -49,7 +49,7 @@ export class SearchService {
             }
         }
 
-        // 2. soldCount của món ăn từ DELIVERED orders
+        // 2. soldCount của món ăn từ CONFIRMED orders
         const soldCounts = await this.prismaService.client.orderFood.groupBy({
             by: ['foodId'],
             _sum: {
@@ -57,7 +57,7 @@ export class SearchService {
             },
             where: {
                 order: {
-                    status: 'DELIVERED',
+                    status: 'CONFIRMED',
                 },
             },
         });
@@ -285,7 +285,7 @@ export class SearchService {
             },
             where: {
                 order: {
-                    status: 'DELIVERED',
+                    status: 'CONFIRMED',
                 },
                 food: {
                     deleteAt: null,
@@ -359,7 +359,7 @@ export class SearchService {
             where: {
                 foodId: { in: foodsDb.map(f => f.id) },
                 order: {
-                    status: 'DELIVERED',
+                    status: 'CONFIRMED',
                 },
             },
         });

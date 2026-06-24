@@ -37,6 +37,11 @@ jest.mock('@prisma/client', () => {
             DELIVERED: 'DELIVERED',
             CANCELLED: 'CANCELLED',
         },
+        ConfirmedBy: {
+            CUSTOMER: 'CUSTOMER',
+            SYSTEM: 'SYSTEM',
+            ADMIN: 'ADMIN',
+        },
         PaymentMethod: {
             CASH: 'CASH',
             MOMO: 'MOMO',
@@ -191,6 +196,9 @@ describe('OrderService', () => {
         cartService = {
             getCart: jest.fn(),
         };
+        const restaurantService = {
+            calculateDistance: jest.fn().mockReturnValue(3),
+        };
         eventEmitter = {
             emit: jest.fn(),
         };
@@ -200,6 +208,7 @@ describe('OrderService', () => {
             addressService as any,
             paymentService as any,
             cartService as any,
+            restaurantService as any,
             eventEmitter as any,
         );
     });
@@ -208,10 +217,18 @@ describe('OrderService', () => {
         tx.userAddress.findFirst.mockResolvedValueOnce({
             id: 2,
             addressId: 11,
+            address: {
+                latitude: 10.77,
+                longitude: 106.7,
+            },
         });
         tx.restaurant.findFirst.mockResolvedValueOnce({
             id: 7,
             ownerId: 55,
+            address: {
+                latitude: 10.78,
+                longitude: 106.71,
+            },
         });
         tx.food.findMany.mockResolvedValueOnce([
             {
@@ -296,7 +313,7 @@ describe('OrderService', () => {
         });
         expect(paymentService.createCashPayment).toHaveBeenCalledWith(
             100,
-            24,
+            27.4,
             tx,
         );
         expect(tx.cartItem.deleteMany).toHaveBeenCalledWith({
@@ -318,6 +335,7 @@ describe('OrderService', () => {
                 id: 100,
                 restaurantId: 7,
                 totalPrice: 24,
+                deliveryFee: 3.4,
                 status: OrderStatus.PENDING,
                 userId: 99,
                 addressId: 11,
@@ -347,10 +365,18 @@ describe('OrderService', () => {
     });
 
     it('should create order with custom address and momo payment', async () => {
-        addressService.createAddress.mockResolvedValueOnce({ id: 22 });
+        addressService.createAddress.mockResolvedValueOnce({
+            id: 22,
+            latitude: 10.77,
+            longitude: 106.7,
+        });
         tx.restaurant.findFirst.mockResolvedValueOnce({
             id: 7,
             ownerId: 55,
+            address: {
+                latitude: 10.78,
+                longitude: 106.71,
+            },
         });
         tx.food.findMany.mockResolvedValueOnce([
             {
@@ -411,7 +437,7 @@ describe('OrderService', () => {
         );
         expect(paymentService.createMoMoPayment).toHaveBeenCalledWith(
             101,
-            20,
+            23.4,
             tx,
         );
         expect(tx.cart.findFirst).not.toHaveBeenCalled();
@@ -516,9 +542,9 @@ describe('OrderService', () => {
                     status: {
                         in: [
                             OrderStatus.PENDING,
-                            OrderStatus.CONFIRMED,
                             OrderStatus.PREPARING,
                             OrderStatus.DELIVERING,
+                            OrderStatus.DELIVERED,
                         ],
                     },
                 },
@@ -631,7 +657,7 @@ describe('OrderService', () => {
                 id: 1,
                 totalPrice: 45,
                 expected_arrival: '2025-01-01T00:30:00.000Z',
-                status: 'ON_THE_WAY',
+                status: 'DELIVERING',
                 status_step: 2,
                 backend_status: OrderStatus.DELIVERING,
                 payment: expect.objectContaining({
@@ -673,6 +699,11 @@ describe('OrderService', () => {
             status_step: -1,
             updated_at: '2025-01-02T00:00:00.000Z',
             backend_status: OrderStatus.CANCELLED,
+            delivered_at: null,
+            confirmed_at: null,
+            confirmed_by: null,
+            auto_confirm_at: null,
+            hours_until_auto_confirm: null,
         });
     });
 
@@ -681,6 +712,16 @@ describe('OrderService', () => {
             id: 1,
             userId: 99,
             restaurantId: 7,
+            address: {
+                latitude: 10.77,
+                longitude: 106.7,
+            },
+            restaurant: {
+                address: {
+                    latitude: 10.78,
+                    longitude: 106.71,
+                },
+            },
             orderFoods: [
                 {
                     foodId: 3,
@@ -705,6 +746,7 @@ describe('OrderService', () => {
         cartService.getCart.mockResolvedValueOnce({
             id: 5,
             items: [{ foodId: 3 }],
+            subtotal: 24,
         });
 
         const result = await service.reorder(99, 1);
@@ -720,6 +762,9 @@ describe('OrderService', () => {
         expect(result).toEqual({
             id: 5,
             items: [{ foodId: 3 }],
+            subtotal: 24,
+            deliveryFee: 3.4,
+            totalPrice: 27.4,
         });
     });
 
@@ -728,6 +773,16 @@ describe('OrderService', () => {
             id: 1,
             userId: 99,
             restaurantId: 7,
+            address: {
+                latitude: 10.77,
+                longitude: 106.7,
+            },
+            restaurant: {
+                address: {
+                    latitude: 10.78,
+                    longitude: 106.71,
+                },
+            },
             orderFoods: [
                 {
                     foodId: 3,
@@ -762,7 +817,7 @@ describe('OrderService', () => {
 
         expect(prismaService.client.order.update).toHaveBeenCalledWith({
             where: { id: 1 },
-            data: { status: OrderStatus.CANCELLED },
+            data: { status: OrderStatus.CANCELLED, autoConfirmAt: null },
         });
         expect(eventEmitter.emit).toHaveBeenCalledWith(
             'notification.send',
@@ -809,21 +864,55 @@ describe('OrderService', () => {
         prismaService.client.order.findFirst.mockResolvedValueOnce(accessOrder);
         prismaService.client.order.update.mockResolvedValueOnce({
             id: 1,
-            status: OrderStatus.CONFIRMED,
+            status: OrderStatus.PREPARING,
         });
 
         const result = await service.updateOrderStatus(55, [Role.BUSINESS], 1, {
-            status: OrderStatus.CONFIRMED,
+            status: OrderStatus.PREPARING,
         });
 
         expect(prismaService.client.order.update).toHaveBeenCalledWith({
             where: { id: 1 },
-            data: { status: OrderStatus.CONFIRMED },
+            data: { status: OrderStatus.PREPARING },
         });
         expect(result).toEqual({
             id: 1,
-            status: OrderStatus.CONFIRMED,
+            status: OrderStatus.PREPARING,
         });
+    });
+
+    it('should reject invalid business status transition', async () => {
+        prismaService.client.order.findFirst.mockResolvedValueOnce(accessOrder);
+
+        await expect(
+            service.updateOrderStatus(55, [Role.BUSINESS], 1, {
+                status: OrderStatus.DELIVERED,
+            }),
+        ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should allow customer to confirm received order', async () => {
+        prismaService.client.order.findFirst.mockResolvedValueOnce({
+            ...accessOrder,
+            status: OrderStatus.DELIVERED,
+        });
+        prismaService.client.order.update.mockResolvedValueOnce({
+            id: 1,
+            status: OrderStatus.CONFIRMED,
+            confirmedBy: 'CUSTOMER',
+            confirmedAt: new Date('2025-01-02T00:00:00.000Z'),
+        });
+
+        const result = await service.confirmReceived(99, 1);
+
+        expect(result).toEqual(
+            expect.objectContaining({
+                order_id: 1,
+                backend_status: OrderStatus.CONFIRMED,
+                confirmed_by: 'CUSTOMER',
+                message: 'Order receipt confirmed successfully',
+            }),
+        );
     });
 
     it('should reject customer status update except cancellation', async () => {

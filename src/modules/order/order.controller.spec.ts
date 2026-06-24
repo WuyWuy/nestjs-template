@@ -71,6 +71,7 @@ describe('OrderController', () => {
         deleteOrderById: jest.Mock;
         cancelOrderCompatible: jest.Mock;
         updateOrderStatus: jest.Mock;
+        confirmReceived: jest.Mock;
     };
 
     beforeEach(() => {
@@ -83,6 +84,7 @@ describe('OrderController', () => {
             deleteOrderById: jest.fn(),
             cancelOrderCompatible: jest.fn(),
             updateOrderStatus: jest.fn(),
+            confirmReceived: jest.fn(),
         };
 
         controller = new OrderController(orderService as any);
@@ -228,10 +230,10 @@ describe('OrderController', () => {
     });
 
     it('should update order status for requester', async () => {
-        const body = { status: OrderStatus.CONFIRMED };
+        const body = { status: OrderStatus.PREPARING };
         orderService.updateOrderStatus.mockResolvedValueOnce({
             id: 1,
-            status: OrderStatus.CONFIRMED,
+            status: OrderStatus.PREPARING,
         });
 
         const result = await controller.updateOrderStatus(
@@ -248,7 +250,24 @@ describe('OrderController', () => {
         );
         expect(result).toEqual({
             id: 1,
-            status: OrderStatus.CONFIRMED,
+            status: OrderStatus.PREPARING,
+        });
+    });
+
+    it('should confirm received order for customer', async () => {
+        orderService.confirmReceived.mockResolvedValueOnce({
+            order_id: 1,
+            status: 'CONFIRMED',
+        });
+
+        const result = await controller.confirmReceived(1, {
+            user: { id: 99, roles: [Role.CUSTOMER] },
+        } as any);
+
+        expect(orderService.confirmReceived).toHaveBeenCalledWith(99, 1);
+        expect(result).toEqual({
+            order_id: 1,
+            status: 'CONFIRMED',
         });
     });
 

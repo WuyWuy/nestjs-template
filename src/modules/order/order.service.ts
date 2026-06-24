@@ -19,12 +19,23 @@ import {
     VoucherType,
     NotificationType,
     RestaurantApprovalStatus,
+    ConfirmedBy,
 } from '@prisma/client';
 import { PaymentService } from '../payment/payment.service';
 import { CartService } from '../cart/cart.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationEvent } from '../notification/events/notification.event';
 import { RestaurantService } from '../restaurant/restaurant.service';
+import {
+    assertValidStatusTransition,
+    buildOrderTimingFields,
+    buildStatusUpdateData,
+    CANCELLABLE_ORDER_STATUSES,
+    HISTORY_ORDER_STATUSES,
+    mapOrderStatusToFrontend,
+    ONGOING_ORDER_STATUSES,
+    ORDER_AUTO_CONFIRM_HOURS,
+} from './order-status.helper';
 
 type FoodSnapshot = {
     id: number;
@@ -119,6 +130,10 @@ export class OrderService {
                 id: true,
                 userId: true,
                 status: true,
+                deliveredAt: true,
+                confirmedAt: true,
+                confirmedBy: true,
+                autoConfirmAt: true,
                 restaurantId: true,
                 restaurant: {
                     select: {
@@ -580,24 +595,15 @@ export class OrderService {
         if (status) {
             if (status === 'ongoing') {
                 statusFilter = {
-                    in: [
-                        OrderStatus.PENDING,
-                        OrderStatus.PREPARING,
-                        OrderStatus.DELIVERING,
-                    ],
+                    in: ONGOING_ORDER_STATUSES,
                 };
             } else if (status === 'history') {
                 statusFilter = {
-                    in: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+                    in: HISTORY_ORDER_STATUSES,
                 };
-
-            } 
-            else if (status === 'confirmed') {
-                statusFilter = {
-                    in: [OrderStatus.CONFIRMED]
-                }
-            }
-            else {
+            } else if (status === 'confirmed') {
+                statusFilter = OrderStatus.CONFIRMED;
+            } else {
                 if (Object.values(OrderStatus).includes(status as OrderStatus)) {
                     statusFilter = status as OrderStatus;
                 } else {
@@ -681,7 +687,7 @@ export class OrderService {
             const paymentDate = order.payments[0]?.createdAt ?? new Date();
             const dateStr = paymentDate instanceof Date ? paymentDate.toISOString() : new Date(paymentDate).toISOString();
             const itemCount = order.orderFoods.reduce((acc, f) => acc + f.quantity, 0);
-            const { status: feStatus, status_step } = this.mapOrderStatusToFrontend(order.status);
+            const { status: feStatus, status_step } = mapOrderStatusToFrontend(order.status);
 
             return {
                 ...order,
@@ -730,6 +736,10 @@ export class OrderService {
                 id: true,
                 totalPrice: true,
                 status: true,
+                deliveredAt: true,
+                confirmedAt: true,
+                confirmedBy: true,
+                autoConfirmAt: true,
                 user: {
                     select: {
                         id: true,
@@ -819,7 +829,7 @@ export class OrderService {
         const estimatedMinutes = order.restaurant?.estimatedDeliveryTime ?? 20;
         const expectedArrival = new Date(new Date(paymentDate).getTime() + estimatedMinutes * 60000);
 
-        const { status: feStatus, status_step } = this.mapOrderStatusToFrontend(order.status);
+        const { status: feStatus, status_step } = mapOrderStatusToFrontend(order.status);
 
         return {
             ...order,
@@ -828,6 +838,7 @@ export class OrderService {
             status: feStatus,
             status_step,
             backend_status: order.status,
+            ...buildOrderTimingFields(order),
             orderFoods: order.orderFoods.map((item) => ({
                 ...item,
                 price: Number(item.price),
@@ -850,7 +861,7 @@ export class OrderService {
             select: { updatedAt: true },
         });
 
-        const { status: feStatus, status_step } = this.mapOrderStatusToFrontend(order.status);
+        const { status: feStatus, status_step } = mapOrderStatusToFrontend(order.status);
 
         return {
             order_id: order.id,
@@ -858,7 +869,77 @@ export class OrderService {
             status_step,
             updated_at: (payment?.updatedAt ?? new Date()).toISOString(),
             backend_status: order.status,
+            ...buildOrderTimingFields(order),
         };
+    }
+
+    async confirmReceived(userId: number, orderId: number) {
+        const order = await this.findOrderWithAccess(userId, [Role.CUSTOMER], orderId);
+        this.ensureCustomerAccess(order.userId, userId);
+        assertValidStatusTransition(
+            order.status,
+            OrderStatus.CONFIRMED,
+            [Role.CUSTOMER],
+        );
+
+        const updatedOrder = await this.prismaService.client.order.update({
+            where: { id: order.id },
+            data: buildStatusUpdateData(OrderStatus.CONFIRMED, ConfirmedBy.CUSTOMER),
+        });
+
+        await this.emitOrderStatusNotification(
+            order.userId,
+            order.id,
+            OrderStatus.CONFIRMED,
+            userId,
+            ConfirmedBy.CUSTOMER,
+        );
+
+        const { status: feStatus, status_step } = mapOrderStatusToFrontend(
+            updatedOrder.status,
+        );
+
+        return {
+            order_id: updatedOrder.id,
+            status: feStatus,
+            status_step,
+            backend_status: updatedOrder.status,
+            confirmed_by: updatedOrder.confirmedBy,
+            confirmed_at: updatedOrder.confirmedAt?.toISOString() ?? null,
+            message: 'Order receipt confirmed successfully',
+        };
+    }
+
+    async autoConfirmStaleOrders(): Promise<number> {
+        const staleOrders = await this.prismaService.client.order.findMany({
+            where: {
+                status: OrderStatus.DELIVERED,
+                autoConfirmAt: {
+                    lte: new Date(),
+                },
+            },
+            select: {
+                id: true,
+                userId: true,
+            },
+        });
+
+        for (const order of staleOrders) {
+            await this.prismaService.client.order.update({
+                where: { id: order.id },
+                data: buildStatusUpdateData(OrderStatus.CONFIRMED, ConfirmedBy.SYSTEM),
+            });
+
+            await this.emitOrderStatusNotification(
+                order.userId,
+                order.id,
+                OrderStatus.CONFIRMED,
+                undefined,
+                ConfirmedBy.SYSTEM,
+            );
+        }
+
+        return staleOrders.length;
     }
 
     async reorder(userId: number, orderId: number) {
@@ -1022,13 +1103,7 @@ export class OrderService {
             this.ensureCustomerAccess(order.userId, userId);
         }
 
-        const cancellableStatuses: OrderStatus[] = [
-            OrderStatus.PENDING,
-            OrderStatus.CONFIRMED,
-            OrderStatus.PREPARING,
-        ];
-
-        if (!cancellableStatuses.includes(order.status)) {
+        if (!CANCELLABLE_ORDER_STATUSES.includes(order.status)) {
             throw new BadRequestException(
                 'Only pending or active orders can be cancelled',
             );
@@ -1040,6 +1115,7 @@ export class OrderService {
             },
             data: {
                 status: OrderStatus.CANCELLED,
+                autoConfirmAt: null,
             },
         });
 
@@ -1073,13 +1149,7 @@ export class OrderService {
             this.ensureCustomerAccess(order.userId, userId);
         }
 
-        const cancellableStatuses: OrderStatus[] = [
-            OrderStatus.PENDING,
-            OrderStatus.CONFIRMED,
-            OrderStatus.PREPARING,
-        ];
-
-        if (!cancellableStatuses.includes(order.status)) {
+        if (!CANCELLABLE_ORDER_STATUSES.includes(order.status)) {
             throw new BadRequestException(
                 'Only pending or active orders can be cancelled',
             );
@@ -1091,6 +1161,7 @@ export class OrderService {
             },
             data: {
                 status: OrderStatus.CANCELLED,
+                autoConfirmAt: null,
             },
         });
 
@@ -1112,7 +1183,7 @@ export class OrderService {
             console.error('Error emitting cancel order notification:', err);
         }
 
-        const { status: feStatus, status_step } = this.mapOrderStatusToFrontend(OrderStatus.CANCELLED);
+        const { status: feStatus, status_step } = mapOrderStatusToFrontend(OrderStatus.CANCELLED);
 
         return {
             order_id: order.id,
@@ -1133,11 +1204,6 @@ export class OrderService {
 
         if (this.hasRole(roles, Role.CUSTOMER)) {
             this.ensureCustomerAccess(order.userId, userId);
-            if (data.status !== OrderStatus.CANCELLED) {
-                throw new ForbiddenException(
-                    'Customers are only allowed to cancel orders',
-                );
-            }
         }
 
         if (
@@ -1147,76 +1213,82 @@ export class OrderService {
             this.ensureBusinessAccess(order.restaurant.ownerId, userId, roles);
         }
 
+        assertValidStatusTransition(order.status, data.status, roles);
+
         const updatedOrder = await this.prismaService.client.order.update({
             where: {
                 id: order.id,
             },
-            data: {
-                status: data.status,
-            },
+            data: buildStatusUpdateData(data.status),
         });
 
-        try {
-            let title = 'Order Update';
-            let body = `Your order #${order.id} status has been updated to ${data.status}.`;
-            switch (data.status) {
-                case OrderStatus.CONFIRMED:
-                    title = 'Order Confirmed';
-                    body = `Your order #${order.id} has been confirmed by the restaurant.`;
-                    break;
-                case OrderStatus.PREPARING:
-                    title = 'Preparing Your Order';
-                    body = `The restaurant is preparing your food for order #${order.id}.`;
-                    break;
-                case OrderStatus.DELIVERING:
-                    title = 'Order Out for Delivery';
-                    body = `Your order #${order.id} is on the way!`;
-                    break;
-                case OrderStatus.DELIVERED:
-                    title = 'Order Delivered';
-                    body = `Your order #${order.id} has been successfully delivered. Enjoy your meal!`;
-                    break;
-                case OrderStatus.CANCELLED:
-                    title = 'Order Cancelled';
-                    body = `Your order #${order.id} has been cancelled.`;
-                    break;
-            }
-
-            this.eventEmitter.emit('notification.send', {
-                recipientUserId: order.userId,
-                title,
-                body,
-                type: NotificationType.ORDER,
-                targetType: 'ORDER',
-                targetId: order.id,
-                actorId: userId,
-                metadata: {
-                    orderId: order.id,
-                    status: data.status,
-                }
-            } as NotificationEvent);
-        } catch (err) {
-            console.error('Error emitting update order status notification:', err);
-        }
+        await this.emitOrderStatusNotification(
+            order.userId,
+            order.id,
+            data.status,
+            userId,
+        );
 
         return updatedOrder;
     }
 
-    private mapOrderStatusToFrontend(status: OrderStatus) {
-        switch (status) {
-            case OrderStatus.PENDING:
-            case OrderStatus.CONFIRMED:
-                return { status: 'CONFIRMED', status_step: 0 };
-            case OrderStatus.PREPARING:
-                return { status: 'PREPARING', status_step: 1 };
-            case OrderStatus.DELIVERING:
-                return { status: 'DELIVERING', status_step: 2 };
-            case OrderStatus.DELIVERED:
-                return { status: 'DELIVERED', status_step: 3 };
-            case OrderStatus.CANCELLED:
-                return { status: 'CANCELED', status_step: -1 };
-            default:
-                return { status: 'UNKNOWN', status_step: -1 };
+    private async emitOrderStatusNotification(
+        recipientUserId: number,
+        orderId: number,
+        status: OrderStatus,
+        actorId?: number,
+        confirmedBy?: ConfirmedBy,
+    ) {
+        try {
+            let title = 'Order Update';
+            let body = `Your order #${orderId} status has been updated to ${status}.`;
+            const metadata: Record<string, unknown> = {
+                orderId,
+                status,
+            };
+
+            switch (status) {
+                case OrderStatus.PREPARING:
+                    title = 'Preparing Your Order';
+                    body = `The restaurant has accepted and is preparing your order #${orderId}.`;
+                    break;
+                case OrderStatus.DELIVERING:
+                    title = 'Order Out for Delivery';
+                    body = `Your order #${orderId} is on the way!`;
+                    break;
+                case OrderStatus.DELIVERED:
+                    title = 'Order Delivered';
+                    body = `Your order #${orderId} has been delivered. Please confirm receipt within ${ORDER_AUTO_CONFIRM_HOURS} hours.`;
+                    metadata.actions = ['CONFIRM_RECEIVED'];
+                    break;
+                case OrderStatus.CONFIRMED:
+                    if (confirmedBy === ConfirmedBy.SYSTEM) {
+                        title = 'Order Completed';
+                        body = `Your order #${orderId} was automatically completed after ${ORDER_AUTO_CONFIRM_HOURS} hours.`;
+                    } else {
+                        title = 'Order Completed';
+                        body = `Thanks for confirming receipt of order #${orderId}.`;
+                    }
+                    metadata.confirmedBy = confirmedBy ?? ConfirmedBy.CUSTOMER;
+                    break;
+                case OrderStatus.CANCELLED:
+                    title = 'Order Cancelled';
+                    body = `Your order #${orderId} has been cancelled.`;
+                    break;
+            }
+
+            this.eventEmitter.emit('notification.send', {
+                recipientUserId,
+                title,
+                body,
+                type: NotificationType.ORDER,
+                targetType: 'ORDER',
+                targetId: orderId,
+                actorId,
+                metadata,
+            } as NotificationEvent);
+        } catch (err) {
+            console.error('Error emitting update order status notification:', err);
         }
     }
 }

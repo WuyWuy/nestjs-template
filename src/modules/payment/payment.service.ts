@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-    OrderStatus,
     PaymentMethod,
     PaymentStatus,
     Prisma,
@@ -129,25 +128,6 @@ export class PaymentService {
                 paymentStatus: status,
             },
         });
-
-        if (status === PaymentStatus.DONE) {
-            const order = await this.prismaService.client.order.findFirst({
-                where: {
-                    id: Number(orderId),
-                },
-            });
-
-            if (order && order.status === 'PENDING') {
-                await this.prismaService.client.order.update({
-                    where: {
-                        id: order.id,
-                    },
-                    data: {
-                        status: OrderStatus.CONFIRMED,
-                    },
-                });
-            }
-        }
 
         return result;
     }
@@ -275,15 +255,6 @@ export class PaymentService {
                 },
             });
 
-            if (payment.order.status === OrderStatus.PENDING) {
-                await tx.order.update({
-                    where: { id: payment.order.id },
-                    data: {
-                        status: OrderStatus.CONFIRMED,
-                    },
-                });
-            }
-
             return res;
         });
 
@@ -302,24 +273,8 @@ export class PaymentService {
                     amount: payment.amount,
                 }
             } as NotificationEvent);
-
-            if (payment.order.status === OrderStatus.PENDING) {
-                this.eventEmitter.emit('notification.send', {
-                    recipientUserId: payment.order.userId,
-                    title: 'Order Confirmed',
-                    body: `Your order #${payment.order.id} has been confirmed by the restaurant.`,
-                    type: NotificationType.ORDER,
-                    targetType: 'ORDER',
-                    targetId: payment.order.id,
-                    actorId,
-                    metadata: {
-                        orderId: payment.order.id,
-                        status: OrderStatus.CONFIRMED,
-                    }
-                } as NotificationEvent);
-            }
         } catch (err) {
-            console.error('Error emitting payment/order confirmation notification:', err);
+            console.error('Error emitting payment confirmation notification:', err);
         }
 
         await this.auditService.log(

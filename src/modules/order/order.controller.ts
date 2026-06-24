@@ -164,6 +164,17 @@ export class OrderController {
         );
     }
 
+    @ApiOperation({ summary: 'Khách xác nhận đã nhận hàng' })
+    @Roles(Role.CUSTOMER)
+    @Post('/:orderId/confirm-received')
+    async confirmReceived(
+        @Param('orderId', ParseIntPipe) orderId: number,
+        @Req() req: Request,
+    ) {
+        const user = req.user as { id?: number };
+        return await this.orderSerivce.confirmReceived(Number(user.id), orderId);
+    }
+
     @ApiOperation({ summary: 'Cập nhật trạng thái đơn hàng' })
     @ApiBody({
         type: UpdateOrderStatus,
@@ -171,7 +182,7 @@ export class OrderController {
             example: {
                 summary: 'Chuyển trạng thái đơn hàng',
                 value: {
-                    status: 'CONFIRMED',
+                    status: 'PREPARING',
                 },
             },
         },

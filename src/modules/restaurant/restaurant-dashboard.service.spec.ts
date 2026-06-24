@@ -66,6 +66,11 @@ describe('RestaurantService - generated dashboard', () => {
                         },
                         {
                             status: 'DELIVERED',
+                            _count: { id: 3 },
+                            _sum: { totalPrice: 60 },
+                        },
+                        {
+                            status: 'CONFIRMED',
                             _count: { id: 117 },
                             _sum: { totalPrice: '2241.00' },
                         },
@@ -131,12 +136,12 @@ describe('RestaurantService - generated dashboard', () => {
         await expect(
             service.generateRestaurantDashboard(101, 99, ['BUSINESS']),
         ).resolves.toEqual({
-            runningOrders: 20,
+            runningOrders: 23,
             orderRequest: 5,
             revenue: 2241,
             rating: 4.9,
             totalReviews: 25,
-            totalOrders: 142,
+            totalOrders: 145,
             activeVouchers: 3,
             recentOrders: [
                 {

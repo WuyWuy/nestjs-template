@@ -36,6 +36,12 @@ enum OrderStatus {
     CANCELLED
 }
 
+enum ConfirmedBy {
+    CUSTOMER
+    SYSTEM
+    ADMIN
+}
+
 enum PaymentMethod {
     MOMO
     CASH

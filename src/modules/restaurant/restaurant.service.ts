@@ -532,8 +532,8 @@ export class RestaurantService {
                 throw new BadRequestException('This order does not belong to the specified restaurant');
             }
 
-            if (order.status !== 'DELIVERED') {
-                throw new BadRequestException('Only delivered orders can be rated');
+            if (order.status !== OrderStatus.CONFIRMED) {
+                throw new BadRequestException('Only confirmed orders can be rated');
             }
 
             const existingRating = await this.prismaService.client.restaurantRating.findFirst({
@@ -963,7 +963,7 @@ export class RestaurantService {
         const foodStats = new Map<number, { id: number; name: string; image: string; quantity: number; revenue: number }>();
 
         for (const order of orders) {
-            if (order.status === OrderStatus.DELIVERED) {
+            if (order.status === OrderStatus.CONFIRMED) {
                 deliveredOrderCount++;
                 deliveredRevenue += Number(order.totalPrice);
 
@@ -1065,7 +1065,7 @@ export class RestaurantService {
                     deleteAt: null,
                     order: {
                         restaurantId,
-                        status: OrderStatus.DELIVERED,
+                        status: OrderStatus.CONFIRMED,
                         deleteAt: null,
                     },
                 },
@@ -1140,14 +1140,14 @@ export class RestaurantService {
                 .filter((item) => statuses.includes(item.status))
                 .reduce((total, item) => total + item._count.id, 0);
         const deliveredStats = orderStats.find(
-            (item) => item.status === OrderStatus.DELIVERED,
+            (item) => item.status === OrderStatus.CONFIRMED,
         );
 
         return {
             runningOrders: getOrderCount([
-                OrderStatus.CONFIRMED,
                 OrderStatus.PREPARING,
                 OrderStatus.DELIVERING,
+                OrderStatus.DELIVERED,
             ]),
             orderRequest: getOrderCount([OrderStatus.PENDING]),
             revenue: Number(deliveredStats?._sum.totalPrice ?? 0),
@@ -1215,7 +1215,7 @@ export class RestaurantService {
         const ordersAggregate = await this.prismaService.client.order.aggregate({
             where: {
                 restaurantId,
-                status: OrderStatus.DELIVERED,
+                status: OrderStatus.CONFIRMED,
             },
             _sum: {
                 totalPrice: true,

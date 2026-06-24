@@ -6,11 +6,12 @@ import { PaymentModule } from '../payment/payment.module';
 import { AuthModule } from '../auth/auth.module';
 import { CartModule } from '../cart/cart.module';
 import { RestaurantModule } from '../restaurant/restaurant.module';
+import { OrderAutoConfirmScheduler } from './order-auto-confirm.scheduler';
 
 @Module({
     imports: [AddressModule, PaymentModule, AuthModule, CartModule , RestaurantModule],
     controllers: [OrderController],
-    providers: [OrderService],
+    providers: [OrderService, OrderAutoConfirmScheduler],
     exports: [OrderService],
 })
 export class OrderModule {}

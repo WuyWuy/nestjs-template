@@ -4,6 +4,10 @@ model Order {
     restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
     totalPrice   Decimal     @default(0)
     status       OrderStatus
+    deliveredAt  DateTime?
+    confirmedAt  DateTime?
+    confirmedBy  ConfirmedBy?
+    autoConfirmAt DateTime?
     orderFoods   OrderFood[]
     payments     Payment[]
     voucherId    Int?
@@ -16,6 +20,8 @@ model Order {
     address      Address     @relation(fields: [addressId], references: [id])
     foodRatings  FoodRating[]
     restaurantRating RestaurantRating?
+
+    @@index([status, autoConfirmAt])
 }
 
 model OrderFood {

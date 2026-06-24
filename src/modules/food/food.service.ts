@@ -462,7 +462,7 @@ export class FoodService {
             where: {
                 id: data.orderId,
                 userId,
-                status: OrderStatus.DELIVERED,
+                status: OrderStatus.CONFIRMED,
             },
             include: {
                 orderFoods: true,
@@ -470,7 +470,7 @@ export class FoodService {
         });
 
         if (!order) {
-            throw new BadRequestException('You do not have a delivered order matching this order ID');
+            throw new BadRequestException('You do not have a confirmed order matching this order ID');
         }
 
         const hasFood = order.orderFoods.some((of) => of.foodId === foodId);

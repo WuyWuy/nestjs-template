@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TestModule } from './modules/test/test.module';
@@ -42,6 +43,7 @@ import { HomeModule } from './modules/home/home.module';
             isGlobal: true,
         }),
         EventEmitterModule.forRoot(),
+        ScheduleModule.forRoot(),
         AuditModule,
         AuthModule,
         TwilioModule, //Sending SmS

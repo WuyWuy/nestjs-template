@@ -271,7 +271,7 @@ describe('PaymentService', () => {
         );
     });
 
-    it('should update momo payment status and confirm pending order when done', async () => {
+    it('should update momo payment status without changing order status', async () => {
         prismaService.client.payment.findFirst.mockResolvedValueOnce({
             id: 5,
             orderId: 10,
@@ -279,10 +279,6 @@ describe('PaymentService', () => {
         prismaService.client.payment.update.mockResolvedValueOnce({
             id: 5,
             paymentStatus: PaymentStatus.DONE,
-        });
-        prismaService.client.order.findFirst.mockResolvedValueOnce({
-            id: 10,
-            status: OrderStatus.PENDING,
         });
 
         const result = await service.updateMoMoPaymentStatus(
@@ -294,10 +290,7 @@ describe('PaymentService', () => {
             where: { id: 5 },
             data: { paymentStatus: PaymentStatus.DONE },
         });
-        expect(prismaService.client.order.update).toHaveBeenCalledWith({
-            where: { id: 10 },
-            data: { status: OrderStatus.CONFIRMED },
-        });
+        expect(prismaService.client.order.update).not.toHaveBeenCalled();
         expect(result).toEqual({
             id: 5,
             paymentStatus: PaymentStatus.DONE,
@@ -400,11 +393,8 @@ describe('PaymentService', () => {
             where: { id: 5 },
             data: { paymentStatus: PaymentStatus.DONE },
         });
-        expect(tx.order.update).toHaveBeenCalledWith({
-            where: { id: 10 },
-            data: { status: OrderStatus.CONFIRMED },
-        });
-        expect(eventEmitter.emit).toHaveBeenCalledTimes(2);
+        expect(tx.order.update).not.toHaveBeenCalled();
+        expect(eventEmitter.emit).toHaveBeenCalledTimes(1);
         expect(auditService.log).toHaveBeenCalledWith(
             'CONFIRM_PAYMENT',
             'Payment',

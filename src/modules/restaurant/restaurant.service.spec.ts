@@ -83,7 +83,7 @@ describe('RestaurantService - createRestaurantRating', () => {
             id: 162432,
             restaurantId: 101,
             userId: 5,
-            status: 'DELIVERED',
+            status: 'CONFIRMED',
         });
         prismaService.client.restaurantRating.findFirst.mockResolvedValueOnce(null);
         prismaService.client.restaurantRating.create.mockResolvedValueOnce({
@@ -146,7 +146,7 @@ describe('RestaurantService - createRestaurantRating', () => {
             id: 162432,
             restaurantId: 101,
             userId: 99, // belongs to user 99, but user 5 is rating
-            status: 'DELIVERED',
+            status: 'CONFIRMED',
         });
 
         await expect(
@@ -163,7 +163,7 @@ describe('RestaurantService - createRestaurantRating', () => {
             id: 162432,
             restaurantId: 999, // order is for restaurant 999, but rating is for 101
             userId: 5,
-            status: 'DELIVERED',
+            status: 'CONFIRMED',
         });
 
         await expect(
@@ -174,7 +174,7 @@ describe('RestaurantService - createRestaurantRating', () => {
         ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException if order status is not DELIVERED', async () => {
+    it('should throw BadRequestException if order status is not CONFIRMED', async () => {
         prismaService.client.restaurant.findFirst.mockResolvedValueOnce({ id: 101 });
         prismaService.client.order.findFirst.mockResolvedValueOnce({
             id: 162432,
@@ -197,7 +197,7 @@ describe('RestaurantService - createRestaurantRating', () => {
             id: 162432,
             restaurantId: 101,
             userId: 5,
-            status: 'DELIVERED',
+            status: 'CONFIRMED',
         });
         prismaService.client.restaurantRating.findFirst.mockResolvedValueOnce({
             id: 12,
@@ -218,7 +218,7 @@ describe('RestaurantService - createRestaurantRating', () => {
             id: 162432,
             restaurantId: 101,
             userId: 5,
-            status: 'DELIVERED',
+            status: 'CONFIRMED',
         });
         prismaService.client.restaurantRating.findFirst.mockResolvedValueOnce(null);
 
@@ -1088,7 +1088,7 @@ describe('RestaurantService - management', () => {
         });
         prismaService.client.order.findMany.mockResolvedValueOnce([
             {
-                status: 'DELIVERED',
+                status: 'CONFIRMED',
                 totalPrice: '30.50',
                 orderFoods: [
                     {
@@ -1158,7 +1158,7 @@ describe('RestaurantService - management', () => {
         expect(prismaService.client.order.aggregate).toHaveBeenCalledWith({
             where: {
                 restaurantId: 101,
-                status: 'DELIVERED',
+                status: 'CONFIRMED',
             },
             _sum: {
                 totalPrice: true,

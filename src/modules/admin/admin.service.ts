@@ -48,7 +48,7 @@ export class AdminService {
             this.prismaService.client.voucher.count(),
             this.prismaService.client.order.aggregate({
                 where: {
-                    status: OrderStatus.DELIVERED,
+                    status: OrderStatus.CONFIRMED,
                 },
                 _sum: {
                     totalPrice: true,
@@ -79,7 +79,7 @@ export class AdminService {
     async getRevenueSummary(actorId: number) {
         const deliveredOrdersAggregate = await this.prismaService.client.order.aggregate({
             where: {
-                status: OrderStatus.DELIVERED,
+                status: OrderStatus.CONFIRMED,
             },
             _sum: {
                 totalPrice: true,
@@ -93,7 +93,7 @@ export class AdminService {
         const groupedOrders = await this.prismaService.client.order.groupBy({
             by: ['restaurantId'],
             where: {
-                status: OrderStatus.DELIVERED,
+                status: OrderStatus.CONFIRMED,
             },
             _sum: {
                 totalPrice: true,

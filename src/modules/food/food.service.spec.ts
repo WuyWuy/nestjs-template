@@ -5,6 +5,7 @@ jest.mock('@prisma/client', () => ({
         CUSTOMER: 'CUSTOMER',
     },
     OrderStatus: {
+        CONFIRMED: 'CONFIRMED',
         DELIVERED: 'DELIVERED',
     },
     Prisma: {
@@ -424,7 +425,7 @@ describe('FoodService', () => {
         ).rejects.toThrow(NotFoundException);
     });
 
-    it('should reject rating when delivered order does not match', async () => {
+    it('should reject rating when confirmed order does not match', async () => {
         prismaService.client.food.findUnique.mockResolvedValueOnce({ id: 100 });
         prismaService.client.order.findFirst.mockResolvedValueOnce(null);
 

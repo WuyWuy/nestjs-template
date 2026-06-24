@@ -54,14 +54,14 @@ Gửi request đăng nhập bằng tài khoản Customer 1:
   }
   ```
 
-*Ghi lại giá trị của orderId được trả về. Trong ví dụ trên là 8. Hệ thống Backend sẽ tiến hành giả lập một MomoID với cú pháp: MOMO-ORDER-${orderId}. Trong ví dụ trên, order có id là 12 nên bây giờ cứ tạm nhớ trong đầu, mã MOMO sẽ là MOMO-ORDER-8* 
+*Ghi lại giá trị của orderId được trả về. Trong ví dụ trên là 8. Hệ thống Backend sẽ tiến hành giả lập một MomoID với cú pháp: MOMO-ORDER-${orderId}. Trong ví dụ trên, order có id là 8 nên bây giờ cứ tạm nhớ trong đầu, mã MOMO sẽ là MOMO-ORDER-8* 
 
 ![alt text](image-10.png)
 
 
 ### Bước 3: Xem chi tiết thanh toán ban đầu
 
-Chúng ta có thể kiểm tra trạng thaisd của giao dịch thông qua một mã đơn hàng (orderId) 
+Chúng ta có thể kiểm tra trạng thái của giao dịch thông qua một mã đơn hàng (orderId) 
 
 * **HTTP Method & URL**: `GET http://localhost:4000/api/payment/8`
 
@@ -178,7 +178,9 @@ Giữ lấy Access Token của nhà hàng này.
 
 
 ### Kiểm tra phân quyền (Ủy quyền lỗi - Authorization Test)
-Để chứng minh cơ chế bảo mật hoạt động đúng, ta đăng nhập tài khoản Business 2 (là chủ của nhà hàng khác - Rice Express) để xác nhận thanh toán của đơn hàng Burger Town này:
+
+Bước này chỉ nhằm mục đích chứng minh bảo mật: Nhà hàng A không thể phê duyệt payment của nhà hàng B. 
+
 1. Đăng nhập Business 2:
    - `POST /api/auth/login` với body:
      ```json

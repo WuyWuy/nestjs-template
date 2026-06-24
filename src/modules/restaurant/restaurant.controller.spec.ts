@@ -14,6 +14,11 @@ jest.mock('@prisma/client', () => ({
         BUSINESS: 'BUSINESS',
         CUSTOMER: 'CUSTOMER',
     },
+    RestaurantApprovalStatus: {
+        PENDING: 'PENDING',
+        APPROVED: 'APPROVED',
+        REJECTED: 'REJECTED',
+    },
 }));
 
 import { RestaurantController } from './restaurant.controller';
@@ -22,6 +27,7 @@ describe('RestaurantController', () => {
     let controller: RestaurantController;
     let restaurantService: {
         getMyRestaurants: jest.Mock;
+        registerBusiness: jest.Mock;
         createRestaurant: jest.Mock;
         updateRestaurant: jest.Mock;
         getRestaurantDashboard: jest.Mock;
@@ -44,6 +50,7 @@ describe('RestaurantController', () => {
     beforeEach(() => {
         restaurantService = {
             getMyRestaurants: jest.fn(),
+            registerBusiness: jest.fn(),
             createRestaurant: jest.fn(),
             updateRestaurant: jest.fn(),
             getRestaurantDashboard: jest.fn(),
@@ -64,6 +71,21 @@ describe('RestaurantController', () => {
         };
 
         controller = new RestaurantController(restaurantService as any);
+    });
+
+    it('should register the authenticated user as a business', async () => {
+        restaurantService.registerBusiness.mockResolvedValue({
+            userId: 99,
+            role: 'BUSINESS',
+            requiresTokenRefresh: true,
+        });
+
+        const result = await controller.registerBusiness({
+            user: { id: 99, roles: ['CUSTOMER'] },
+        } as any);
+
+        expect(restaurantService.registerBusiness).toHaveBeenCalledWith(99);
+        expect(result.role).toBe('BUSINESS');
     });
 
     it('should pass actor id and roles when listing owned restaurants', async () => {

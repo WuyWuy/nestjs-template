@@ -5,7 +5,8 @@ model Restaurant {
     coverImage String            @default("")
     description String           @default("") @db.Text
     phone     String             @unique
-    approved  Boolean            @default(false)
+    status    RestaurantApprovalStatus @default(PENDING)
+    deliveryFee Decimal          @default(0)
     minimumOrder Decimal         @default(0)
     estimatedDeliveryTime Int    @default(20)
     isOpen    Boolean            @default(true)

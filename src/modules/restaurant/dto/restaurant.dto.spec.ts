@@ -7,7 +7,7 @@ describe('CreateRestaurantRatingDto validation', () => {
         dto.vote = 5;
         dto.comment = 'Thuc an rat ngon, giao hang sieu nhanh!';
         dto.orderId = 162432;
-        dto.tags = ['Thuc an ngon', 'Giao hang nhanh'];
+        dto.tags = ['Delicious food', 'Fast delivery'];
 
         const errors = await validate(dto);
         expect(errors.length).toBe(0);

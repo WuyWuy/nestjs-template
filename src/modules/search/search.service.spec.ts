@@ -22,6 +22,11 @@ jest.mock('@prisma/client', () => ({
     Role: {
         CUSTOMER: 'CUSTOMER',
     },
+    RestaurantApprovalStatus: {
+        PENDING: 'PENDING',
+        APPROVED: 'APPROVED',
+        REJECTED: 'REJECTED',
+    },
     TokenType: {
         ACCESS: 'ACCESS',
         REFRESH: 'REFRESH',

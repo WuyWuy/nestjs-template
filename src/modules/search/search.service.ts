@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
+import { RestaurantApprovalStatus } from '@prisma/client';
 import {
     SearchQueryDto,
     SearchSuggestionsQueryDto,
@@ -146,7 +147,7 @@ export class SearchService {
         const restaurantsDb = await this.prismaService.client.restaurant.findMany({
             where: {
                 deleteAt: null,
-                approved: true,
+                status: RestaurantApprovalStatus.APPROVED,
                 OR: [
                     { name: { contains: q, mode: 'insensitive' } },
                     {
@@ -390,7 +391,7 @@ export class SearchService {
         const allRestaurants = await this.prismaService.client.restaurant.findMany({
             where: {
                 deleteAt: null,
-                approved: true,
+                status: RestaurantApprovalStatus.APPROVED,
             },
             include: {
                 address: true,

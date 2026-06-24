@@ -1,10 +1,15 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { PaymentMethod, PaymentStatus } from '@prisma/client';
+import {
+    PaymentMethod,
+    PaymentStatus,
+    RestaurantApprovalStatus,
+} from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
     IsBoolean,
     IsEnum,
     IsInt,
+    IsIn,
     IsNotEmpty,
     IsOptional,
     IsPositive,
@@ -87,9 +92,12 @@ export class AdminResetPasswordDto {
 }
 
 export class ApproveRestaurantDto {
-    @IsBoolean()
-    @Type(() => Boolean)
-    approved: boolean;
+    @IsEnum(RestaurantApprovalStatus)
+    @IsIn([
+        RestaurantApprovalStatus.APPROVED,
+        RestaurantApprovalStatus.REJECTED,
+    ])
+    status: RestaurantApprovalStatus;
 }
 
 export class CreateCategoryAdminDto {

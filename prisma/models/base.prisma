@@ -4,6 +4,12 @@ enum Role {
     CUSTOMER
 }
 
+enum RestaurantApprovalStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
 enum TokenType {
     ACCESS
     REFRESH

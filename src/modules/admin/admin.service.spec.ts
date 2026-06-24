@@ -9,6 +9,11 @@ jest.mock('@prisma/client', () => ({
     NotificationType: {
         SYSTEM: 'SYSTEM',
     },
+    RestaurantApprovalStatus: {
+        PENDING: 'PENDING',
+        APPROVED: 'APPROVED',
+        REJECTED: 'REJECTED',
+    },
     Prisma: {
         defineExtension: jest.fn((extension) => extension),
         getExtensionContext: jest.fn(),
@@ -26,7 +31,7 @@ jest.mock('@/utilis/rnadomPassword', () => ({
 }));
 
 import { NotFoundException } from '@nestjs/common';
-import { PaymentStatus } from '@prisma/client';
+import { PaymentStatus, RestaurantApprovalStatus } from '@prisma/client';
 import { AdminService } from './admin.service';
 
 describe('AdminService', () => {
@@ -460,32 +465,40 @@ describe('AdminService', () => {
         prismaService.client.restaurant.findFirst.mockResolvedValueOnce(null);
 
         await expect(
-            service.updateRestaurantApproval(99, 404, true),
+            service.updateRestaurantApproval(
+                99,
+                404,
+                RestaurantApprovalStatus.APPROVED,
+            ),
         ).rejects.toThrow(NotFoundException);
     });
 
     it('should update restaurant approval, emit notification, and audit the action', async () => {
         const restaurant = {
             id: 5,
-            approved: false,
+            status: RestaurantApprovalStatus.PENDING,
             name: 'Pizza Shop',
             ownerId: 8,
         };
         const updatedRestaurant = {
             ...restaurant,
-            approved: true,
+            status: RestaurantApprovalStatus.APPROVED,
         };
         prismaService.client.restaurant.findFirst.mockResolvedValueOnce(restaurant);
         prismaService.client.restaurant.update.mockResolvedValueOnce(updatedRestaurant);
 
-        const result = await service.updateRestaurantApproval(99, 5, true);
+        const result = await service.updateRestaurantApproval(
+            99,
+            5,
+            RestaurantApprovalStatus.APPROVED,
+        );
 
         expect(prismaService.client.restaurant.update).toHaveBeenCalledWith({
             where: {
                 id: 5,
             },
             data: {
-                approved: true,
+                status: RestaurantApprovalStatus.APPROVED,
             },
         });
         expect(eventEmitter.emit).toHaveBeenCalledWith('notification.send', {
@@ -498,7 +511,7 @@ describe('AdminService', () => {
             actorId: 99,
             metadata: {
                 restaurantId: 5,
-                approved: true,
+                status: RestaurantApprovalStatus.APPROVED,
             },
         });
         expect(auditService.log).toHaveBeenCalledWith(
@@ -507,8 +520,8 @@ describe('AdminService', () => {
             5,
             99,
             {
-                previousApproved: false,
-                nextApproved: true,
+                previousStatus: RestaurantApprovalStatus.PENDING,
+                nextStatus: RestaurantApprovalStatus.APPROVED,
             },
         );
         expect(result).toEqual(updatedRestaurant);
@@ -517,21 +530,25 @@ describe('AdminService', () => {
     it('should still audit approval changes when notification emit fails', async () => {
         const restaurant = {
             id: 5,
-            approved: true,
+            status: RestaurantApprovalStatus.APPROVED,
             name: 'Pizza Shop',
             ownerId: 8,
         };
         prismaService.client.restaurant.findFirst.mockResolvedValueOnce(restaurant);
         prismaService.client.restaurant.update.mockResolvedValueOnce({
             ...restaurant,
-            approved: false,
+            status: RestaurantApprovalStatus.REJECTED,
         });
         eventEmitter.emit.mockImplementationOnce(() => {
             throw new Error('emit failed');
         });
         jest.spyOn(console, 'error').mockImplementationOnce(() => undefined);
 
-        const result = await service.updateRestaurantApproval(99, 5, false);
+        const result = await service.updateRestaurantApproval(
+            99,
+            5,
+            RestaurantApprovalStatus.REJECTED,
+        );
 
         expect(auditService.log).toHaveBeenCalledWith(
             'ADMIN_UPDATE_RESTAURANT_APPROVAL',
@@ -539,13 +556,13 @@ describe('AdminService', () => {
             5,
             99,
             {
-                previousApproved: true,
-                nextApproved: false,
+                previousStatus: RestaurantApprovalStatus.APPROVED,
+                nextStatus: RestaurantApprovalStatus.REJECTED,
             },
         );
         expect(result).toEqual({
             ...restaurant,
-            approved: false,
+            status: RestaurantApprovalStatus.REJECTED,
         });
     });
 });

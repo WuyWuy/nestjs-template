@@ -18,6 +18,7 @@ import {
     VoucherStatus,
     VoucherType,
     NotificationType,
+    RestaurantApprovalStatus,
 } from '@prisma/client';
 import { PaymentService } from '../payment/payment.service';
 import { CartService } from '../cart/cart.service';
@@ -273,7 +274,7 @@ export class OrderService {
             const restaurant = await tx.restaurant.findFirst({
                 where: {
                     id: data.restaurantId,
-                    approved: true,
+                    status: RestaurantApprovalStatus.APPROVED,
                 },
                 select: {
                     id: true,

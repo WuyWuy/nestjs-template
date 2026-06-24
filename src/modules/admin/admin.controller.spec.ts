@@ -12,6 +12,11 @@ jest.mock('@prisma/client', () => ({
     Role: {
         ADMIN: 'ADMIN',
     },
+    RestaurantApprovalStatus: {
+        PENDING: 'PENDING',
+        APPROVED: 'APPROVED',
+        REJECTED: 'REJECTED',
+    },
     PaymentStatus: {
         DONE: 'DONE',
         UNPAID: 'UNPAID',
@@ -23,7 +28,7 @@ jest.mock('@prisma/client', () => ({
     },
 }));
 
-import { PaymentStatus } from '@prisma/client';
+import { PaymentStatus, RestaurantApprovalStatus } from '@prisma/client';
 import { AdminController } from './admin.controller';
 
 describe('AdminController', () => {
@@ -142,23 +147,23 @@ describe('AdminController', () => {
     it('should forward restaurant approval requests with actor id and body', async () => {
         adminService.updateRestaurantApproval.mockResolvedValue({
             id: 5,
-            approved: true,
+            status: RestaurantApprovalStatus.APPROVED,
         });
 
         const result = await controller.updateRestaurantApproval(
             { user: { id: 99 } } as any,
             5,
-            { approved: true },
+            { status: RestaurantApprovalStatus.APPROVED },
         );
 
         expect(result).toEqual({
             id: 5,
-            approved: true,
+            status: RestaurantApprovalStatus.APPROVED,
         });
         expect(adminService.updateRestaurantApproval).toHaveBeenCalledWith(
             99,
             5,
-            true,
+            RestaurantApprovalStatus.APPROVED,
         );
     });
 });

@@ -2,7 +2,12 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, PaymentStatus, NotificationType } from '@prisma/client';
+import {
+    OrderStatus,
+    PaymentStatus,
+    NotificationType,
+    RestaurantApprovalStatus,
+} from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import {
@@ -361,7 +366,7 @@ export class AdminService {
     async updateRestaurantApproval(
         actorId: number,
         restaurantId: number,
-        approved: boolean,
+        status: RestaurantApprovalStatus,
     ) {
         const restaurant = await this.prismaService.client.restaurant.findFirst({
             where: {
@@ -369,7 +374,7 @@ export class AdminService {
             },
             select: {
                 id: true,
-                approved: true,
+                status: true,
                 name: true,
                 ownerId: true,
             },
@@ -385,7 +390,7 @@ export class AdminService {
                     id: restaurantId,
                 },
                 data: {
-                    approved,
+                    status,
                 },
             });
 
@@ -393,14 +398,14 @@ export class AdminService {
             this.eventEmitter.emit('notification.send', {
                 recipientUserId: restaurant.ownerId,
                 title: 'Restaurant Approval Status Update',
-                body: `Your restaurant "${restaurant.name}" has been ${approved ? 'approved' : 'disapproved'} by the administrator.`,
+                body: `Your restaurant "${restaurant.name}" has been ${status === RestaurantApprovalStatus.APPROVED ? 'approved' : 'rejected'} by the administrator.`,
                 type: NotificationType.SYSTEM,
                 targetType: 'RESTAURANT',
                 targetId: restaurantId,
                 actorId,
                 metadata: {
                     restaurantId,
-                    approved,
+                    status,
                 },
             } as NotificationEvent);
         } catch (err) {
@@ -413,8 +418,8 @@ export class AdminService {
             restaurantId,
             actorId,
             {
-                previousApproved: restaurant.approved,
-                nextApproved: approved,
+                previousStatus: restaurant.status,
+                nextStatus: status,
             },
         );
 

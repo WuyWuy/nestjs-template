@@ -53,6 +53,20 @@ type RestaurantUploadFiles = {
 export class RestaurantController {
     constructor(private readonly restaurantService: RestaurantService) { }
 
+    @ApiOperation({
+        summary: 'Đăng ký tài khoản kinh doanh nhà hàng',
+        description:
+            'Cấp role BUSINESS ngay lập tức. Client cần refresh token để nhận role mới.',
+    })
+    @ApiBearerAuth()
+    @Roles(Role.CUSTOMER)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Post('/business/register')
+    async registerBusiness(@Req() req: Request) {
+        const user = req.user as { id?: number };
+        return await this.restaurantService.registerBusiness(Number(user.id));
+    }
+
     @ApiOperation({ summary: 'Xem danh sách nhà hàng của tôi' })
     @ApiBearerAuth()
     @Roles(Role.ADMIN, Role.BUSINESS)

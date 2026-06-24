@@ -52,6 +52,11 @@ jest.mock('@prisma/client', () => {
         NotificationType: {
             ORDER: 'ORDER',
         },
+        RestaurantApprovalStatus: {
+            PENDING: 'PENDING',
+            APPROVED: 'APPROVED',
+            REJECTED: 'REJECTED',
+        },
         Prisma: {
             Decimal: MockDecimal,
             defineExtension: jest.fn((extension) => extension),

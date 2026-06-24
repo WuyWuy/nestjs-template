@@ -8,6 +8,7 @@ import {
 import {
     Prisma,
     Role,
+    RestaurantApprovalStatus,
     OrderStatus,
     NotificationType,
     VoucherStatus,
@@ -99,6 +100,7 @@ export class RestaurantService {
             select: {
                 id: true,
                 ownerId: true,
+                status: true,
             },
         });
 
@@ -107,7 +109,7 @@ export class RestaurantService {
         }
 
         if (this.hasRole(roles, Role.ADMIN)) {
-            return;
+            return restaurant;
         }
 
         if (restaurant.ownerId !== actorId) {
@@ -115,6 +117,8 @@ export class RestaurantService {
                 'You are not allowed to manage this restaurant',
             );
         }
+
+        return restaurant;
     }
 
     private async assertAddressExists(addressId: number) {
@@ -166,7 +170,7 @@ export class RestaurantService {
             const restaurants = await this.prismaService.client.restaurant.findMany(
                 {
                     where: {
-                        approved: true,
+                        status: RestaurantApprovalStatus.APPROVED,
                         OR: keyword
                             ? [
                                   {
@@ -202,6 +206,8 @@ export class RestaurantService {
                         coverImage: true,
                         description: true,
                         phone: true,
+                        status: true,
+                        deliveryFee: true,
                         minimumOrder: true,
                         estimatedDeliveryTime: true,
                         createdAt: true,
@@ -265,6 +271,8 @@ export class RestaurantService {
                     coverImage: restaurant.coverImage,
                     description: restaurant.description,
                     phone: restaurant.phone,
+                    status: restaurant.status,
+                    deliveryFee: Number(restaurant.deliveryFee),
                     minimumOrder: Number(restaurant.minimumOrder),
                     estimatedDeliveryTime: restaurant.estimatedDeliveryTime,
                     createdAt: restaurant.createdAt,
@@ -343,11 +351,12 @@ export class RestaurantService {
                 {
                     where: {
                         id: restaurantId,
-                        approved: true,
+                        status: RestaurantApprovalStatus.APPROVED,
                     },
                     select: {
                         id: true,
                         name: true,
+                        status: true,
                         foods: {
                             where: {
                                 name: keyword
@@ -386,6 +395,7 @@ export class RestaurantService {
             return {
                 id: restaurant.id,
                 name: restaurant.name,
+                status: restaurant.status,
                 foods: restaurant.foods,
             };
         } catch (err) {
@@ -400,7 +410,7 @@ export class RestaurantService {
                 {
                     where: {
                         id: restaurantId,
-                        approved: true,
+                        status: RestaurantApprovalStatus.APPROVED,
                     },
                     select: {
                         id: true,
@@ -408,7 +418,9 @@ export class RestaurantService {
                         image: true,
                         coverImage: true,
                         phone: true,
+                        status: true,
                         description: true,
+                        deliveryFee: true,
                         minimumOrder: true,
                         estimatedDeliveryTime: true,
                         isOpen: true,
@@ -464,6 +476,7 @@ export class RestaurantService {
 
             return {
                 ...restaurant,
+                deliveryFee: Number(restaurant.deliveryFee),
                 minimumOrder: Number(restaurant.minimumOrder),
                 averageRating,
                 ratingCount,
@@ -492,7 +505,7 @@ export class RestaurantService {
                 {
                     where: {
                         id: restaurantId,
-                        approved: true,
+                        status: RestaurantApprovalStatus.APPROVED,
                     },
                 },
             );
@@ -581,11 +594,12 @@ export class RestaurantService {
         const restaurant = await this.prismaService.client.restaurant.findFirst({
             where: {
                 id: restaurantId,
-                approved: true,
+                status: RestaurantApprovalStatus.APPROVED,
             },
             select: {
                 id: true,
                 name: true,
+                status: true,
                 ratings: {
                     select: {
                         id: true,
@@ -619,6 +633,7 @@ export class RestaurantService {
         return {
             id: restaurant.id,
             name: restaurant.name,
+            status: restaurant.status,
             averageRating,
             ratingCount,
             ratings: restaurant.ratings,
@@ -639,8 +654,84 @@ export class RestaurantService {
 
         return restaurants.map((restaurant) => ({
             ...restaurant,
+            deliveryFee: Number(restaurant.deliveryFee),
             minimumOrder: Number(restaurant.minimumOrder),
         }));
+    }
+
+    async registerBusiness(actorId: number) {
+        const user = await this.prismaService.client.user.findFirst({
+            where: {
+                id: actorId,
+            },
+            select: {
+                id: true,
+                phone: true,
+            },
+        });
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        if (!user.phone) {
+            throw new BadRequestException(
+                'A phone number is required to register as a business',
+            );
+        }
+
+        const existingRestaurant =
+            await this.prismaService.client.restaurant.findFirst({
+                where: {
+                    ownerId: actorId,
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+        if (existingRestaurant) {
+            throw new BadRequestException(
+                'This user already owns a restaurant',
+            );
+        }
+
+        const existingBusinessRole =
+            await this.prismaService.client.userRole.findFirst({
+                where: {
+                    userId: actorId,
+                    role: Role.BUSINESS,
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+        if (existingBusinessRole) {
+            throw new BadRequestException(
+                'This user is already registered as a business',
+            );
+        }
+
+        await this.prismaService.client.userRole.create({
+            data: {
+                userId: actorId,
+                role: Role.BUSINESS,
+            },
+        });
+
+        await this.auditService.log(
+            'REGISTER_BUSINESS',
+            'User',
+            actorId,
+            actorId,
+        );
+
+        return {
+            userId: actorId,
+            role: Role.BUSINESS,
+            requiresTokenRefresh: true,
+        };
     }
 
     async createRestaurant(
@@ -651,6 +742,37 @@ export class RestaurantService {
     ) {
         if (!this.hasRole(roles, Role.ADMIN) && !this.hasRole(roles, Role.BUSINESS)) {
             throw new ForbiddenException('Only business/admin can create restaurants');
+        }
+
+        const existingRestaurant =
+            await this.prismaService.client.restaurant.findFirst({
+                where: {
+                    OR: [
+                        {
+                            ownerId: actorId,
+                        },
+                        {
+                            phone: data.phone,
+                        },
+                    ],
+                },
+                select: {
+                    id: true,
+                    ownerId: true,
+                    phone: true,
+                },
+            });
+
+        if (existingRestaurant?.ownerId === actorId) {
+            throw new BadRequestException(
+                'Each user can create only one restaurant',
+            );
+        }
+
+        if (existingRestaurant?.phone === data.phone) {
+            throw new BadRequestException(
+                'This restaurant phone number is already registered',
+            );
         }
 
         const restaurantPayload = await this.resolveRestaurantImagePayload(
@@ -667,11 +789,12 @@ export class RestaurantService {
             description: restaurantPayload.description ?? '',
             image: restaurantPayload.image ?? '',
             coverImage: restaurantPayload.coverImage ?? '',
+            deliveryFee: restaurantPayload.deliveryFee ?? 0,
             minimumOrder: restaurantPayload.minimumOrder ?? 0,
             estimatedDeliveryTime:
                 restaurantPayload.estimatedDeliveryTime ?? 20,
             ownerId: actorId,
-            approved: this.hasRole(roles, Role.ADMIN),
+            status: RestaurantApprovalStatus.PENDING,
         };
 
         const restaurant = await this.prismaService.client.restaurant.create({
@@ -696,7 +819,11 @@ export class RestaurantService {
         data: UpdateRestaurantDto,
         files?: RestaurantUploadFiles,
     ) {
-        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+        const currentRestaurant = await this.assertRestaurantOwner(
+            actorId,
+            roles,
+            restaurantId,
+        );
 
         const restaurantPayload = await this.resolveRestaurantImagePayload(
             data,
@@ -713,6 +840,25 @@ export class RestaurantService {
             updateData.name = restaurantPayload.name;
         }
         if (restaurantPayload.phone !== undefined) {
+            const restaurantWithPhone =
+                await this.prismaService.client.restaurant.findFirst({
+                    where: {
+                        phone: restaurantPayload.phone,
+                        NOT: {
+                            id: restaurantId,
+                        },
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+
+            if (restaurantWithPhone) {
+                throw new BadRequestException(
+                    'This restaurant phone number is already registered',
+                );
+            }
+
             updateData.phone = restaurantPayload.phone;
         }
         if (restaurantPayload.addressId !== undefined) {
@@ -727,12 +873,21 @@ export class RestaurantService {
         if (restaurantPayload.coverImage !== undefined) {
             updateData.coverImage = restaurantPayload.coverImage;
         }
+        if (restaurantPayload.deliveryFee !== undefined) {
+            updateData.deliveryFee = restaurantPayload.deliveryFee;
+        }
         if (restaurantPayload.minimumOrder !== undefined) {
             updateData.minimumOrder = restaurantPayload.minimumOrder;
         }
         if (restaurantPayload.estimatedDeliveryTime !== undefined) {
             updateData.estimatedDeliveryTime =
                 restaurantPayload.estimatedDeliveryTime;
+        }
+        if (
+            currentRestaurant.status ===
+            RestaurantApprovalStatus.REJECTED
+        ) {
+            updateData.status = RestaurantApprovalStatus.PENDING;
         }
 
         if (!Object.keys(updateData).length) {

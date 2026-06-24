@@ -5,6 +5,7 @@ import {
     PaymentStatus,
     Prisma,
     PrismaClient,
+    RestaurantApprovalStatus,
     Role,
     VoucherStatus,
     VoucherType,
@@ -122,6 +123,24 @@ const users = {
         birthday: '1992-06-20T00:00:00.000Z',
         roles: [Role.BUSINESS],
         addressTitles: [{ addressKey: 'phu-nhuan', title: 'Business HQ' }],
+    },
+    business2: {
+        name: 'Seed Business Two',
+        email: 'business2@seed.local',
+        phone: '0900000005',
+        password: 'business123',
+        birthday: '1991-04-12T00:00:00.000Z',
+        roles: [Role.BUSINESS],
+        addressTitles: [{ addressKey: 'district-3', title: 'Business HQ' }],
+    },
+    business3: {
+        name: 'Seed Business Three',
+        email: 'business3@seed.local',
+        phone: '0900000006',
+        password: 'business123',
+        birthday: '1990-11-08T00:00:00.000Z',
+        roles: [Role.BUSINESS],
+        addressTitles: [{ addressKey: 'thu-duc', title: 'Business HQ' }],
     },
     customer1: {
         name: 'Seed Customer One',
@@ -383,7 +402,7 @@ async function upsertRestaurant(
         description: string;
         addressId: number;
         ownerId: number;
-        approved: boolean;
+        status: RestaurantApprovalStatus;
         image: string;
         coverImage: string;
         minimumOrder: number;
@@ -828,10 +847,19 @@ async function main() {
 
         const admin = userMap.get('admin');
         const business = userMap.get('business');
+        const business2 = userMap.get('business2');
+        const business3 = userMap.get('business3');
         const customer1 = userMap.get('customer1');
         const customer2 = userMap.get('customer2');
 
-        if (!admin || !business || !customer1 || !customer2) {
+        if (
+            !admin ||
+            !business ||
+            !business2 ||
+            !business3 ||
+            !customer1 ||
+            !customer2
+        ) {
             throw new Error('Seed users were not created correctly');
         }
 
@@ -867,7 +895,7 @@ async function main() {
                     'Fast casual burger shop with smash patties and crispy fries.',
                 addressId: district1.id,
                 ownerId: business.id,
-                approved: true,
+                status: RestaurantApprovalStatus.APPROVED,
                 image: '',
                 coverImage: '',
                 minimumOrder: 8,
@@ -879,8 +907,8 @@ async function main() {
                 description:
                     'Everyday Vietnamese rice bowls for lunch and dinner.',
                 addressId: district3.id,
-                ownerId: business.id,
-                approved: true,
+                ownerId: business2.id,
+                status: RestaurantApprovalStatus.APPROVED,
                 image: '',
                 coverImage: '',
                 minimumOrder: 6,
@@ -892,8 +920,8 @@ async function main() {
                 description:
                     'Fresh sushi rolls and Japanese comfort dishes for testing admin approval.',
                 addressId: thuDuc.id,
-                ownerId: business.id,
-                approved: false,
+                ownerId: business3.id,
+                status: RestaurantApprovalStatus.PENDING,
                 image: '',
                 coverImage: '',
                 minimumOrder: 10,

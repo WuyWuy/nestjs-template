@@ -14,6 +14,11 @@ jest.mock('@prisma/client', () => ({
         BUSINESS: 'BUSINESS',
         CUSTOMER: 'CUSTOMER',
     },
+    RestaurantApprovalStatus: {
+        PENDING: 'PENDING',
+        APPROVED: 'APPROVED',
+        REJECTED: 'REJECTED',
+    },
     OrderStatus: {
         PENDING: 'PENDING',
         CONFIRMED: 'CONFIRMED',
@@ -88,14 +93,14 @@ describe('RestaurantService - createRestaurantRating', () => {
             vote: 5,
             comment: 'Ngon',
             orderId: 162432,
-            tags: ['Thuc an ngon'],
+            tags: ['Delicious food'],
         });
 
         const result = await service.createRestaurantRating(101, 5, {
             orderId: 162432,
             vote: 5,
             comment: 'Ngon',
-            tags: ['Thuc an ngon'],
+            tags: ['Delicious food'],
         });
 
         expect(result).toBeDefined();
@@ -106,7 +111,7 @@ describe('RestaurantService - createRestaurantRating', () => {
                 vote: 5,
                 comment: 'Ngon',
                 orderId: 162432,
-                tags: ['Thuc an ngon'],
+                tags: ['Delicious food'],
             },
         });
         expect(eventEmitter.emit).toHaveBeenCalledWith('notification.send', expect.any(Object));
@@ -259,13 +264,13 @@ describe('RestaurantService - updateRestaurantRating', () => {
             userId: 5,
             vote: 4,
             comment: 'Ngon nhung giao hoi cham',
-            tags: ['Thuc an ngon'],
+            tags: ['Delicious food'],
         });
 
         const result = await service.updateRestaurantRating(12, 5, {
             vote: 4,
             comment: 'Ngon nhung giao hoi cham',
-            tags: ['Thuc an ngon'],
+            tags: ['Delicious food'],
         });
 
         expect(result.vote).toBe(4);
@@ -274,7 +279,7 @@ describe('RestaurantService - updateRestaurantRating', () => {
             data: {
                 vote: 4,
                 comment: 'Ngon nhung giao hoi cham',
-                tags: ['Thuc an ngon'],
+                tags: ['Delicious food'],
             },
         });
     });
@@ -657,6 +662,7 @@ describe('RestaurantService - menu and details', () => {
         prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
             id: 101,
             name: 'Burger Town',
+            status: 'APPROVED',
             foods: [{ id: 1, name: 'Cheese Burger' }],
         });
 
@@ -665,11 +671,12 @@ describe('RestaurantService - menu and details', () => {
         expect(prismaService.client.restaurant.findFirst).toHaveBeenCalledWith({
             where: {
                 id: 101,
-                approved: true,
+                status: 'APPROVED',
             },
             select: expect.objectContaining({
                 id: true,
                 name: true,
+                status: true,
                 foods: expect.objectContaining({
                     where: {
                         name: {
@@ -684,6 +691,7 @@ describe('RestaurantService - menu and details', () => {
         expect(result).toEqual({
             id: 101,
             name: 'Burger Town',
+            status: 'APPROVED',
             foods: [{ id: 1, name: 'Cheese Burger' }],
         });
     });
@@ -744,6 +752,13 @@ describe('RestaurantService - management', () => {
                 address: {
                     findFirst: jest.fn(),
                 },
+                user: {
+                    findFirst: jest.fn(),
+                },
+                userRole: {
+                    findFirst: jest.fn(),
+                    create: jest.fn(),
+                },
                 restaurant: {
                     findFirst: jest.fn(),
                     findMany: jest.fn(),
@@ -768,6 +783,47 @@ describe('RestaurantService - management', () => {
             auditService as any,
             minioService as any,
             {} as any,
+        );
+    });
+
+    it('should register a customer as business immediately', async () => {
+        prismaService.client.user.findFirst.mockResolvedValueOnce({
+            id: 99,
+            phone: '0901234567',
+        });
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce(null);
+        prismaService.client.userRole.findFirst.mockResolvedValueOnce(null);
+        prismaService.client.userRole.create.mockResolvedValueOnce({
+            userId: 99,
+            role: 'BUSINESS',
+        });
+
+        const result = await service.registerBusiness(99);
+
+        expect(prismaService.client.userRole.create).toHaveBeenCalledWith({
+            data: {
+                userId: 99,
+                role: 'BUSINESS',
+            },
+        });
+        expect(result).toEqual({
+            userId: 99,
+            role: 'BUSINESS',
+            requiresTokenRefresh: true,
+        });
+    });
+
+    it('should reject business registration when the user already owns a restaurant', async () => {
+        prismaService.client.user.findFirst.mockResolvedValueOnce({
+            id: 99,
+            phone: '0901234567',
+        });
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+        });
+
+        await expect(service.registerBusiness(99)).rejects.toThrow(
+            BadRequestException,
         );
     });
 
@@ -840,6 +896,7 @@ describe('RestaurantService - management', () => {
             minimumOrder: 8,
             estimatedDeliveryTime: 25,
         };
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce(null);
         prismaService.client.address.findFirst.mockResolvedValueOnce({ id: 1 });
         minioService.uploadFile
             .mockResolvedValueOnce('https://cdn.example.com/logo.jpg')
@@ -850,7 +907,7 @@ describe('RestaurantService - management', () => {
             image: 'https://cdn.example.com/logo.jpg',
             coverImage: 'https://cdn.example.com/cover.jpg',
             ownerId: 99,
-            approved: false,
+            status: 'PENDING',
         });
 
         const result = await service.createRestaurant(99, data as any, ['BUSINESS'], {
@@ -874,7 +931,7 @@ describe('RestaurantService - management', () => {
                 minimumOrder: 8,
                 estimatedDeliveryTime: 25,
                 ownerId: 99,
-                approved: false,
+                status: 'PENDING',
             },
         });
         expect(auditService.log).toHaveBeenCalledWith(
@@ -885,6 +942,26 @@ describe('RestaurantService - management', () => {
             data,
         );
         expect(result.id).toBe(101);
+    });
+
+    it('should reject restaurant creation when the owner or phone is already registered', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 99,
+            phone: '02873000001',
+        });
+
+        await expect(
+            service.createRestaurant(
+                99,
+                {
+                    name: 'Burger Town',
+                    phone: '02873000001',
+                    addressId: 1,
+                } as any,
+                ['BUSINESS'],
+            ),
+        ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when creating with a missing address', async () => {
@@ -950,6 +1027,36 @@ describe('RestaurantService - management', () => {
             data,
         );
         expect(result.id).toBe(101);
+    });
+
+    it('should move a rejected restaurant back to pending after an update', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 99,
+            status: 'REJECTED',
+        });
+        prismaService.client.restaurant.update.mockResolvedValueOnce({
+            id: 101,
+            name: 'Burger Revised',
+            status: 'PENDING',
+        });
+
+        await service.updateRestaurant(
+            99,
+            ['BUSINESS'],
+            101,
+            { name: 'Burger Revised' },
+        );
+
+        expect(prismaService.client.restaurant.update).toHaveBeenCalledWith({
+            where: {
+                id: 101,
+            },
+            data: {
+                name: 'Burger Revised',
+                status: 'PENDING',
+            },
+        });
     });
 
     it('should throw ForbiddenException when updating another owner restaurant', async () => {
@@ -1071,28 +1178,19 @@ describe('RestaurantService - management', () => {
         });
     });
 
-    it('should update restaurant open status and operating hours', async () => {
-        prismaService.client.restaurant.findFirst
-            .mockResolvedValueOnce({ id: 101, ownerId: 99 })
-            .mockResolvedValueOnce({ id: 101, ownerId: 99 });
-        prismaService.client.restaurant.update
-            .mockResolvedValueOnce({ id: 101, isOpen: false })
-            .mockResolvedValueOnce({
-                id: 101,
-                operatingHours: { monday: { open: '08:00', close: '22:00' } },
-            });
+    it('should update restaurant open status', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 99,
+        });
+        prismaService.client.restaurant.update.mockResolvedValueOnce({
+            id: 101,
+            isOpen: false,
+        });
 
         await expect(
             service.updateRestaurantStatus(101, 99, ['BUSINESS'], false),
         ).resolves.toEqual({ id: 101, isOpen: false });
-        await expect(
-            service.updateRestaurantOperatingHours(101, 99, ['BUSINESS'], {
-                monday: { open: '08:00', close: '22:00' },
-            }),
-        ).resolves.toEqual({
-            id: 101,
-            operatingHours: { monday: { open: '08:00', close: '22:00' } },
-        });
 
         expect(auditService.log).toHaveBeenCalledWith(
             'UPDATE_RESTAURANT_STATUS',
@@ -1100,13 +1198,6 @@ describe('RestaurantService - management', () => {
             101,
             99,
             { isOpen: false },
-        );
-        expect(auditService.log).toHaveBeenCalledWith(
-            'UPDATE_RESTAURANT_OPERATING_HOURS',
-            'Restaurant',
-            101,
-            99,
-            { operatingHours: { monday: { open: '08:00', close: '22:00' } } },
         );
     });
 });

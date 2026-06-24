@@ -127,7 +127,7 @@ export class AddressService {
                 select: {
                     id: true,
                     name: true,
-                    approved: true,
+                    status: true,
                     owner: {
                         select: {
                             id: true,

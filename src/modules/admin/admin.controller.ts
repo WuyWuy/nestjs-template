@@ -12,7 +12,11 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { Role, PaymentStatus } from '@prisma/client';
+import {
+    Role,
+    PaymentStatus,
+    RestaurantApprovalStatus,
+} from '@prisma/client';
 import { Roles } from '@/bases/decorators/role.decorators';
 import { RolesGuard } from '@/bases/guards/role.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -129,13 +133,13 @@ export class AdminController {
             approve: {
                 summary: 'Duyệt nhà hàng',
                 value: {
-                    approved: true,
+                    status: RestaurantApprovalStatus.APPROVED,
                 },
             },
             reject: {
                 summary: 'Từ chối nhà hàng',
                 value: {
-                    approved: false,
+                    status: RestaurantApprovalStatus.REJECTED,
                 },
             },
         },
@@ -150,7 +154,7 @@ export class AdminController {
         return await this.adminService.updateRestaurantApproval(
             actorId,
             restaurantId,
-            data.approved,
+            data.status,
         );
     }
 }

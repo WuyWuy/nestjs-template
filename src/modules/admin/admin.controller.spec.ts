@@ -36,6 +36,10 @@ describe('AdminController', () => {
     let adminService: {
         getDashboardSummary: jest.Mock;
         getRevenueSummary: jest.Mock;
+        getRevenueDetails: jest.Mock;
+        getUsers: jest.Mock;
+        updateUserBlockStatus: jest.Mock;
+        updateRestaurantActiveStatus: jest.Mock;
         getAuditLogs: jest.Mock;
         getPayments: jest.Mock;
         updatePaymentStatus: jest.Mock;
@@ -47,6 +51,10 @@ describe('AdminController', () => {
         adminService = {
             getDashboardSummary: jest.fn(),
             getRevenueSummary: jest.fn(),
+            getRevenueDetails: jest.fn(),
+            getUsers: jest.fn(),
+            updateUserBlockStatus: jest.fn(),
+            updateRestaurantActiveStatus: jest.fn(),
             getAuditLogs: jest.fn(),
             getPayments: jest.fn(),
             updatePaymentStatus: jest.fn(),
@@ -55,6 +63,64 @@ describe('AdminController', () => {
         };
 
         controller = new AdminController(adminService as any);
+    });
+
+    it('should forward revenue detail requests with pagination filters', async () => {
+        const query = { limit: 10, offset: 0 };
+        adminService.getRevenueDetails.mockResolvedValue({
+            success: true,
+            data: [],
+            total: 0,
+            limit: 10,
+            offset: 0,
+        });
+
+        await controller.getRevenueDetails(
+            { user: { id: 99 } } as any,
+            query,
+        );
+
+        expect(adminService.getRevenueDetails).toHaveBeenCalledWith(99, query);
+    });
+
+    it('should forward user list and block requests', async () => {
+        const query = { role: 'CUSTOMER' as any, keyword: 'customer' };
+        adminService.getUsers.mockResolvedValue({ success: true, data: [] });
+        adminService.updateUserBlockStatus.mockResolvedValue({
+            success: true,
+        });
+
+        await controller.getUsers({ user: { id: 99 } } as any, query);
+        await controller.updateUserBlockStatus(
+            { user: { id: 99 } } as any,
+            2,
+            { isBlocked: true, reason: 'Fraud review' },
+        );
+
+        expect(adminService.getUsers).toHaveBeenCalledWith(99, query);
+        expect(adminService.updateUserBlockStatus).toHaveBeenCalledWith(
+            99,
+            2,
+            { isBlocked: true, reason: 'Fraud review' },
+        );
+    });
+
+    it('should forward restaurant active status updates', async () => {
+        adminService.updateRestaurantActiveStatus.mockResolvedValue({
+            success: true,
+        });
+
+        await controller.updateRestaurantActiveStatus(
+            { user: { id: 99 } } as any,
+            5,
+            { isActive: false },
+        );
+
+        expect(adminService.updateRestaurantActiveStatus).toHaveBeenCalledWith(
+            99,
+            5,
+            false,
+        );
     });
 
     it('should forward dashboard requests with actor id', async () => {

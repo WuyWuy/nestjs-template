@@ -52,12 +52,25 @@ describe('VoucherController', () => {
 
     it('should forward list query to VoucherService', async () => {
         const query = { code: 'WELCOME', limit: 10, offset: 0 };
-        voucherService.getVouchers.mockResolvedValue([{ id: 1 }]);
+        voucherService.getVouchers.mockResolvedValue({
+            success: true,
+            data: [{ id: 1 }],
+        });
 
-        const result = await controller.getVouchers(query);
+        const result = await controller.getVouchers(
+            query,
+            { user: { id: 99, roles: ['ADMIN'] } } as any,
+        );
 
-        expect(result).toEqual([{ id: 1 }]);
-        expect(voucherService.getVouchers).toHaveBeenCalledWith(query);
+        expect(result).toEqual({
+            success: true,
+            data: [{ id: 1 }],
+        });
+        expect(voucherService.getVouchers).toHaveBeenCalledWith(
+            query,
+            99,
+            ['ADMIN'],
+        );
     });
 
     it('should parse restaurantId when looking up voucher by code', async () => {

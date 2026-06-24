@@ -43,19 +43,25 @@ describe('CategoryController', () => {
         const query = { keyword: 'bur', limit: 5, offset: 0 };
         categoryService.getCategories.mockResolvedValue([{ id: 1 }]);
 
-        const result = await controller.getCategories(query);
+        const result = await controller.getCategories(
+            query,
+            { user: { roles: ['ADMIN'] } } as any,
+        );
 
         expect(result).toEqual([{ id: 1 }]);
-        expect(categoryService.getCategories).toHaveBeenCalledWith(query);
+        expect(categoryService.getCategories).toHaveBeenCalledWith(query, true);
     });
 
     it('should forward detail requests to CategoryService', async () => {
         categoryService.getCategoryDetail.mockResolvedValue({ id: 1 });
 
-        const result = await controller.getCategoryDetail(1);
+        const result = await controller.getCategoryDetail(
+            1,
+            { user: undefined } as any,
+        );
 
         expect(result).toEqual({ id: 1 });
-        expect(categoryService.getCategoryDetail).toHaveBeenCalledWith(1);
+        expect(categoryService.getCategoryDetail).toHaveBeenCalledWith(1, false);
     });
 
     it('should pass actor id, body and file when creating a category', async () => {

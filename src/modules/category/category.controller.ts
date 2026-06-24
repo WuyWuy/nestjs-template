@@ -20,6 +20,7 @@ import { Role } from '@prisma/client';
 import { Roles } from '@/bases/decorators/role.decorators';
 import { RolesGuard } from '@/bases/guards/role.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { CategoryService } from './category.service';
 import {
     CategoryQueryDto,
@@ -33,15 +34,28 @@ export class CategoryController {
     constructor(private readonly categoryService: CategoryService) {}
 
     @ApiOperation({ summary: 'Lấy danh sách danh mục' })
+    @UseGuards(OptionalJwtAuthGuard)
     @Get()
-    async getCategories(@Query() query: CategoryQueryDto) {
-        return await this.categoryService.getCategories(query);
+    async getCategories(@Query() query: CategoryQueryDto, @Req() req: Request) {
+        const roles = (req.user as { roles?: string[] } | undefined)?.roles ?? [];
+        return await this.categoryService.getCategories(
+            query,
+            roles.includes(Role.ADMIN),
+        );
     }
 
     @ApiOperation({ summary: 'Xem chi tiết một danh mục' })
+    @UseGuards(OptionalJwtAuthGuard)
     @Get(':id')
-    async getCategoryDetail(@Param('id', ParseIntPipe) id: number) {
-        return await this.categoryService.getCategoryDetail(id);
+    async getCategoryDetail(
+        @Param('id', ParseIntPipe) id: number,
+        @Req() req: Request,
+    ) {
+        const roles = (req.user as { roles?: string[] } | undefined)?.roles ?? [];
+        return await this.categoryService.getCategoryDetail(
+            id,
+            roles.includes(Role.ADMIN),
+        );
     }
 
     @ApiOperation({ summary: 'Tạo danh mục mới' })
@@ -67,6 +81,14 @@ export class CategoryController {
                 sortOrder: {
                     type: 'number',
                     example: 1,
+                },
+                displayOrder: {
+                    type: 'number',
+                    example: 1,
+                },
+                isActive: {
+                    type: 'boolean',
+                    example: true,
                 },
             },
         },

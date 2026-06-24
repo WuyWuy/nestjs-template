@@ -64,7 +64,17 @@ export class FoodService {
 
     async getAllFood(query: FoodQueryDto) {
         const whereClause: any = {
+            deleteAt: null,
             isAvailable: true,
+            category: {
+                isActive: true,
+                deleteAt: null,
+            },
+            restaurant: {
+                isActive: true,
+                deleteAt: null,
+                status: 'APPROVED',
+            },
             name: query.name
                 ? {
                       contains: query.name,
@@ -152,7 +162,20 @@ export class FoodService {
 
     async getFoodDetail(id: number) {
         const food = await this.prismaService.client.food.findFirst({
-            where: { id },
+            where: {
+                id,
+                deleteAt: null,
+                isAvailable: true,
+                category: {
+                    isActive: true,
+                    deleteAt: null,
+                },
+                restaurant: {
+                    isActive: true,
+                    deleteAt: null,
+                    status: 'APPROVED',
+                },
+            },
             include: {
                 category: {
                     select: {

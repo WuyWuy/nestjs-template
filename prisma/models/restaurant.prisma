@@ -10,6 +10,7 @@ model Restaurant {
     minimumOrder Decimal         @default(0)
     estimatedDeliveryTime Int    @default(20)
     isOpen    Boolean            @default(true)
+    isActive  Boolean            @default(true)
     isFeatured Boolean           @default(false)
     addressId Int
     address   Address            @relation(fields: [addressId], references: [id])
@@ -23,6 +24,8 @@ model Restaurant {
     orders    Order[]
     vouchers  Voucher[]
     favoriteByUsers UserFavoriteRestaurant[]
+
+    @@index([isActive])
 }
 
 model RestaurantRating {

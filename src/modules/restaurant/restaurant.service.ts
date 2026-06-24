@@ -165,12 +165,49 @@ export class RestaurantService {
         minRating?: number,
         sortBy?: string,
         userId?: number,
+    ): Promise<any[]>;
+    async getAllRestaurants(
+        limit: number,
+        offset: number,
+        keyword: string,
+        categoryId: number | undefined,
+        latitude: number | undefined,
+        longitude: number | undefined,
+        minRating: number | undefined,
+        sortBy: string | undefined,
+        userId: number | undefined,
+        roles: string[],
+        isActive?: boolean,
+    ): Promise<{
+        success: boolean;
+        data: any[];
+        total: number;
+        limit: number;
+        offset: number;
+    } | any[]>;
+    async getAllRestaurants(
+        limit: number,
+        offset: number,
+        keyword: string,
+        categoryId?: number,
+        latitude?: number,
+        longitude?: number,
+        minRating?: number,
+        sortBy?: string,
+        userId?: number,
+        roles: string[] = [],
+        isActive?: boolean,
     ) {
         try {
+            const isAdmin = this.hasRole(roles, Role.ADMIN);
             const restaurants = await this.prismaService.client.restaurant.findMany(
                 {
                     where: {
-                        status: RestaurantApprovalStatus.APPROVED,
+                        deleteAt: null,
+                        status: isAdmin
+                            ? undefined
+                            : RestaurantApprovalStatus.APPROVED,
+                        isActive: isAdmin ? isActive : true,
                         OR: keyword
                             ? [
                                   {
@@ -186,6 +223,16 @@ export class RestaurantService {
                                                   contains: keyword,
                                                   mode: 'insensitive',
                                               },
+                                              ...(isAdmin
+                                                  ? {}
+                                                  : {
+                                                        deleteAt: null,
+                                                        isAvailable: true,
+                                                        category: {
+                                                            isActive: true,
+                                                            deleteAt: null,
+                                                        },
+                                                    }),
                                           },
                                       },
                                   },
@@ -195,6 +242,16 @@ export class RestaurantService {
                             ? {
                                   some: {
                                       categoryId,
+                                      ...(isAdmin
+                                          ? {}
+                                          : {
+                                                deleteAt: null,
+                                                isAvailable: true,
+                                                category: {
+                                                    isActive: true,
+                                                    deleteAt: null,
+                                                },
+                                            }),
                                   },
                               }
                             : undefined,
@@ -207,6 +264,8 @@ export class RestaurantService {
                         description: true,
                         phone: true,
                         status: true,
+                        isOpen: true,
+                        isActive: true,
                         deliveryFee: true,
                         minimumOrder: true,
                         estimatedDeliveryTime: true,
@@ -221,6 +280,16 @@ export class RestaurantService {
                             },
                         },
                         foods: {
+                            where: isAdmin
+                                ? undefined
+                                : {
+                                      deleteAt: null,
+                                      isAvailable: true,
+                                      category: {
+                                          isActive: true,
+                                          deleteAt: null,
+                                      },
+                                  },
                             select: {
                                 id: true,
                                 price: true,
@@ -331,10 +400,22 @@ export class RestaurantService {
                 : [];
             const favoriteSet = new Set(userFavorites.map((f) => f.restaurantId));
 
-            return paginated.map(({ createdAt, ...rest }) => ({
+            const data = paginated.map(({ createdAt, ...rest }) => ({
                 ...rest,
                 isLiked: favoriteSet.has(rest.id),
             }));
+
+            if (isAdmin) {
+                return {
+                    success: true,
+                    data,
+                    total: mapped.length,
+                    limit,
+                    offset,
+                };
+            }
+
+            return data;
         } catch (err) {
             console.log("get all restaurant error: " , err) 
             throw err;
@@ -352,6 +433,7 @@ export class RestaurantService {
                     where: {
                         id: restaurantId,
                         status: RestaurantApprovalStatus.APPROVED,
+                        isActive: true,
                     },
                     select: {
                         id: true,
@@ -359,6 +441,12 @@ export class RestaurantService {
                         status: true,
                         foods: {
                             where: {
+                                deleteAt: null,
+                                isAvailable: true,
+                                category: {
+                                    isActive: true,
+                                    deleteAt: null,
+                                },
                                 name: keyword
                                     ? {
                                           contains: keyword,
@@ -411,6 +499,7 @@ export class RestaurantService {
                     where: {
                         id: restaurantId,
                         status: RestaurantApprovalStatus.APPROVED,
+                        isActive: true,
                     },
                     select: {
                         id: true,
@@ -427,6 +516,14 @@ export class RestaurantService {
                         address: true,
                         ownerId: true,
                         foods: {
+                            where: {
+                                deleteAt: null,
+                                isAvailable: true,
+                                category: {
+                                    isActive: true,
+                                    deleteAt: null,
+                                },
+                            },
                             select: {
                                 id: true,
                                 name: true,
@@ -595,6 +692,7 @@ export class RestaurantService {
             where: {
                 id: restaurantId,
                 status: RestaurantApprovalStatus.APPROVED,
+                isActive: true,
             },
             select: {
                 id: true,
@@ -1223,9 +1321,9 @@ export class RestaurantService {
         });
 
         const grossRevenue = Number(ordersAggregate._sum.totalPrice ?? 0);
-        const platformCommissionRate = 0.2;
+        const platformCommissionRate = 0.1;
         const platformCommission = Number((grossRevenue * platformCommissionRate).toFixed(2));
-        const restaurantNetRevenue = Number((grossRevenue * 0.8).toFixed(2));
+        const restaurantNetRevenue = Number((grossRevenue * 0.9).toFixed(2));
 
         await this.auditService.log(
             'VIEW_RESTAURANT_REVENUE',

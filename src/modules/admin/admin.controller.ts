@@ -23,9 +23,13 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';
 import {
     AdminResetPasswordDto,
+    AdminUsersQueryDto,
     ApproveRestaurantDto,
     AuditLogQueryDto,
+    BlockUserDto,
     PaymentAdminQueryDto,
+    RevenueDetailsQueryDto,
+    UpdateRestaurantActiveStatusDto,
     UpdatePaymentStatusDto,
 } from './dto/admin.dto';
 
@@ -49,6 +53,82 @@ export class AdminController {
     async getRevenue(@Req() req: Request) {
         const actorId = Number((req.user as { id?: number })?.id);
         return await this.adminService.getRevenueSummary(actorId);
+    }
+
+    @ApiOperation({ summary: 'Xem chi tiết các đơn đóng góp vào doanh thu' })
+    @Get('dashboard/revenue-details')
+    async getRevenueDetails(
+        @Req() req: Request,
+        @Query() query: RevenueDetailsQueryDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.getRevenueDetails(actorId, query);
+    }
+
+    @ApiOperation({ summary: 'Xem danh sách người dùng' })
+    @Get('users')
+    async getUsers(
+        @Req() req: Request,
+        @Query() query: AdminUsersQueryDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.getUsers(actorId, query);
+    }
+
+    @ApiOperation({ summary: 'Khóa hoặc mở khóa tài khoản người dùng' })
+    @Post('users/:userId/block')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                isBlocked: {
+                    type: 'boolean',
+                    example: true
+                }, 
+                reason: {
+                    type: 'string', 
+                    example: 'Ăn quá nhiều'
+                }
+            }
+        },
+    })
+    async updateUserBlockStatus(
+        @Req() req: Request,
+        @Param('userId', ParseIntPipe) userId: number,
+        @Body() data: BlockUserDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.updateUserBlockStatus(
+            actorId,
+            userId,
+            data,
+        );
+    }
+
+    @ApiOperation({ summary: 'Bật hoặc tắt hoạt động của nhà hàng' })
+    @Patch('restaurant/:restaurantId/status')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                isActive: {
+                    type: 'boolean',
+                    example: true
+                }
+            }
+        },
+    })
+    async updateRestaurantActiveStatus(
+        @Req() req: Request,
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Body() data: UpdateRestaurantActiveStatusDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.updateRestaurantActiveStatus(
+            actorId,
+            restaurantId,
+            data.isActive,
+        );
     }
 
     @ApiOperation({ summary: 'Xem audit logs' })

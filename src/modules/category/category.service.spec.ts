@@ -28,6 +28,7 @@ describe('CategoryService', () => {
         prismaService = {
             client: {
                 category: {
+                    count: jest.fn(),
                     findMany: jest.fn(),
                     findFirst: jest.fn(),
                     create: jest.fn(),
@@ -58,9 +59,11 @@ describe('CategoryService', () => {
                 image: 'burger.jpg',
                 description: 'Fast food',
                 sortOrder: 2,
+                isActive: true,
                 foods: [{ id: 10 }, { id: 11 }],
             },
         ]);
+        prismaService.client.category.count.mockResolvedValueOnce(1);
 
         const result = await service.getCategories({
             keyword: 'bur',
@@ -70,6 +73,8 @@ describe('CategoryService', () => {
 
         expect(prismaService.client.category.findMany).toHaveBeenCalledWith({
             where: {
+                deleteAt: null,
+                isActive: true,
                 name: {
                     contains: 'bur',
                     mode: 'insensitive',
@@ -81,6 +86,7 @@ describe('CategoryService', () => {
                 image: true,
                 description: true,
                 sortOrder: true,
+                isActive: true,
                 foods: {
                     select: {
                         id: true,
@@ -91,34 +97,51 @@ describe('CategoryService', () => {
             take: 5,
             skip: 10,
         });
-        expect(result).toEqual([
-            {
-                id: 1,
-                name: 'Burger',
-                image: 'burger.jpg',
-                description: 'Fast food',
-                sortOrder: 2,
-                foods: [{ id: 10 }, { id: 11 }],
-                foodCount: 2,
-            },
-        ]);
+        expect(result).toEqual({
+            success: true,
+            data: [
+                {
+                    id: 1,
+                    name: 'Burger',
+                    image: 'burger.jpg',
+                    description: 'Fast food',
+                    sortOrder: 2,
+                    displayOrder: 2,
+                    isActive: true,
+                    foods: [{ id: 10 }, { id: 11 }],
+                    foodCount: 2,
+                },
+            ],
+            total: 1,
+            limit: 5,
+            offset: 10,
+        });
     });
 
     it('should use default pagination when listing categories without query values', async () => {
         prismaService.client.category.findMany.mockResolvedValueOnce([]);
+        prismaService.client.category.count.mockResolvedValueOnce(0);
 
         const result = await service.getCategories({});
 
         expect(prismaService.client.category.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: {
+                    deleteAt: null,
+                    isActive: true,
                     name: undefined,
                 },
                 take: 50,
                 skip: 0,
             }),
         );
-        expect(result).toEqual([]);
+        expect(result).toEqual({
+            success: true,
+            data: [],
+            total: 0,
+            limit: 50,
+            offset: 0,
+        });
     });
 
     it('should throw NotFoundException when category detail does not exist', async () => {
@@ -155,6 +178,8 @@ describe('CategoryService', () => {
         expect(prismaService.client.category.findFirst).toHaveBeenCalledWith({
             where: {
                 id: 1,
+                deleteAt: null,
+                isActive: true,
             },
             select: {
                 id: true,
@@ -162,6 +187,7 @@ describe('CategoryService', () => {
                 image: true,
                 description: true,
                 sortOrder: true,
+                isActive: true,
                 foods: {
                     select: {
                         id: true,
@@ -185,6 +211,7 @@ describe('CategoryService', () => {
             image: 'burger.jpg',
             description: 'Fast food',
             sortOrder: 2,
+            displayOrder: 2,
             foods: [
                 {
                     id: 10,
@@ -238,6 +265,7 @@ describe('CategoryService', () => {
                 description: 'Fast food',
                 image: 'https://cdn.example.com/burger.jpg',
                 sortOrder: 2,
+                isActive: true,
             },
         });
         expect(auditService.log).toHaveBeenCalledWith(
@@ -271,6 +299,7 @@ describe('CategoryService', () => {
                 description: 'Warm food',
                 image: '',
                 sortOrder: 0,
+                isActive: true,
             },
         });
     });

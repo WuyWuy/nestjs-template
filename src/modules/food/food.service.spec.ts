@@ -131,7 +131,17 @@ describe('FoodService', () => {
             take: 5,
             skip: 10,
             where: {
+                deleteAt: null,
                 isAvailable: true,
+                category: {
+                    isActive: true,
+                    deleteAt: null,
+                },
+                restaurant: {
+                    isActive: true,
+                    deleteAt: null,
+                    status: 'APPROVED',
+                },
                 name: {
                     contains: 'bur',
                     mode: 'insensitive',

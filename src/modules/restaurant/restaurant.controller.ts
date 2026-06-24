@@ -376,7 +376,8 @@ export class RestaurantController {
     @UseGuards(OptionalJwtAuthGuard)
     @Get()
     async getAllRestauant(@Query() query: GetRestaurantsQueryDto, @Req() req: Request) {
-        const userId = (req.user as { id?: number })?.id ? Number((req.user as { id?: number })?.id) : undefined;
+        const user = req.user as { id?: number; roles?: string[] } | undefined;
+        const userId = user?.id ? Number(user.id) : undefined;
         return this.restaurantService.getAllRestaurants(
             query.limit ?? 20,
             query.offset ?? 0,
@@ -387,6 +388,8 @@ export class RestaurantController {
             query.minRating,
             query.sortBy,
             userId,
+            user?.roles ?? [],
+            query.isActive,
         );
     }
 

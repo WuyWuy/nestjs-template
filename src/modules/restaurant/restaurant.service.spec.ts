@@ -672,14 +672,21 @@ describe('RestaurantService - menu and details', () => {
             where: {
                 id: 101,
                 status: 'APPROVED',
+                isActive: true,
             },
             select: expect.objectContaining({
                 id: true,
                 name: true,
                 status: true,
                 foods: expect.objectContaining({
-                    where: {
-                        name: {
+                            where: {
+                                deleteAt: null,
+                                isAvailable: true,
+                                category: {
+                                    isActive: true,
+                                    deleteAt: null,
+                                },
+                                name: {
                             contains: 'burger',
                             mode: 'insensitive',
                         },
@@ -1172,9 +1179,9 @@ describe('RestaurantService - management', () => {
         );
         expect(result).toEqual({
             grossRevenue: 125.5,
-            platformCommissionRate: 0.2,
-            platformCommission: 25.1,
-            restaurantNetRevenue: 100.4,
+            platformCommissionRate: 0.1,
+            platformCommission: 12.55,
+            restaurantNetRevenue: 112.95,
         });
     });
 

@@ -99,31 +99,80 @@ export class VoucherService {
             throw err 
         }
     }
-    async getVouchers(query: VoucherListQueryDto) {
+    // Lay danh sach voucher dua tren nha hang
+    async getVouchers(
+        query: VoucherListQueryDto,
+        userId: number,
+        roles: string[],
+    ) {
+        let restaurantId = query.restaurantId;
+        if (!this.hasRole(roles, Role.ADMIN)) {
+            const restaurant =
+                await this.prismaService.client.restaurant.findFirst({
+                    where: {
+                        ownerId: userId,
+                        deleteAt: null,
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+            if (!restaurant) {
+                throw new NotFoundException('Restaurant not found');
+            }
+            restaurantId = restaurant.id;
+        }
+
         const now = new Date();
-        const vouchers = await this.prismaService.client.voucher.findMany({
-            where: {
-                restaurantId: query.restaurantId,
-                status: query.status,
-                code: query.code
-                    ? {
-                          contains: query.code,
-                          mode: 'insensitive',
-                      }
-                    : undefined,
-                OR: query.status
-                    ? undefined
-                    : [
-                          {
-                              startAt: null,
-                          },
-                          {
-                              startAt: {
-                                  lte: now,
+        const limit = query.limit ?? 20;
+        const offset = query.offset ?? 0;
+        const where = {
+            deleteAt: null,
+            restaurantId,
+            status: query.status,
+            code: query.code
+                ? {
+                      contains: query.code,
+                      mode: 'insensitive' as const,
+                  }
+                : undefined,
+            AND: query.keyword
+                ? [
+                      {
+                          OR: [
+                              {
+                                  name: {
+                                      contains: query.keyword,
+                                      mode: 'insensitive' as const,
+                                  },
                               },
+                              {
+                                  code: {
+                                      contains: query.keyword,
+                                      mode: 'insensitive' as const,
+                                  },
+                              },
+                          ],
+                      },
+                  ]
+                : undefined,
+            OR: query.status || this.hasRole(roles, Role.ADMIN)
+                ? undefined
+                : [
+                      {
+                          startAt: null,
+                      },
+                      {
+                          startAt: {
+                              lte: now,
                           },
-                      ],
-            },
+                      },
+                  ],
+        };
+
+        const [vouchers, total] = await Promise.all([
+            this.prismaService.client.voucher.findMany({
+                where,
             select: {
                 id: true,
                 name: true,
@@ -147,17 +196,25 @@ export class VoucherService {
             orderBy: {
                 createdAt: 'desc',
             },
-            take: query.limit ?? 20,
-            skip: query.offset ?? 0,
-        });
+                take: limit,
+                skip: offset,
+            }),
+            this.prismaService.client.voucher.count({ where }),
+        ]);
 
-        return vouchers.map((voucher) => ({
-            ...voucher,
-            minimumOrderAmount: Number(voucher.minimumOrderAmount),
-            maximumDiscountAmount: voucher.maximumDiscountAmount
-                ? Number(voucher.maximumDiscountAmount)
-                : null,
-        }));
+        return {
+            success: true,
+            data: vouchers.map((voucher) => ({
+                ...voucher,
+                minimumOrderAmount: Number(voucher.minimumOrderAmount),
+                maximumDiscountAmount: voucher.maximumDiscountAmount
+                    ? Number(voucher.maximumDiscountAmount)
+                    : null,
+            })),
+            total,
+            limit,
+            offset,
+        };
     }
 
     async getVoucherDetail(id: number) {

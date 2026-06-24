@@ -290,6 +290,7 @@ export class OrderService {
                 where: {
                     id: data.restaurantId,
                     status: RestaurantApprovalStatus.APPROVED,
+                    isActive: true,
                 },
                 select: {
                     id: true,

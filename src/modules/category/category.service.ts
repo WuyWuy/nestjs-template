@@ -35,22 +35,29 @@ export class CategoryService {
         };
     }
 
-    async getCategories(query: CategoryQueryDto) {
-        const categories = await this.prismaService.client.category.findMany({
-            where: {
-                name: query.keyword
-                    ? {
-                          contains: query.keyword,
-                          mode: 'insensitive',
-                      }
-                    : undefined,
-            },
+    async getCategories(query: CategoryQueryDto, isAdmin = false) {
+        const limit = query.limit ?? 50;
+        const offset = query.offset ?? 0;
+        const where = {
+            deleteAt: null,
+            isActive: isAdmin ? query.isActive : true,
+            name: query.keyword
+                ? {
+                      contains: query.keyword,
+                      mode: 'insensitive' as const,
+                  }
+                : undefined,
+        };
+        const [categories, total] = await Promise.all([
+            this.prismaService.client.category.findMany({
+                where,
             select: {
                 id: true,
                 name: true,
                 image: true,
                 description: true,
                 sortOrder: true,
+                isActive: true,
                 foods: {
                     select: {
                         id: true,
@@ -58,20 +65,31 @@ export class CategoryService {
                 },
             },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-            take: query.limit ?? 50,
-            skip: query.offset ?? 0,
-        });
+                take: limit,
+                skip: offset,
+            }),
+            this.prismaService.client.category.count({ where }),
+        ]);
 
-        return categories.map((category) => ({
-            ...category,
-            foodCount: category.foods.length,
-        }));
+        return {
+            success: true,
+            data: categories.map((category) => ({
+                ...category,
+                displayOrder: category.sortOrder,
+                foodCount: category.foods.length,
+            })),
+            total,
+            limit,
+            offset,
+        };
     }
 
-    async getCategoryDetail(id: number) {
+    async getCategoryDetail(id: number, isAdmin = false) {
         const category = await this.prismaService.client.category.findFirst({
             where: {
                 id,
+                deleteAt: null,
+                isActive: isAdmin ? undefined : true,
             },
             select: {
                 id: true,
@@ -79,6 +97,7 @@ export class CategoryService {
                 image: true,
                 description: true,
                 sortOrder: true,
+                isActive: true,
                 foods: {
                     select: {
                         id: true,
@@ -103,6 +122,7 @@ export class CategoryService {
 
         return {
             ...category,
+            displayOrder: category.sortOrder,
             foods: category.foods.map((food) => ({
                 ...food,
                 price: Number(food.price),
@@ -131,13 +151,16 @@ export class CategoryService {
             data,
             file,
         );
+        const sortOrder =
+            categoryPayload.displayOrder ?? categoryPayload.sortOrder ?? 0;
 
         const category = await this.prismaService.client.category.create({
             data: {
                 name: categoryPayload.name!,
                 description: categoryPayload.description!,
                 image: categoryPayload.image ?? '',
-                sortOrder: categoryPayload.sortOrder ?? 0,
+                sortOrder,
+                isActive: categoryPayload.isActive ?? true,
             },
         });
 
@@ -171,13 +194,19 @@ export class CategoryService {
             data,
             file,
         );
+        const {
+            displayOrder,
+            sortOrder,
+            ...categoryData
+        } = categoryPayload;
 
         const updatedCategory = await this.prismaService.client.category.update({
             where: {
                 id,
             },
             data: {
-                ...categoryPayload,
+                ...categoryData,
+                sortOrder: displayOrder ?? sortOrder,
             },
         });
 

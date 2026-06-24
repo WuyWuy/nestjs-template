@@ -112,7 +112,10 @@ export class HomeService {
 
         // Lấy top 10 categories
         const categoriesResult = await this.categoryService.getCategories({ limit: 10 });
-        const categories = categoriesResult.map((cat) => ({
+        const categoryItems = Array.isArray(categoriesResult)
+            ? categoriesResult
+            : categoriesResult.data;
+        const categories = categoryItems.map((cat) => ({
             id: cat.id,
             name: cat.name,
             imageUrl: cat.image,
@@ -146,7 +149,9 @@ export class HomeService {
                     reviewCount: restaurant.ratingCount ?? 0,
                     deliveryFee: restaurant.deliveryFee,
                     distance: restaurant.distanceKm,
-                    tags: restaurant.categories.map((c) => c.name),
+                    tags: restaurant.categories.map(
+                        (category: { name: string }) => category.name,
+                    ),
                     estimatedDeliveryTime: restaurant.estimatedDeliveryTime,
                     isLiked: restaurant.isLiked ?? false,
                 };

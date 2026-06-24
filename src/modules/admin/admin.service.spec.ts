@@ -7,6 +7,9 @@ jest.mock('@prisma/client', () => ({
         DONE: 'DONE',
         UNPAID: 'UNPAID',
     },
+    TokenType: {
+        REFRESH: 'REFRESH',
+    },
     NotificationType: {
         SYSTEM: 'SYSTEM',
     },
@@ -47,6 +50,7 @@ describe('AdminService', () => {
             client: {
                 user: {
                     count: jest.fn(),
+                    findMany: jest.fn(),
                     findFirst: jest.fn(),
                     update: jest.fn(),
                 },
@@ -60,6 +64,7 @@ describe('AdminService', () => {
                     count: jest.fn(),
                     aggregate: jest.fn(),
                     groupBy: jest.fn(),
+                    findMany: jest.fn(),
                 },
                 payment: {
                     count: jest.fn(),
@@ -75,6 +80,9 @@ describe('AdminService', () => {
                 },
                 auditLog: {
                     findMany: jest.fn(),
+                },
+                authToken: {
+                    updateMany: jest.fn(),
                 },
             },
         };
@@ -117,6 +125,11 @@ describe('AdminService', () => {
         expect(prismaService.client.order.aggregate).toHaveBeenCalledWith({
             where: {
                 status: 'CONFIRMED',
+                payments: {
+                    some: {
+                        paymentStatus: PaymentStatus.DONE,
+                    },
+                },
             },
             _sum: {
                 totalPrice: true,
@@ -172,22 +185,152 @@ describe('AdminService', () => {
         );
         expect(result).toEqual({
             grossRevenue: 1000,
-            adminCommissionRate: 0.2,
-            adminRevenue: 200,
+            adminCommissionRate: 0.1,
+            adminRevenue: 100,
             restaurants: [
                 {
                     restaurantId: 1,
                     restaurantName: 'Pizza Shop',
                     grossRevenue: 700,
-                    adminRevenue: 140,
+                    adminRevenue: 70,
                 },
                 {
                     restaurantId: 2,
                     restaurantName: 'Restaurant #2',
                     grossRevenue: 300,
-                    adminRevenue: 60,
+                    adminRevenue: 30,
                 },
             ],
+        });
+    });
+
+    it('should return paginated confirmed and paid revenue details at ten percent', async () => {
+        prismaService.client.order.findMany.mockResolvedValueOnce([
+            {
+                id: 10023,
+                totalPrice: '250000',
+                confirmedAt: new Date('2026-06-20T10:00:00.000Z'),
+                restaurant: {
+                    id: 7,
+                    name: 'Pizza Hut - CMT8',
+                },
+            },
+        ]);
+        prismaService.client.order.count.mockResolvedValueOnce(1);
+
+        const result = await service.getRevenueDetails(99, {
+            limit: 10,
+            offset: 0,
+            startDate: '2026-06-01T00:00:00.000Z',
+            endDate: '2026-06-30T23:59:59.999Z',
+        });
+
+        expect(result).toEqual({
+            success: true,
+            data: [
+                {
+                    orderId: 'ORD-10023',
+                    restaurantId: 7,
+                    restaurantName: 'Pizza Hut - CMT8',
+                    totalAmount: 250000,
+                    netRevenue: 25000,
+                    completedAt: new Date('2026-06-20T10:00:00.000Z'),
+                },
+            ],
+            total: 1,
+            limit: 10,
+            offset: 0,
+        });
+    });
+
+    it('should return paginated users without password fields', async () => {
+        prismaService.client.user.findMany.mockResolvedValueOnce([
+            {
+                id: 1,
+                name: 'Customer',
+                email: 'customer@example.com',
+                phone: '0900000000',
+                active: true,
+                isBlocked: false,
+                blockedReason: null,
+                blockedAt: null,
+                createdAt: new Date('2026-06-01T00:00:00.000Z'),
+                userRoles: [{ role: 'CUSTOMER' }],
+            },
+        ]);
+        prismaService.client.user.count.mockResolvedValueOnce(1);
+
+        const result = await service.getUsers(99, {
+            role: 'CUSTOMER' as any,
+            keyword: 'customer',
+            limit: 20,
+            offset: 0,
+        });
+
+        expect(result.data[0]).toEqual(
+            expect.objectContaining({
+                id: 1,
+                roles: ['CUSTOMER'],
+            }),
+        );
+        expect(result.data[0]).not.toHaveProperty('password');
+        expect(result.total).toBe(1);
+    });
+
+    it('should block a user and revoke active refresh tokens', async () => {
+        prismaService.client.user.findFirst.mockResolvedValueOnce({
+            id: 2,
+            isBlocked: false,
+        });
+        prismaService.client.user.update.mockResolvedValueOnce({
+            id: 2,
+            name: 'Customer',
+            email: 'customer@example.com',
+            isBlocked: true,
+            blockedReason: 'Fraud review',
+            blockedAt: new Date(),
+        });
+
+        const result = await service.updateUserBlockStatus(99, 2, {
+            isBlocked: true,
+            reason: 'Fraud review',
+        });
+
+        expect(prismaService.client.authToken.updateMany).toHaveBeenCalledWith({
+            where: {
+                userId: 2,
+                type: 'REFRESH',
+                usedAt: null,
+            },
+            data: {
+                usedAt: expect.any(Date),
+            },
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.isBlocked).toBe(true);
+    });
+
+    it('should update the admin-controlled restaurant active status', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 5,
+            isActive: true,
+        });
+        prismaService.client.restaurant.update.mockResolvedValueOnce({
+            id: 5,
+            isActive: false,
+            isOpen: true,
+        });
+
+        const result = await service.updateRestaurantActiveStatus(99, 5, false);
+
+        expect(prismaService.client.restaurant.update).toHaveBeenCalledWith({
+            where: { id: 5 },
+            data: { isActive: false },
+        });
+        expect(result.data).toEqual({
+            id: 5,
+            isActive: false,
+            isOpen: true,
         });
     });
 

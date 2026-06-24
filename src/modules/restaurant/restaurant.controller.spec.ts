@@ -189,6 +189,8 @@ describe('RestaurantController', () => {
             undefined,
             undefined,
             77,
+            [],
+            undefined,
         );
     });
 

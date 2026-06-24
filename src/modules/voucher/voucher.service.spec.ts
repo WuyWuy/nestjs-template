@@ -45,6 +45,7 @@ describe('VoucherService', () => {
         prismaService = {
             client: {
                 voucher: {
+                    count: jest.fn(),
                     findMany: jest.fn(),
                     findFirst: jest.fn(),
                     create: jest.fn(),
@@ -87,23 +88,28 @@ describe('VoucherService', () => {
                 maximumDiscountAmount: '5.25',
             },
         ]);
+        prismaService.client.voucher.count.mockResolvedValueOnce(1);
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+        });
 
         const result = await service.getVouchers({
-            restaurantId: 101,
             status: 'APPLYING' as any,
             code: 'wel',
             limit: 5,
             offset: 10,
-        });
+        }, 99, ['BUSINESS']);
 
         expect(prismaService.client.voucher.findMany).toHaveBeenCalledWith({
             where: {
+                deleteAt: null,
                 restaurantId: 101,
                 status: 'APPLYING',
                 code: {
                     contains: 'wel',
                     mode: 'insensitive',
                 },
+                AND: undefined,
                 OR: undefined,
             },
             select: expect.objectContaining({
@@ -122,23 +128,35 @@ describe('VoucherService', () => {
             take: 5,
             skip: 10,
         });
-        expect(result).toEqual([
-            expect.objectContaining({
-                id: 1,
-                minimumOrderAmount: 20.5,
-                maximumDiscountAmount: 5.25,
-            }),
-        ]);
+        expect(result).toEqual({
+            success: true,
+            data: [
+                expect.objectContaining({
+                    id: 1,
+                    minimumOrderAmount: 20.5,
+                    maximumDiscountAmount: 5.25,
+                }),
+            ],
+            total: 1,
+            limit: 5,
+            offset: 10,
+        });
     });
 
     it('should list active vouchers by startAt when status filter is omitted', async () => {
         prismaService.client.voucher.findMany.mockResolvedValueOnce([]);
+        prismaService.client.voucher.count.mockResolvedValueOnce(0);
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+        });
 
-        await service.getVouchers({});
+        await service.getVouchers({}, 99, ['BUSINESS']);
 
         expect(prismaService.client.voucher.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
+                    deleteAt: null,
+                    restaurantId: 101,
                     status: undefined,
                     OR: [
                         {
@@ -153,6 +171,44 @@ describe('VoucherService', () => {
                 }),
                 take: 20,
                 skip: 0,
+            }),
+        );
+    });
+
+    it('should let admin search all vouchers by name or code', async () => {
+        prismaService.client.voucher.findMany.mockResolvedValueOnce([]);
+        prismaService.client.voucher.count.mockResolvedValueOnce(0);
+
+        await service.getVouchers(
+            { keyword: 'welcome', limit: 20, offset: 0 },
+            99,
+            ['ADMIN'],
+        );
+
+        expect(prismaService.client.restaurant.findFirst).not.toHaveBeenCalled();
+        expect(prismaService.client.voucher.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({
+                    restaurantId: undefined,
+                    AND: [
+                        {
+                            OR: [
+                                {
+                                    name: {
+                                        contains: 'welcome',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                                {
+                                    code: {
+                                        contains: 'welcome',
+                                        mode: 'insensitive',
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                }),
             }),
         );
     });

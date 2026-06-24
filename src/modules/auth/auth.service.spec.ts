@@ -95,6 +95,7 @@ describe('AuthService forgot password', () => {
             (globalThis as any).Bun = {
                 password: {
                     hash: jest.fn(),
+                    verify: jest.fn(),
                 },
             };
         }
@@ -113,6 +114,22 @@ describe('AuthService forgot password', () => {
 
     afterEach(() => {
         jest.restoreAllMocks();
+    });
+
+    it('does not authenticate blocked local users', async () => {
+        prismaService.client.user.findFirst.mockResolvedValue(null);
+
+        await expect(
+            service.validateUser('0900000000', 'password'),
+        ).resolves.toBeNull();
+
+        expect(prismaService.client.user.findFirst).toHaveBeenCalledWith({
+            where: {
+                phone: '0900000000',
+                active: true,
+                isBlocked: false,
+            },
+        });
     });
 
     it('sends a reset password OTP without changing password immediately', async () => {

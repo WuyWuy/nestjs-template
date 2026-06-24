@@ -3,10 +3,12 @@ import {
     PaymentMethod,
     PaymentStatus,
     RestaurantApprovalStatus,
+    Role,
 } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
     IsBoolean,
+    IsDateString,
     IsEnum,
     IsInt,
     IsIn,
@@ -14,6 +16,7 @@ import {
     IsOptional,
     IsPositive,
     IsString,
+    ValidateIf,
     Min,
 } from 'class-validator';
 
@@ -98,6 +101,67 @@ export class ApproveRestaurantDto {
         RestaurantApprovalStatus.REJECTED,
     ])
     status: RestaurantApprovalStatus;
+}
+
+export class RevenueDetailsQueryDto {
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    limit?: number = 20;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(0)
+    offset?: number = 0;
+
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
+}
+
+export class AdminUsersQueryDto {
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    limit?: number = 20;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(0)
+    offset?: number = 0;
+
+    @IsOptional()
+    @IsEnum(Role)
+    role?: Role;
+
+    @IsOptional()
+    @IsString()
+    keyword?: string;
+}
+
+export class BlockUserDto {
+    @IsBoolean()
+    @Type(() => Boolean)
+    isBlocked: boolean;
+
+    @ValidateIf((data: BlockUserDto) => data.isBlocked)
+    @IsString()
+    @IsNotEmpty()
+    reason?: string;
+}
+
+export class UpdateRestaurantActiveStatusDto {
+    @IsBoolean()
+    @Type(() => Boolean)
+    isActive: boolean;
 }
 
 export class CreateCategoryAdminDto {

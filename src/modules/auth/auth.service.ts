@@ -59,7 +59,12 @@ export class AuthService {
     async getMe(userId: number) {
         try {
             const user = await this.prismaService.user.findFirst({
-                where: { id: userId, deleteAt: null, active: true },
+                where: {
+                    id: userId,
+                    deleteAt: null,
+                    active: true,
+                    isBlocked: false,
+                },
                 select: {
                     id: true,
                     email: true
@@ -87,7 +92,7 @@ export class AuthService {
     }
     async validateUser(phone: string, password: string) {
         const user = await this.prismaService.client.user.findFirst({
-            where: { phone, active: true },
+            where: { phone, active: true, isBlocked: false },
         });
         if (user) {
             const results = await Bun.password.verify(password, user.password);
@@ -392,6 +397,9 @@ export class AuthService {
         const user = await this.prismaService.client.user.findFirst({
             where: {
                 id: userId,
+                active: true,
+                isBlocked: false,
+                deleteAt: null,
             },
             select: {
                 id: true,

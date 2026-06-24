@@ -37,6 +37,10 @@ export class VoucherListQueryDto {
     code?: string;
 
     @IsOptional()
+    @IsString()
+    keyword?: string;
+
+    @IsOptional()
     @IsEnum(VoucherStatus)
     status?: VoucherStatus;
 }

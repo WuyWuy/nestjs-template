@@ -32,10 +32,21 @@ import {
 export class VoucherController {
     constructor(private readonly voucherService: VoucherService) {}
 
-    @ApiOperation({ summary: 'Lấy danh sách voucher' })
+    @ApiOperation({ summary: 'Lấy danh sách voucher theo phạm vi quyền' })
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard , RolesGuard)
     @Get()
-    async getVouchers(@Query() query: VoucherListQueryDto) {
-        return await this.voucherService.getVouchers(query);
+    async getVouchers(
+        @Query() query: VoucherListQueryDto,
+        @Req() req : Request
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+
+        return await this.voucherService.getVouchers(
+            query,
+            Number(user.id),
+            user.roles ?? [],
+        );
     }
 
     @ApiOperation({ summary: 'Tra cứu voucher theo mã' })
@@ -53,7 +64,7 @@ export class VoucherController {
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth() 
     @ApiOperation({ summary: 'Lấy danh sách voucher phù hợp với đơn hàng'}) 
-    @Get('suitable/:restaurantId')
+    @Get('/suitable/:restaurantId')
     async getApproriateVoucher(
         @Param('restaurantId' , ParseIntPipe) restaurantId : number, 
         @Query('cost') cost? : string  

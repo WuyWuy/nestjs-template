@@ -83,6 +83,15 @@ export class SearchService {
             where: {
                 deleteAt: null,
                 isAvailable: true,
+                category: {
+                    isActive: true,
+                    deleteAt: null,
+                },
+                restaurant: {
+                    isActive: true,
+                    deleteAt: null,
+                    status: RestaurantApprovalStatus.APPROVED,
+                },
                 OR: [
                     { name: { contains: q, mode: 'insensitive' } },
                     { label: { contains: q, mode: 'insensitive' } },
@@ -148,6 +157,7 @@ export class SearchService {
             where: {
                 deleteAt: null,
                 status: RestaurantApprovalStatus.APPROVED,
+                isActive: true,
                 OR: [
                     { name: { contains: q, mode: 'insensitive' } },
                     {
@@ -307,6 +317,15 @@ export class SearchService {
                 id: { in: topFoodIds },
                 deleteAt: null,
                 isAvailable: true,
+                category: {
+                    isActive: true,
+                    deleteAt: null,
+                },
+                restaurant: {
+                    isActive: true,
+                    deleteAt: null,
+                    status: RestaurantApprovalStatus.APPROVED,
+                },
             },
             include: {
                 restaurant: {
@@ -329,6 +348,15 @@ export class SearchService {
                     id: { notIn: topFoodIds },
                     deleteAt: null,
                     isAvailable: true,
+                    category: {
+                        isActive: true,
+                        deleteAt: null,
+                    },
+                    restaurant: {
+                        isActive: true,
+                        deleteAt: null,
+                        status: RestaurantApprovalStatus.APPROVED,
+                    },
                 },
                 include: {
                     restaurant: {
@@ -392,6 +420,7 @@ export class SearchService {
             where: {
                 deleteAt: null,
                 status: RestaurantApprovalStatus.APPROVED,
+                isActive: true,
             },
             include: {
                 address: true,

@@ -5,7 +5,7 @@ model UserFavoriteRestaurant {
     restaurantId Int
     restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
     createdAt    DateTime   @default(now())
-
+    deleteAt    DateTime? 
     @@unique([userId, restaurantId])
     @@index([userId])
     @@index([restaurantId])

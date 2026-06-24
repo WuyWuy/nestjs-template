@@ -581,7 +581,6 @@ export class OrderService {
                 statusFilter = {
                     in: [
                         OrderStatus.PENDING,
-                        OrderStatus.CONFIRMED,
                         OrderStatus.PREPARING,
                         OrderStatus.DELIVERING,
                     ],
@@ -590,7 +589,14 @@ export class OrderService {
                 statusFilter = {
                     in: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
                 };
-            } else {
+
+            } 
+            else if (status === 'confirmed') {
+                statusFilter = {
+                    in: [OrderStatus.CONFIRMED]
+                }
+            }
+            else {
                 if (Object.values(OrderStatus).includes(status as OrderStatus)) {
                     statusFilter = status as OrderStatus;
                 } else {
@@ -1199,11 +1205,11 @@ export class OrderService {
         switch (status) {
             case OrderStatus.PENDING:
             case OrderStatus.CONFIRMED:
-                return { status: 'RECEIVED', status_step: 0 };
+                return { status: 'CONFIRMED', status_step: 0 };
             case OrderStatus.PREPARING:
                 return { status: 'PREPARING', status_step: 1 };
             case OrderStatus.DELIVERING:
-                return { status: 'ON_THE_WAY', status_step: 2 };
+                return { status: 'DELIVERING', status_step: 2 };
             case OrderStatus.DELIVERED:
                 return { status: 'DELIVERED', status_step: 3 };
             case OrderStatus.CANCELLED:

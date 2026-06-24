@@ -10,12 +10,19 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+    ApiBearerAuth,
+    ApiBody,
+    ApiOkResponse,
+    ApiOperation,
+    ApiTags,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import {
     ChangePasswordData,
     ForgotPasswordData,
     LoginData,
+    MeResponseData,
     RefreshTokenData,
     RegisterData,
     ResetPasswordData,
@@ -30,6 +37,23 @@ import type { Request } from 'express';
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
+
+    @ApiOperation({ summary: 'Lấy thông tin đơn giản' })
+    @ApiBearerAuth()
+    @ApiBody({
+        description: 'Cấu trúc thông tin người dùng được trả về',
+        type: MeResponseData,
+    })
+    @ApiOkResponse({
+        description: 'Thông tin cơ bản của người dùng hiện tại',
+        type: MeResponseData,
+    })
+    @UseGuards(JwtAuthGuard)
+    @Get('me')
+    async getMe(@Req() req: Request) {
+        const user = req.user as { id: number };
+        return await this.authService.getMe(user.id);
+    }
 
     @ApiBody({
         description:

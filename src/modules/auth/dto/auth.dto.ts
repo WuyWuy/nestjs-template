@@ -10,6 +10,29 @@ import {
     ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { Role } from '@prisma/client';
+
+export class MeResponseData {
+    @ApiProperty({
+        description: 'ID của người dùng',
+        example: 10,
+    })
+    id: number;
+
+    @ApiProperty({
+        description: 'Email của người dùng',
+        example: 'user@example.com',
+    })
+    email: string;
+
+    @ApiProperty({
+        description: 'Danh sách vai trò của người dùng',
+        enum: ['ADMIN', 'BUSINESS', 'CUSTOMER'],
+        isArray: true,
+        example: ['CUSTOMER'],
+    })
+    roles: Role[];
+}
 
 export class RegisterData {
     @ApiProperty({

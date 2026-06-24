@@ -49,7 +49,20 @@ export class VoucherController {
             restaurantId ? Number(restaurantId) : undefined,
         );
     }
+    //Lay danh sach voucher co the dung duoc cho 1 don hang 
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth() 
+    @ApiOperation({ summary: 'Lấy danh sách voucher phù hợp với đơn hàng'}) 
+    @Get('suitable/:restaurantId')
+    async getApproriateVoucher(
+        @Param('restaurantId' , ParseIntPipe) restaurantId : number, 
+        @Query('cost') cost? : string  
+    ) 
+    {
+        const parsedCost = cost ? parseInt(cost , 10) : undefined 
+        return await this.voucherService.getSuitableVoucher(restaurantId , parsedCost)
 
+    }
     @ApiOperation({ summary: 'Xem chi tiết voucher' })
     @Get(':id')
     async getVoucherDetail(@Param('id', ParseIntPipe) id: number) {

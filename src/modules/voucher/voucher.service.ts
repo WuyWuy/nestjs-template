@@ -29,6 +29,7 @@ export class VoucherService {
     private hasRole(roles: string[], role: Role) {
         return roles.includes(role);
     }
+    
     private async resolveVoucherImagePayload(
         data: Partial<CreateVoucherDto>,
         file?: Express.Multer.File,
@@ -74,7 +75,26 @@ export class VoucherService {
             );
         }
     }
-
+    async getSuitableVoucher(restaurantId : number , cost : number | undefined) 
+    {
+        try 
+        {
+            const vouchers = await this.prismaService.voucher.findMany({
+                where: {
+                    restaurantId, 
+                    deleteAt: null, 
+                    minimumOrderAmount: {
+                        lte: (cost? cost : 0)
+                    }, 
+                }
+            })
+            return vouchers 
+        } 
+        catch (err) {
+            console.log("get suitable voucher error" , err) 
+            throw err 
+        }
+    }
     async getVouchers(query: VoucherListQueryDto) {
         const now = new Date();
         const vouchers = await this.prismaService.client.voucher.findMany({

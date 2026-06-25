@@ -27,6 +27,10 @@ jest.mock('@prisma/client', () => ({
         DELIVERED: 'DELIVERED',
         CANCELLED: 'CANCELLED',
     },
+    PaymentStatus: {
+        UNPAID: 'UNPAID',
+        DONE: 'DONE',
+    },
     NotificationType: {
         SYSTEM: 'SYSTEM',
         ORDER: 'ORDER',
@@ -774,6 +778,7 @@ describe('RestaurantService - management', () => {
                 },
                 order: {
                     aggregate: jest.fn(),
+                    count: jest.fn(),
                     findMany: jest.fn(),
                 },
             },
@@ -1159,13 +1164,27 @@ describe('RestaurantService - management', () => {
                 totalPrice: '125.50',
             },
         });
+        prismaService.client.order.count.mockResolvedValueOnce(3);
 
-        const result = await service.getRestaurantRevenue(101, 99, ['BUSINESS']);
+        const result = await service.getRestaurantRevenue(101, 99, ['BUSINESS'], {
+            startDate: '2026-06-01',
+            endDate: '2026-06-30',
+        });
 
         expect(prismaService.client.order.aggregate).toHaveBeenCalledWith({
             where: {
                 restaurantId: 101,
                 status: 'CONFIRMED',
+                deleteAt: null,
+                confirmedAt: {
+                    gte: new Date('2026-06-01T00:00:00.000Z'),
+                    lte: new Date('2026-06-30T23:59:59.999Z'),
+                },
+                payments: {
+                    some: {
+                        paymentStatus: 'DONE',
+                    },
+                },
             },
             _sum: {
                 totalPrice: true,
@@ -1176,13 +1195,77 @@ describe('RestaurantService - management', () => {
             'Restaurant',
             101,
             99,
+            {
+                filters: {
+                    startDate: '2026-06-01',
+                    endDate: '2026-06-30',
+                },
+            },
         );
         expect(result).toEqual({
-            grossRevenue: 125.5,
-            platformCommissionRate: 0.1,
-            platformCommission: 12.55,
-            restaurantNetRevenue: 112.95,
+            success: true,
+            data: {
+                restaurantId: 101,
+                grossRevenue: 125.5,
+                platformCommissionRate: 0.1,
+                platformCommission: 12.55,
+                restaurantNetRevenue: 112.95,
+                orderCount: 3,
+                filters: {
+                    startDate: '2026-06-01T00:00:00.000Z',
+                    endDate: '2026-06-30T23:59:59.999Z',
+                },
+            },
         });
+    });
+
+    it('should return paginated restaurant revenue details', async () => {
+        prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+            id: 101,
+            ownerId: 99,
+        });
+        prismaService.client.order.findMany.mockResolvedValueOnce([
+            {
+                id: 10023,
+                totalPrice: '250000',
+                confirmedAt: new Date('2026-06-20T10:00:00.000Z'),
+                user: { name: 'Nguyen Van A' },
+                payments: [{ method: 'CASH' }],
+            },
+        ]);
+        prismaService.client.order.count.mockResolvedValueOnce(1);
+
+        const result = await service.getRestaurantRevenueDetails(
+            101,
+            99,
+            ['BUSINESS'],
+            { limit: 10, offset: 0 },
+        );
+
+        expect(result).toEqual({
+            success: true,
+            data: [
+                {
+                    orderId: 'ORD-10023',
+                    totalAmount: 250000,
+                    platformCommission: 25000,
+                    restaurantNetRevenue: 225000,
+                    completedAt: new Date('2026-06-20T10:00:00.000Z'),
+                    paymentMethod: 'CASH',
+                    customerName: 'Nguyen Van A',
+                },
+            ],
+            total: 1,
+            limit: 10,
+            offset: 0,
+        });
+        expect(auditService.log).toHaveBeenCalledWith(
+            'VIEW_RESTAURANT_REVENUE_DETAILS',
+            'Restaurant',
+            101,
+            99,
+            { filters: { limit: 10, offset: 0 } },
+        );
     });
 
     it('should update restaurant open status', async () => {

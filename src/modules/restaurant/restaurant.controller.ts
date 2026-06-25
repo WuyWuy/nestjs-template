@@ -35,6 +35,8 @@ import {
     CreateRestaurantRatingReplyDto,
     DashboardResponse,
     UpdateRestaurantRatingDto,
+    RestaurantRevenueQueryDto,
+    RestaurantRevenueDetailsQueryDto,
 } from './dto/restaurant.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
@@ -280,12 +282,33 @@ export class RestaurantController {
     async getRestaurantRevenue(
         @Req() req: Request,
         @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Query() query: RestaurantRevenueQueryDto,
     ) {
         const user = req.user as { id?: number; roles?: string[] };
         return await this.restaurantService.getRestaurantRevenue(
             restaurantId,
             Number(user.id),
             user.roles ?? [],
+            query,
+        );
+    }
+
+    @ApiOperation({ summary: 'Xem chi tiết doanh thu theo từng đơn hàng' })
+    @ApiBearerAuth()
+    @Roles(Role.ADMIN, Role.BUSINESS)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Get('/manage/:restaurantId/revenue-details')
+    async getRestaurantRevenueDetails(
+        @Req() req: Request,
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Query() query: RestaurantRevenueDetailsQueryDto,
+    ) {
+        const user = req.user as { id?: number; roles?: string[] };
+        return await this.restaurantService.getRestaurantRevenueDetails(
+            restaurantId,
+            Number(user.id),
+            user.roles ?? [],
+            query,
         );
     }
 

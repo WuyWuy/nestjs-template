@@ -10,6 +10,7 @@ import {
     Role,
     RestaurantApprovalStatus,
     OrderStatus,
+    PaymentStatus,
     NotificationType,
     VoucherStatus,
 } from '@prisma/client';
@@ -19,12 +20,22 @@ import {
     UpdateRestaurantDto,
     ALLOWED_REVIEW_TAGS,
     UpdateRestaurantRatingDto,
+    RestaurantRevenueQueryDto,
+    RestaurantRevenueDetailsQueryDto,
 } from './dto/restaurant.dto';
 import { AuditService } from '../audit/audit.service';
 import { MinioService } from '../minio/minio.service';
 import type { Express } from 'express';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationEvent } from '../notification/events/notification.event';
+import {
+    PLATFORM_COMMISSION_RATE,
+    splitRevenueAmount,
+} from '@/bases/commons/constants/revenue.constant';
+import {
+    buildRevenueFilters,
+    buildRevenueOrderWhere,
+} from '@/modules/revenue/revenue.util';
 
 type RestaurantUploadFiles = {
     image?: Express.Multer.File[];
@@ -1115,6 +1126,7 @@ export class RestaurantService {
             bestSellerStats,
             ratingStats,
             activeVouchers,
+            revenueAggregate,
         ] = await Promise.all([
             this.prismaService.client.order.groupBy({
                 by: ['status'],
@@ -1204,6 +1216,12 @@ export class RestaurantService {
                     ],
                 },
             }),
+            this.prismaService.client.order.aggregate({
+                where: buildRevenueOrderWhere({ restaurantId }),
+                _sum: {
+                    totalPrice: true,
+                },
+            }),
         ]);
 
         const foodIds = bestSellerStats.map((item) => item.foodId);
@@ -1237,9 +1255,6 @@ export class RestaurantService {
             orderStats
                 .filter((item) => statuses.includes(item.status))
                 .reduce((total, item) => total + item._count.id, 0);
-        const deliveredStats = orderStats.find(
-            (item) => item.status === OrderStatus.CONFIRMED,
-        );
 
         return {
             runningOrders: getOrderCount([
@@ -1248,7 +1263,7 @@ export class RestaurantService {
                 OrderStatus.DELIVERED,
             ]),
             orderRequest: getOrderCount([OrderStatus.PENDING]),
-            revenue: Number(deliveredStats?._sum.totalPrice ?? 0),
+            revenue: Number(revenueAggregate._sum.totalPrice ?? 0),
             rating: Number((ratingStats._avg.vote ?? 0).toFixed(1)),
             totalReviews: ratingStats._count.id,
             totalOrders: orderStats.reduce(
@@ -1307,36 +1322,128 @@ export class RestaurantService {
         restaurantId: number,
         actorId: number,
         roles: string[],
+        query: RestaurantRevenueQueryDto = {},
     ) {
         await this.assertRestaurantOwner(actorId, roles, restaurantId);
 
-        const ordersAggregate = await this.prismaService.client.order.aggregate({
-            where: {
-                restaurantId,
-                status: OrderStatus.CONFIRMED,
-            },
-            _sum: {
-                totalPrice: true,
-            },
+        const where = buildRevenueOrderWhere({
+            restaurantId,
+            startDate: query.startDate,
+            endDate: query.endDate,
         });
 
+        const [ordersAggregate, orderCount] = await Promise.all([
+            this.prismaService.client.order.aggregate({
+                where,
+                _sum: {
+                    totalPrice: true,
+                },
+            }),
+            this.prismaService.client.order.count({ where }),
+        ]);
+
         const grossRevenue = Number(ordersAggregate._sum.totalPrice ?? 0);
-        const platformCommissionRate = 0.1;
-        const platformCommission = Number((grossRevenue * platformCommissionRate).toFixed(2));
-        const restaurantNetRevenue = Number((grossRevenue * 0.9).toFixed(2));
+        const { platformCommission, restaurantNetRevenue } =
+            splitRevenueAmount(grossRevenue);
 
         await this.auditService.log(
             'VIEW_RESTAURANT_REVENUE',
             'Restaurant',
             restaurantId,
             actorId,
+            { filters: query },
         );
 
         return {
-            grossRevenue,
-            platformCommissionRate,
-            platformCommission,
-            restaurantNetRevenue,
+            success: true,
+            data: {
+                restaurantId,
+                grossRevenue,
+                platformCommissionRate: PLATFORM_COMMISSION_RATE,
+                platformCommission,
+                restaurantNetRevenue,
+                orderCount,
+                filters: buildRevenueFilters(query.startDate, query.endDate),
+            },
+        };
+    }
+
+    async getRestaurantRevenueDetails(
+        restaurantId: number,
+        actorId: number,
+        roles: string[],
+        query: RestaurantRevenueDetailsQueryDto = {},
+    ) {
+        await this.assertRestaurantOwner(actorId, roles, restaurantId);
+
+        const limit = query.limit ?? 20;
+        const offset = query.offset ?? 0;
+        const where = buildRevenueOrderWhere({
+            restaurantId,
+            startDate: query.startDate,
+            endDate: query.endDate,
+        });
+
+        const [orders, total] = await Promise.all([
+            this.prismaService.client.order.findMany({
+                where,
+                select: {
+                    id: true,
+                    totalPrice: true,
+                    confirmedAt: true,
+                    user: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                    payments: {
+                        where: {
+                            paymentStatus: PaymentStatus.DONE,
+                            deleteAt: null,
+                        },
+                        select: {
+                            method: true,
+                        },
+                        take: 1,
+                    },
+                },
+                orderBy: {
+                    confirmedAt: 'desc',
+                },
+                take: limit,
+                skip: offset,
+            }),
+            this.prismaService.client.order.count({ where }),
+        ]);
+
+        await this.auditService.log(
+            'VIEW_RESTAURANT_REVENUE_DETAILS',
+            'Restaurant',
+            restaurantId,
+            actorId,
+            { filters: query },
+        );
+
+        return {
+            success: true,
+            data: orders.map((order) => {
+                const totalAmount = Number(order.totalPrice);
+                const { platformCommission, restaurantNetRevenue } =
+                    splitRevenueAmount(totalAmount);
+
+                return {
+                    orderId: `ORD-${order.id}`,
+                    totalAmount,
+                    platformCommission,
+                    restaurantNetRevenue,
+                    completedAt: order.confirmedAt,
+                    paymentMethod: order.payments[0]?.method ?? null,
+                    customerName: order.user.name,
+                };
+            }),
+            total,
+            limit,
+            offset,
         };
     }
 

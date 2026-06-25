@@ -3,6 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
+    IsDateString,
     IsInt,
     IsNotEmpty,
     IsNumber,
@@ -295,6 +296,30 @@ export class DashboardBestSellerResponse {
 
     @ApiProperty({ example: 'https://example.com/burger.jpg' })
     imageUrl: string;
+}
+
+export class RestaurantRevenueQueryDto {
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
+}
+
+export class RestaurantRevenueDetailsQueryDto extends RestaurantRevenueQueryDto {
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    limit?: number = 20;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(0)
+    offset?: number = 0;
 }
 
 export class DashboardResponse {

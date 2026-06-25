@@ -33,6 +33,7 @@ describe('RestaurantController', () => {
         getRestaurantDashboard: jest.Mock;
         generateRestaurantDashboard: jest.Mock;
         getRestaurantRevenue: jest.Mock;
+        getRestaurantRevenueDetails: jest.Mock;
         updateRestaurantStatus: jest.Mock;
         updateRestaurantOperatingHours: jest.Mock;
         getAllRestaurants: jest.Mock;
@@ -56,6 +57,7 @@ describe('RestaurantController', () => {
             getRestaurantDashboard: jest.fn(),
             generateRestaurantDashboard: jest.fn(),
             getRestaurantRevenue: jest.fn(),
+            getRestaurantRevenueDetails: jest.fn(),
             updateRestaurantStatus: jest.fn(),
             updateRestaurantOperatingHours: jest.fn(),
             getAllRestaurants: jest.fn(),
@@ -314,5 +316,56 @@ describe('RestaurantController', () => {
                 user: { id: 99, roles: ['BUSINESS'] },
             } as any),
         ).resolves.toEqual({ success: true, data: { totalReviews: 1 } });
+    });
+
+    it('should forward revenue summary query params to the service', async () => {
+        const response = {
+            success: true,
+            data: { grossRevenue: 1000 },
+        };
+        restaurantService.getRestaurantRevenue.mockResolvedValue(response);
+        const query = {
+            startDate: '2026-06-01',
+            endDate: '2026-06-30',
+        };
+
+        await expect(
+            controller.getRestaurantRevenue(
+                { user: { id: 99, roles: ['BUSINESS'] } } as any,
+                101,
+                query,
+            ),
+        ).resolves.toEqual(response);
+        expect(restaurantService.getRestaurantRevenue).toHaveBeenCalledWith(
+            101,
+            99,
+            ['BUSINESS'],
+            query,
+        );
+    });
+
+    it('should forward revenue detail query params to the service', async () => {
+        const response = {
+            success: true,
+            data: [],
+            total: 0,
+            limit: 10,
+            offset: 0,
+        };
+        restaurantService.getRestaurantRevenueDetails.mockResolvedValue(
+            response,
+        );
+        const query = { limit: 10, offset: 0 };
+
+        await expect(
+            controller.getRestaurantRevenueDetails(
+                { user: { id: 99, roles: ['BUSINESS'] } } as any,
+                101,
+                query,
+            ),
+        ).resolves.toEqual(response);
+        expect(
+            restaurantService.getRestaurantRevenueDetails,
+        ).toHaveBeenCalledWith(101, 99, ['BUSINESS'], query);
     });
 });

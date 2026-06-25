@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { Type, Transform } from 'class-transformer';
+import { Type, Transform, plainToInstance } from 'class-transformer';
 import {
     IsArray,
     IsBoolean,
@@ -123,37 +123,40 @@ export class CreateFoodDto {
 
     @IsOptional()
     @Transform(({ value }) => {
-        if (typeof value === 'string') {
-            try {
-                return JSON.parse(value);
-            } catch {
-                return value;
-            }
+        if (typeof value !== 'string') 
+            return value 
+        try 
+        {
+            const parsed = JSON.parse(value) 
+            return Array.isArray(parsed) ? plainToInstance(CreateFoodSizeDto , parsed) : parsed 
+        }  
+        catch {
+            return value 
         }
-        return value;
     })
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => CreateFoodSizeDto)
     sizes?: CreateFoodSizeDto[];
 
-    @IsOptional()
+    @IsOptional() 
     @Transform(({ value }) => {
-        if (typeof value === 'string') {
-            if (value.startsWith('[') && value.endsWith(']')) {
-                try {
-                    return JSON.parse(value).map(Number);
-                } catch {
-                    // ignore and fallback
-                }
-            }
-            return value.split(',').map(Number);
+        if (Array.isArray(value)) {
+            return value.map(Number);
         }
+
+        if (typeof value === 'string') {
+            try {
+                return JSON.parse(value).map(Number);
+            } catch {
+                return value.split(',').map(Number);
+            }
+        }
+
         return value;
     })
     @IsArray()
     @IsInt({ each: true })
-    @Type(() => Number)
     ingredientIds?: number[];
 }
 
@@ -173,4 +176,3 @@ export class CreateFoodRatingDto {
     @IsNotEmpty()
     orderId: number;
 }
-

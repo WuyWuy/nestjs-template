@@ -22,6 +22,7 @@ import { RolesGuard } from '@/bases/guards/role.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FoodService } from './food.service';
 import { CreateFoodDto, FoodQueryDto, UpdateFoodDto, CreateFoodRatingDto } from './dto/food.dto';
+import { Transform } from 'class-transformer';
 
 @ApiTags('07. Food')
 @Controller('food')
@@ -141,6 +142,16 @@ export class FoodController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Post('manage')
     @UseInterceptors(FileInterceptor('image'))
+    @Transform(({ value }) => {
+    const parsed =
+        typeof value === 'string'
+            ? JSON.parse(value)
+            : value;
+
+    console.log(JSON.stringify(parsed, null, 2));
+
+    return parsed;
+})
     async createFood(
         @Req() req: Request,
         @Body() data: CreateFoodDto,

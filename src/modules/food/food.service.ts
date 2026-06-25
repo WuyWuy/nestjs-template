@@ -264,6 +264,7 @@ export class FoodService {
         if (!data.sizes || data.sizes.length === 0) {
             throw new BadRequestException('Sizes are required for creating a food');
         }
+        
         const defaultPrice = await this.validateAndGetDefaultSizePrice(data.sizes);
 
         if (data.ingredientIds) {

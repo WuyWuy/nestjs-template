@@ -23,18 +23,10 @@ import {
 import { generatePassword } from '@/utilis/rnadomPassword';
 import { EmailService } from '../email/email.service';
 import { APP_NAME } from '@/bases/commons/constants/app.constant';
+import { PLATFORM_COMMISSION_RATE } from '@/bases/commons/constants/revenue.constant';
+import { parseDateBoundary } from '@/utilis/parse-date-boundary';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationEvent } from '../notification/events/notification.event';
-
-const ADMIN_COMMISSION_RATE = 0.1;
-
-function parseDateBoundary(value: string, endOfDay: boolean) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        const time = endOfDay ? '23:59:59.999' : '00:00:00.000';
-        return new Date(`${value}T${time}Z`);
-    }
-    return new Date(value);
-}
 
 @Injectable()
 export class AdminService {
@@ -112,7 +104,7 @@ export class AdminService {
         });
 
         const grossRevenue = Number(deliveredOrdersAggregate._sum.totalPrice ?? 0);
-        const adminCommissionRate = ADMIN_COMMISSION_RATE;
+        const adminCommissionRate = PLATFORM_COMMISSION_RATE;
         const adminRevenue = Number((grossRevenue * adminCommissionRate).toFixed(2));
 
         const groupedOrders = await this.prismaService.client.order.groupBy({
@@ -154,7 +146,7 @@ export class AdminService {
                 restaurantName: restaurantMap.get(g.restaurantId) ?? `Restaurant #${g.restaurantId}`,
                 grossRevenue: rGross,
                 adminRevenue: Number(
-                    (rGross * ADMIN_COMMISSION_RATE).toFixed(2),
+                    (rGross * PLATFORM_COMMISSION_RATE).toFixed(2),
                 ),
             };
         });
@@ -244,7 +236,7 @@ export class AdminService {
                     restaurantName: order.restaurant.name,
                     totalAmount,
                     netRevenue: Number(
-                        (totalAmount * ADMIN_COMMISSION_RATE).toFixed(2),
+                        (totalAmount * PLATFORM_COMMISSION_RATE).toFixed(2),
                     ),
                     completedAt: order.confirmedAt,
                 };

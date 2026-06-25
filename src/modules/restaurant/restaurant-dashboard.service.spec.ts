@@ -29,6 +29,10 @@ jest.mock('@prisma/client', () => ({
         PROMOTION: 'PROMOTION',
         CHAT: 'CHAT',
     },
+    PaymentStatus: {
+        UNPAID: 'UNPAID',
+        DONE: 'DONE',
+    },
     VoucherStatus: {
         APPLYING: 'APPLYING',
         ENDED: 'ENDED',
@@ -75,6 +79,9 @@ describe('RestaurantService - generated dashboard', () => {
                             _sum: { totalPrice: '2241.00' },
                         },
                     ]),
+                    aggregate: jest.fn().mockResolvedValue({
+                        _sum: { totalPrice: '2241.00' },
+                    }),
                 },
                 payment: {
                     findMany: jest.fn().mockResolvedValue([
@@ -186,6 +193,9 @@ describe('RestaurantService - generated dashboard', () => {
                 },
                 order: {
                     groupBy: jest.fn().mockResolvedValue([]),
+                    aggregate: jest.fn().mockResolvedValue({
+                        _sum: { totalPrice: null },
+                    }),
                 },
                 payment: {
                     findMany: jest.fn().mockResolvedValue([]),

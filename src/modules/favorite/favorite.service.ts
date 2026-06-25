@@ -14,24 +14,29 @@ export class FavoriteService {
             throw new NotFoundException('Restaurant not found');
         }
 
-        const favorite = await this.prismaService.client.userFavoriteRestaurant.findUnique({
+        const favorite = await this.prismaService.userFavoriteRestaurant.findFirst({
             where: {
-                userId_restaurantId: {
-                    userId,
-                    restaurantId,
-                },
+                userId, 
+                restaurantId
             },
         });
 
         let isLiked = false;
 
         if (favorite) {
-            await this.prismaService.client.userFavoriteRestaurant.delete({
-                userId_restaurantId: {
-                    userId,
-                    restaurantId,
-                },
-            });
+            // await this.prismaService.client.userFavoriteRestaurant.delete({
+            //     userId_restaurantId: {
+            //         userId,
+            //         restaurantId,
+            //     },
+            // });'
+            // Delete all the favourite restaurantId in the database 
+            await this.prismaService.userFavoriteRestaurant.deleteMany({
+                where: {
+                    userId, 
+                    restaurantId
+                }
+            })
             isLiked = false;
         } else {
             await this.prismaService.client.userFavoriteRestaurant.create({

@@ -81,18 +81,30 @@ export class VoucherService {
         {
             const vouchers = await this.prismaService.voucher.findMany({
                 where: {
-                    restaurantId, 
+                    OR: [
+                        {
+                            restaurantId
+                        }, 
+                        {
+                            restaurantId : null 
+                        }
+                    ], 
                     deleteAt: null, 
-                    minimumOrderAmount: {
-                        lte: (cost? cost : 0)
-                    }, 
+                    // minimumOrderAmount: {
+                    //     lte: (cost? cost : 0)
+                    // }, 
                     endAt: {
                         gte: new Date() 
                     }, 
                     status: VoucherStatus.APPLYING
                 }
             })
-            return vouchers 
+            const responseData = 
+                vouchers.map((voucher) => ({
+                    ...voucher, 
+                    remainToApply: Math.max(Number(voucher.minimumOrderAmount) - (cost || 0) , 0)
+                }))
+            return responseData 
         } 
         catch (err) {
             console.log("get suitable voucher error" , err) 

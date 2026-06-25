@@ -76,7 +76,7 @@ export class CreateOrderDto {
     @IsOptional()
     @IsBoolean()
     @Type(() => Boolean)
-    clearCartAfterOrder?: boolean = true;
+    clearCartAfterOrder?: boolean = false;
 }
 
 export class UpdateOrderStatus {

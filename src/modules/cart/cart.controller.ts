@@ -43,6 +43,7 @@ export class CartController {
                     foodId: 1,
                     quantity: 2,
                     foodSizeId: 1,
+                    fullText: 'Ít hành',
                 },
             },
         },
@@ -81,6 +82,19 @@ export class CartController {
         const userId = Number((req.user as { id?: number })?.id);
         return await this.cartService.updateCartItem(userId, cartItemId, data);
     }
+    @ApiOperation({ summary: 'Xóa các món của một nhà hàng khỏi giỏ' })
+    @Delete('/restaurant/:restaurantId')
+    async clearCartByRestaurant(
+        @Req() req: Request,
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    ) {
+        const userId = Number((req.user as { id?: number })?.id);
+        return await this.cartService.clearCartByRestaurant(
+            userId,
+            restaurantId,
+        );
+    }
+
     @ApiOperation({ summary: 'Xóa một món trong giỏ' })
     @Delete('/:cartItemId')
     async deleteCartItem(

@@ -332,6 +332,7 @@ export class OrderService {
                     id: {
                         in: foodIds,
                     },
+                    isAvailable: true,
                 },
                 select: {
                     id: true,
@@ -416,6 +417,58 @@ export class OrderService {
                 });
             }
 
+            const userCart = await tx.cart.findFirst({
+                where: {
+                    userId,
+                },
+                select: {
+                    id: true,
+                },
+            });
+            if (!userCart) {
+                throw new BadRequestException(
+                    'No items from this restaurant in cart',
+                );
+            }
+
+            const restaurantCartItems = await tx.cartItem.findMany({
+                where: {
+                    cartId: userCart.id,
+                    food: {
+                        restaurantId: data.restaurantId,
+                    },
+                },
+                select: {
+                    foodId: true,
+                    foodSizeId: true,
+                    quantity: true,
+                },
+            });
+            if (restaurantCartItems.length === 0) {
+                throw new BadRequestException(
+                    'No items from this restaurant in cart',
+                );
+            }
+
+            const requiredQuantities = orderFoodData.reduce((items, item) => {
+                const key = `${item.foodId}:${item.foodSizeId}`;
+                items.set(key, (items.get(key) ?? 0) + item.quantity);
+                return items;
+            }, new Map<string, number>());
+            const cartQuantities = restaurantCartItems.reduce((items, item) => {
+                const key = `${item.foodId}:${item.foodSizeId}`;
+                items.set(key, (items.get(key) ?? 0) + item.quantity);
+                return items;
+            }, new Map<string, number>());
+
+            for (const [key, requiredQuantity] of requiredQuantities) {
+                if ((cartQuantities.get(key) ?? 0) < requiredQuantity) {
+                    throw new BadRequestException(
+                        'Cart item mismatch or insufficient quantity',
+                    );
+                }
+            }
+
             await tx.orderFood.createMany({
                 data: orderFoodData,
             });
@@ -483,21 +536,17 @@ export class OrderService {
                 throw new BadRequestException('Invalid payment method');
             }
 
-            if (data.clearCartAfterOrder ?? true) {
-                const userCart = await tx.cart.findFirst({
-                    where: {
-                        userId,
+            if (data.clearCartAfterOrder === true) {
+                await tx.cartItem.deleteMany({
+                    cartId: userCart.id,
+                });
+            } else {
+                await tx.cartItem.deleteMany({
+                    cartId: userCart.id,
+                    food: {
+                        restaurantId: data.restaurantId,
                     },
                 });
-
-                if (userCart) {
-                    await tx.cartItem.deleteMany({
-                        cartId: userCart.id,
-                        foodId: {
-                            in: foods.map((food) => food.id),
-                        },
-                    });
-                }
             }
 
             const conversation =
@@ -987,9 +1036,19 @@ export class OrderService {
             order.address.longitude,
         );
 
-        const activeCartItems: { foodId: number; foodSizeId: number; quantity: number }[] = [];
+        const activeCartItems: {
+            foodId: number;
+            foodSizeId: number;
+            quantity: number;
+            fullText: string | null;
+        }[] = [];
+        const skippedItems: { foodId: number; reason: string }[] = [];
         for (const orderFood of order.orderFoods) {
             if (!orderFood.food || orderFood.food.deleteAt || !orderFood.food.isAvailable) {
+                skippedItems.push({
+                    foodId: orderFood.foodId,
+                    reason: 'Food is no longer available',
+                });
                 continue;
             }
 
@@ -1025,12 +1084,14 @@ export class OrderService {
                     foodId: orderFood.foodId,
                     foodSizeId: resolvedSizeId,
                     quantity: orderFood.quantity,
+                    fullText: orderFood.fullText,
+                });
+            } else {
+                skippedItems.push({
+                    foodId: orderFood.foodId,
+                    reason: 'Food size is no longer available',
                 });
             }
-        }
-
-        if (activeCartItems.length === 0) {
-            throw new BadRequestException('None of the items in this order are currently available for purchase');
         }
 
         await this.prismaService.transaction(async (tx) => {
@@ -1041,21 +1102,6 @@ export class OrderService {
             if (!cart) {
                 cart = await tx.cart.create({
                     data: { userId },
-                });
-            }
-
-            const existingCartItems = await tx.cartItem.findMany({
-                where: { cartId: cart.id, deleteAt: null },
-                include: { food: true },
-            });
-
-            const hasDifferentRestaurant = existingCartItems.some(
-                (item) => item.food.restaurantId !== order.restaurantId,
-            );
-
-            if (hasDifferentRestaurant) {
-                await tx.cartItem.deleteMany({
-                    cartId: cart.id,
                 });
             }
 
@@ -1072,7 +1118,10 @@ export class OrderService {
                 if (existing) {
                     await tx.cartItem.update({
                         where: { id: existing.id },
-                        data: { quantity: existing.quantity + item.quantity },
+                        data: {
+                            quantity: existing.quantity + item.quantity,
+                            fullText: item.fullText,
+                        },
                     });
                 } else {
                     await tx.cartItem.create({
@@ -1081,6 +1130,7 @@ export class OrderService {
                             foodId: item.foodId,
                             foodSizeId: item.foodSizeId,
                             quantity: item.quantity,
+                            fullText: item.fullText,
                         },
                     });
                 }
@@ -1093,6 +1143,8 @@ export class OrderService {
             ...cart,
             deliveryFee,
             totalPrice: cart.subtotal + deliveryFee,
+            addedCount: activeCartItems.length,
+            skippedItems,
         };
     }
 

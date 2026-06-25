@@ -35,27 +35,15 @@ export class CartService {
             },
             select: {
                 id: true,
-                name: true,
-                price: true,
-                image: true,
-                restaurantId: true,
-                restaurant: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-                category: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
+                isAvailable: true,
             },
         });
 
         if (!food) {
             throw new NotFoundException('Food not found');
+        }
+        if (!food.isAvailable) {
+            throw new BadRequestException('Food is not available');
         }
 
         return food;
@@ -71,7 +59,9 @@ export class CartService {
             select: {
                 id: true,
                 quantity: true,
+                fullText: true,
                 foodSizeId: true,
+                updatedAt: true,
                 foodSize: {
                     include: {
                         size: true,
@@ -89,6 +79,9 @@ export class CartService {
                             select: {
                                 id: true,
                                 name: true,
+                                image: true,
+                                deliveryFee: true,
+                                estimatedDeliveryTime: true,
                             },
                         },
                         category: {
@@ -101,13 +94,14 @@ export class CartService {
                 },
             },
             orderBy: {
-                id: 'asc',
+                updatedAt: 'desc',
             },
         });
 
         const normalizedItems = items.map((item) => {
             const activePrice = item.foodSize ? item.foodSize.price : item.food.price;
             const lineTotal = activePrice.mul(item.quantity);
+            const { restaurant, ...food } = item.food;
 
             return {
                 id: item.id,
@@ -115,9 +109,19 @@ export class CartService {
                 lineTotal: Number(lineTotal),
                 foodSizeId: item.foodSizeId,
                 sizeName: item.foodSize?.size.name ?? null,
+                fullText: item.fullText,
+                updatedAt: item.updatedAt,
+                groupRestaurant: {
+                    ...restaurant,
+                    deliveryFee: Number(restaurant.deliveryFee),
+                },
                 food: {
-                    ...item.food,
+                    ...food,
                     price: Number(activePrice),
+                    restaurant: {
+                        id: restaurant.id,
+                        name: restaurant.name,
+                    },
                 },
             };
         });
@@ -127,6 +131,49 @@ export class CartService {
             0,
         );
 
+        const restaurantGroups = Array.from(
+            normalizedItems
+                .reduce((groups, item) => {
+                    const restaurantId = item.food.restaurantId;
+                    const current = groups.get(restaurantId);
+                    if (current) {
+                        current.itemCount += item.quantity;
+                        current.subtotal += item.lineTotal;
+                        current.items.push(item);
+                    } else {
+                        groups.set(restaurantId, {
+                            restaurant: item.groupRestaurant,
+                            itemCount: item.quantity,
+                            subtotal: item.lineTotal,
+                            items: [item],
+                        });
+                    }
+                    return groups;
+                }, new Map<number, {
+                    restaurant: {
+                        id: number;
+                        name: string;
+                        image: string;
+                        deliveryFee: number;
+                        estimatedDeliveryTime: number;
+                    };
+                    itemCount: number;
+                    subtotal: number;
+                    items: typeof normalizedItems;
+                }>())
+                .values(),
+        ).map((group) => ({
+            ...group,
+            items: group.items.map(
+                ({ updatedAt: _updatedAt, groupRestaurant: _group, ...item }) =>
+                    item,
+            ),
+        }));
+        const flatItems = normalizedItems.map(
+            ({ updatedAt: _updatedAt, groupRestaurant: _group, ...item }) =>
+                item,
+        );
+
         return {
             id: cart.id,
             totalItems: normalizedItems.reduce(
@@ -134,27 +181,15 @@ export class CartService {
                 0,
             ),
             subtotal,
-            restaurant:
-                normalizedItems.length > 0
-                    ? normalizedItems[0].food.restaurant
-                    : null,
-            items: normalizedItems,
+            restaurant: null,
+            restaurantGroups,
+            items: flatItems,
         };
     }
 
     async pushCartItem(userId: number, data: CreateCartItemDto) {
         const cart = await this.getUserCartOrThrow(userId);
-        const food = await this.getFoodOrThrow(data.foodId);
-        const cartState = await this.getCart(userId);
-
-        if (
-            cartState.restaurant &&
-            cartState.restaurant.id !== food.restaurantId
-        ) {
-            throw new BadRequestException(
-                'Cart can only contain items from one restaurant at a time',
-            );
-        }
+        await this.getFoodOrThrow(data.foodId);
 
         // Fetch food sizes
         const foodWithSizes = await this.prismaService.client.food.findUnique({
@@ -196,6 +231,12 @@ export class CartService {
         );
 
         if (existsCartItem) {
+            if (existsCartItem.quantity + data.quantity > 99) {
+                throw new BadRequestException(
+                    'Cart item quantity cannot exceed 99',
+                );
+            }
+
             await this.prismaService.client.cartItem.update({
                 where: {
                     id: existsCartItem.id,
@@ -204,6 +245,9 @@ export class CartService {
                     quantity: {
                         increment: data.quantity,
                     },
+                    ...(data.fullText !== undefined && {
+                        fullText: data.fullText,
+                    }),
                 },
             });
 
@@ -216,6 +260,7 @@ export class CartService {
                 quantity: data.quantity,
                 foodId: data.foodId,
                 foodSizeId: resolvedSizeId,
+                fullText: data.fullText,
             },
         });
 
@@ -288,5 +333,18 @@ export class CartService {
         return {
             message: 'Cart cleared successfully',
         };
+    }
+
+    async clearCartByRestaurant(userId: number, restaurantId: number) {
+        const cart = await this.getUserCartOrThrow(userId);
+
+        await this.prismaService.client.cartItem.deleteMany({
+            cartId: cart.id,
+            food: {
+                restaurantId,
+            },
+        });
+
+        return await this.getCart(userId);
     }
 }

@@ -2,6 +2,8 @@ model Cart {
     id        Int        @id @default(autoincrement())
     userId    Int        @unique
     user      User       @relation(fields: [userId], references: [id])
+    createdAt DateTime   @default(now())
+    updatedAt DateTime   @updatedAt
     deleteAt  DateTime?
     cartItems CartItem[]
 }
@@ -12,6 +14,9 @@ model CartItem {
     foodId     Int
     foodSizeId Int?
     quantity   Int
+    fullText   String?   @db.Text
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
     deleteAt   DateTime?
 
     cart     Cart      @relation(fields: [cartId], references: [id])

@@ -797,6 +797,7 @@ async function replaceCartItems(
     items: Array<{
         foodId: number;
         quantity: number;
+        fullText?: string;
     }>,
 ) {
     const cart = await db.cart.findUnique({
@@ -819,12 +820,40 @@ async function replaceCartItems(
         return;
     }
 
+    const defaultSizes = await db.foodSize.findMany({
+        where: {
+            foodId: {
+                in: items.map((item) => item.foodId),
+            },
+            isDefault: true,
+            deleteAt: null,
+        },
+        select: {
+            id: true,
+            foodId: true,
+        },
+    });
+    const defaultSizeByFoodId = new Map(
+        defaultSizes.map((foodSize) => [foodSize.foodId, foodSize.id]),
+    );
+
     await db.cartItem.createMany({
-        data: items.map((item) => ({
-            cartId: cart.id,
-            foodId: item.foodId,
-            quantity: item.quantity,
-        })),
+        data: items.map((item) => {
+            const foodSizeId = defaultSizeByFoodId.get(item.foodId);
+            if (!foodSizeId) {
+                throw new Error(
+                    `Default food size not found for cart food ${item.foodId}`,
+                );
+            }
+
+            return {
+                cartId: cart.id,
+                foodId: item.foodId,
+                foodSizeId,
+                quantity: item.quantity,
+                fullText: item.fullText ?? null,
+            };
+        }),
     });
 }
 
@@ -1737,10 +1766,12 @@ async function main() {
             {
                 foodId: foods.cheeseburger.id,
                 quantity: 2,
+                fullText: 'No onions [seed multi-restaurant cart]',
             },
             {
-                foodId: foods.lavaCake.id,
+                foodId: foods.grilledChickenRice.id,
                 quantity: 1,
+                fullText: 'Extra scallion oil [seed multi-restaurant cart]',
             },
         ]);
 
@@ -1748,14 +1779,17 @@ async function main() {
             {
                 foodId: foods.grilledChickenRice.id,
                 quantity: 1,
+                fullText: 'Less rice [seed multi-restaurant cart]',
             },
             {
                 foodId: foods.devilShellCourse.id,
                 quantity: 1,
+                fullText: 'No spicy sauce [seed multi-restaurant cart]',
             },
             {
                 foodId: foods.billionBirdDrink.id,
                 quantity: 2,
+                fullText: 'Less ice [seed multi-restaurant cart]',
             },
         ]);
 
@@ -1786,6 +1820,9 @@ async function main() {
     console.log('BUSINESS phone=0900000002 password=business123');
     console.log('CUSTOMER phone=0900000003 password=customer123');
     console.log('CUSTOMER phone=0900000004 password=customer456');
+    console.log(
+        'Multi-restaurant carts: customer1=Burger Town + Rice Express; customer2=Rice Express + Gourmet World',
+    );
     console.log(
         'Search keywords: bún, trà sữa, God, Air, Ma mút, Gourmet World',
     );

@@ -1,4 +1,12 @@
-import { IsInt, IsNotEmpty, IsOptional, Min } from 'class-validator';
+import {
+    IsInt,
+    IsNotEmpty,
+    IsOptional,
+    IsString,
+    Max,
+    MaxLength,
+    Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateCartItemDto {
@@ -10,6 +18,7 @@ export class CreateCartItemDto {
     @IsInt()
     @IsNotEmpty()
     @Min(1)
+    @Max(99)
     @Type(() => Number)
     quantity: number;
 
@@ -17,12 +26,18 @@ export class CreateCartItemDto {
     @IsInt()
     @Type(() => Number)
     foodSizeId?: number;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(500)
+    fullText?: string;
 }
 
 export class UpdateCartItemDto {
     @IsInt()
     @IsNotEmpty()
     @Min(0)
+    @Max(99)
     @Type(() => Number)
     quantity: number;
 }

@@ -51,7 +51,7 @@ export class OrderController {
                     ],
                     note: 'Please call before delivery',
                     paymentMethod: 'CASH',
-                    clearCartAfterOrder: true,
+                    clearCartAfterOrder: false,
                 },
             },
             customAddress: {

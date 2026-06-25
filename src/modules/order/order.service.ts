@@ -183,6 +183,56 @@ export class OrderService {
         return 3 + Math.max(0, (distance - 2) * 0.4);
     }
 
+    async getOrderDeliveryFee(
+        restaurantId: number,
+        latitude: number,
+        longitude: number,
+    ) {
+        if (
+            !Number.isFinite(latitude) ||
+            latitude < -90 ||
+            latitude > 90 ||
+            !Number.isFinite(longitude) ||
+            longitude < -180 ||
+            longitude > 180
+        ) {
+            throw new BadRequestException('Invalid delivery coordinates');
+        }
+
+        const restaurant = await this.prismaService.client.restaurant.findFirst({
+            where: {
+                id: restaurantId,
+                status: RestaurantApprovalStatus.APPROVED,
+                isActive: true,
+            },
+            select: {
+                id: true,
+                address: {
+                    select: {
+                        latitude: true,
+                        longitude: true,
+                    },
+                },
+            },
+        });
+
+        if (!restaurant) {
+            throw new NotFoundException('Restaurant not found');
+        }
+
+        this.assertAddressCoordinates(restaurant.address, 'Restaurant');
+
+        return {
+            restaurantId: restaurant.id,
+            deliveryFee: this.calculateDeliveryFee(
+                restaurant.address.latitude,
+                restaurant.address.longitude,
+                latitude,
+                longitude,
+            ),
+        };
+    }
+
     async createOrder(userId: number, data: CreateOrderDto) {
         const result = await this.prismaService.transaction(async (tx) => {
             let totalPrice = new Prisma.Decimal(0);

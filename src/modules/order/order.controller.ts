@@ -4,6 +4,7 @@ import {
     Delete,
     Get,
     Param,
+    ParseFloatPipe,
     ParseIntPipe,
     Patch,
     Post,
@@ -11,7 +12,13 @@ import {
     Req,
     UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+    ApiBearerAuth,
+    ApiBody,
+    ApiOperation,
+    ApiQuery,
+    ApiTags,
+} from '@nestjs/swagger';
 import { OrderService } from './order.service';
 import {
     CreateOrderDto,
@@ -82,6 +89,24 @@ export class OrderController {
     async createOrder(@Body() data: CreateOrderDto, @Req() req: Request) {
         const user = req.user as { id?: number };
         return await this.orderSerivce.createOrder(Number(user.id), data);
+    }
+
+    @ApiOperation({
+        summary: 'Tính phí giao hàng từ một địa điểm đến nhà hàng',
+    })
+    @ApiQuery({ name: 'latitude', type: Number, required: true })
+    @ApiQuery({ name: 'longitude', type: Number, required: true })
+    @Get('/deliveryFee/:restaurantId')
+    async getOrderDeliveryFee(
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Query('latitude', ParseFloatPipe) latitude: number,
+        @Query('longitude', ParseFloatPipe) longitude: number,
+    ) {
+        return await this.orderSerivce.getOrderDeliveryFee(
+            restaurantId,
+            latitude,
+            longitude,
+        );
     }
 
     @ApiOperation({ summary: 'Đặt lại từ đơn hàng cũ' })

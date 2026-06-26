@@ -402,7 +402,7 @@ export class VoucherService {
                     this.eventEmitter.emit('notification.send', {
                         recipientUserId: customer.id,
                         title: 'New Promotion Available!',
-                        body: `Use code ${voucher.code} to get discount${restaurantName}.`,
+                        body: `Use code ${voucher.code} to get a discount${restaurantName}.`,
                         type: NotificationType.PROMOTION,
                         targetType: 'VOUCHER',
                         targetId: voucher.id,

@@ -10,6 +10,8 @@ import {
     Role,
     VoucherStatus,
     VoucherType,
+    NotificationType,
+    DeliveryChannel,
 } from '../../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
@@ -887,6 +889,55 @@ async function upsertSearchHistory(
             createdAt: new Date(),
         },
     });
+}
+
+async function upsertNotification(
+    db: DbClient,
+    data: {
+        userId: number;
+        title: string;
+        body: string;
+        type: NotificationType;
+        targetType?: string | null;
+        targetId?: number | null;
+        actorId?: number | null;
+    },
+) {
+    const existing = await db.notification.findFirst({
+        where: {
+            userId: data.userId,
+            title: data.title,
+            body: data.body,
+        },
+    });
+
+    if (existing) {
+        return existing;
+    }
+
+    const notification = await db.notification.create({
+        data,
+    });
+
+    await db.notificationChannel.create({
+        data: {
+            notificationId: notification.id,
+            channel: DeliveryChannel.IN_APP,
+            status: 'SENT',
+            sentAt: new Date(),
+        },
+    });
+
+    await db.notificationChannel.create({
+        data: {
+            notificationId: notification.id,
+            channel: DeliveryChannel.DEVICE,
+            status: 'SENT',
+            sentAt: new Date(),
+        },
+    });
+
+    return notification;
 }
 
 async function main() {
@@ -1837,6 +1888,96 @@ async function main() {
 
             for (const history of searchHistories) {
                 await upsertSearchHistory(tx, history.userId, history.keyword);
+            }
+
+            // Seed notifications matching the seeded events and notifications
+            const seedNotifications = [
+                // Admin notifications (business registration & restaurant creation)
+                {
+                    userId: admin.id,
+                    title: 'New Business Registration',
+                    body: `User "${business.name}" (Phone: ${business.phone || 'N/A'}) has registered as a business.`,
+                    type: NotificationType.SYSTEM,
+                    targetType: 'USER',
+                    targetId: business.id,
+                    actorId: business.id,
+                },
+                {
+                    userId: admin.id,
+                    title: 'New Restaurant Created',
+                    body: `User "${business.name}" has registered a new restaurant "${restaurants.burgerTown.name}".`,
+                    type: NotificationType.SYSTEM,
+                    targetType: 'RESTAURANT',
+                    targetId: restaurants.burgerTown.id,
+                    actorId: business.id,
+                },
+                // Business notification (rating review & new order)
+                {
+                    userId: business.id,
+                    title: 'New Restaurant Review',
+                    body: `A customer has rated your restaurant "${restaurants.burgerTown.name}" with 5 stars: "Fast delivery and the burger was still hot."`,
+                    type: NotificationType.SYSTEM,
+                    targetType: 'RESTAURANT',
+                    targetId: restaurants.burgerTown.id,
+                    actorId: customer1.id,
+                },
+                {
+                    userId: business.id,
+                    title: 'New Order Received',
+                    body: `New order #${orderOne.id} from ${customer1.name}: 2x Smash Patty, 1x Cheddar. Total: $${orderOne.totalPrice}`,
+                    type: NotificationType.ORDER,
+                    targetType: 'ORDER',
+                    targetId: orderOne.id,
+                    actorId: customer1.id,
+                },
+                // Customer notifications (preparing order, order completed, payment confirmed)
+                {
+                    userId: customer1.id,
+                    title: 'Preparing Your Order',
+                    body: `The restaurant has accepted and is preparing your order #${orderOne.id}.`,
+                    type: NotificationType.ORDER,
+                    targetType: 'ORDER',
+                    targetId: orderOne.id,
+                },
+                {
+                    userId: customer1.id,
+                    title: 'Payment Confirmed',
+                    body: `Your payment of $${orderOne.totalPrice} for order #${orderOne.id} has been confirmed.`,
+                    type: NotificationType.PAYMENT,
+                    targetType: 'ORDER',
+                    targetId: orderOne.id,
+                    actorId: business.id,
+                },
+                {
+                    userId: customer1.id,
+                    title: 'Order Completed',
+                    body: `Thanks for confirming receipt of your order #${orderOne.id}.`,
+                    type: NotificationType.ORDER,
+                    targetType: 'ORDER',
+                    targetId: orderOne.id,
+                    actorId: customer1.id,
+                },
+                // Promotion notifications
+                {
+                    userId: customer1.id,
+                    title: 'New Promotion Available!',
+                    body: `Use code ${vouchers.welcome5.code} to get a discount.`,
+                    type: NotificationType.PROMOTION,
+                    targetType: 'VOUCHER',
+                    targetId: vouchers.welcome5.id,
+                },
+                {
+                    userId: customer2.id,
+                    title: 'New Promotion Available!',
+                    body: `Use code ${vouchers.welcome5.code} to get a discount.`,
+                    type: NotificationType.PROMOTION,
+                    targetType: 'VOUCHER',
+                    targetId: vouchers.welcome5.id,
+                },
+            ];
+
+            for (const notification of seedNotifications) {
+                await upsertNotification(tx, notification);
             }
         },
         {

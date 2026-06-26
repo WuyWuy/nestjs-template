@@ -1428,7 +1428,7 @@ export class OrderService {
                         body = `Your order #${orderId} was automatically completed after ${ORDER_AUTO_CONFIRM_HOURS} hours.`;
                     } else {
                         title = 'Order Completed';
-                        body = `Thanks for confirming receipt of order #${orderId}.`;
+                        body = `Thanks for confirming receipt of your order #${orderId}.`;
                     }
                     metadata.confirmedBy = confirmedBy ?? ConfirmedBy.CUSTOMER;
                     break;

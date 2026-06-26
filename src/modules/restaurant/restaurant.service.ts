@@ -13,6 +13,7 @@ import {
     PaymentStatus,
     NotificationType,
     VoucherStatus,
+    DeliveryChannel,
 } from '@prisma/client';
 import {
     CreateRestaurantDto,
@@ -776,6 +777,7 @@ export class RestaurantService {
             select: {
                 id: true,
                 phone: true,
+                name: true,
             },
         });
 
@@ -835,6 +837,38 @@ export class RestaurantService {
             actorId,
             actorId,
         );
+
+        try {
+            const admins = await this.prismaService.client.user.findMany({
+                where: {
+                    deleteAt: null,
+                    userRoles: {
+                        some: {
+                            role: Role.ADMIN,
+                            deleteAt: null,
+                        },
+                    },
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+            for (const admin of admins) {
+                this.eventEmitter.emit('notification.send', {
+                    recipientUserId: admin.id,
+                    title: 'New Business Registration',
+                    body: `User "${user.name || 'Someone'}" (Phone: ${user.phone}) has registered as a business.`,
+                    type: NotificationType.SYSTEM,
+                    targetType: 'USER',
+                    targetId: actorId,
+                    actorId,
+                    channels: [DeliveryChannel.IN_APP, DeliveryChannel.DEVICE],
+                } as NotificationEvent);
+            }
+        } catch (err) {
+            console.error('Error emitting business registration notification to admin:', err);
+        }
 
         return {
             userId: actorId,
@@ -917,6 +951,42 @@ export class RestaurantService {
             actorId,
             data,
         );
+
+        try {
+            const user = await this.prismaService.client.user.findUnique({
+                where: { id: actorId },
+                select: { name: true },
+            });
+            const admins = await this.prismaService.client.user.findMany({
+                where: {
+                    deleteAt: null,
+                    userRoles: {
+                        some: {
+                            role: Role.ADMIN,
+                            deleteAt: null,
+                        },
+                    },
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+            for (const admin of admins) {
+                this.eventEmitter.emit('notification.send', {
+                    recipientUserId: admin.id,
+                    title: 'New Restaurant Created',
+                    body: `User "${user?.name || 'Someone'}" has registered a new restaurant "${restaurant.name}".`,
+                    type: NotificationType.SYSTEM,
+                    targetType: 'RESTAURANT',
+                    targetId: restaurant.id,
+                    actorId,
+                    channels: [DeliveryChannel.IN_APP, DeliveryChannel.DEVICE],
+                } as NotificationEvent);
+            }
+        } catch (err) {
+            console.error('Error emitting restaurant creation notification to admin:', err);
+        }
 
         return restaurant;
     }

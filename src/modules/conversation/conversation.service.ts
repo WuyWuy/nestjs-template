@@ -1,9 +1,9 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import {
     BadRequestException,
-    ForbiddenException,
     Injectable,
     NotFoundException,
+    ForbiddenException,
 } from '@nestjs/common';
 import { CreateConversationDto } from './dto/conversation.dto';
 
@@ -15,14 +15,13 @@ export class ConversationService {
         userId: number,
         conversationId: number,
     ) {
-        const conversation = await this.prismaService.client.conversation.findFirst(
-            {
+        const conversation =
+            await this.prismaService.client.conversation.findFirst({
                 where: {
                     id: conversationId,
                     OR: [{ sellerId: userId }, { customerId: userId }],
                 },
-            },
-        );
+            });
 
         if (!conversation) {
             throw new NotFoundException('Conversation not found');
@@ -32,58 +31,54 @@ export class ConversationService {
     }
 
     async createConversation(userId: number, data: CreateConversationDto) {
-        const order = await this.prismaService.client.order.findFirst({
-            where: {
-                id: data.orderId,
-            },
-            select: {
-                id: true,
-                userId: true,
-                user: {
-                    
-                }, 
-                restaurant: {
-                    select: {
-                        ownerId: true,
-                        image: true 
-                    },
-                },
-            },
-        });
-
-        if (!order) {
-            throw new NotFoundException('Order not found');
-        }
-
-        if (order.userId !== userId) {
-            throw new ForbiddenException(
-                'Only the customer of the order can open a conversation',
-            );
-        }
-
-        if (order.restaurant.ownerId !== data.sellerId) {
+        if (userId === data.sellerId) {
             throw new BadRequestException(
-                'Seller does not match the restaurant owner',
+                'Customer and seller must be different users',
             );
+        }
+
+        const sellerRestaurant =
+            await this.prismaService.client.restaurant.findFirst({
+                where: {
+                    ownerId: data.sellerId,
+                    deleteAt: null,
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+        if (!sellerRestaurant) {
+            throw new NotFoundException('Seller restaurant not found');
         }
 
         const existsConversation =
             await this.prismaService.client.conversation.findFirst({
                 where: {
-                    orderId: data.orderId,
+                    customerId: userId,
+                    sellerId: data.sellerId,
                 },
                 select: {
+                    id: true,
+                    customerId: true,
+                    sellerId: true,
+                    createdAt: true,
+                    updatedAt: true,
                     customer: {
                         select: {
-                            id: true, name: true, avatar : true 
-                        }
-                    }, 
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
                     seller: {
                         select: {
-                            id : true, name: true, avatar: true 
-                        }
-                    }
-                }
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                },
             });
 
         if (existsConversation) {
@@ -92,22 +87,43 @@ export class ConversationService {
 
         return await this.prismaService.client.conversation.create({
             data: {
-                orderId: data.orderId,
                 customerId: userId,
                 sellerId: data.sellerId,
+            },
+            select: {
+                id: true,
+                customerId: true,
+                sellerId: true,
+                createdAt: true,
+                updatedAt: true,
+                customer: {
+                    select: {
+                        id: true,
+                        name: true,
+                        avatar: true,
+                    },
+                },
+                seller: {
+                    select: {
+                        id: true,
+                        name: true,
+                        avatar: true,
+                    },
+                },
             },
         });
     }
 
     async ensureConversationForOrder(
-        orderId: number,
+        _orderId: number,
         customerId: number,
         sellerId: number,
     ) {
         const existsConversation =
             await this.prismaService.client.conversation.findFirst({
                 where: {
-                    orderId,
+                    customerId,
+                    sellerId,
                 },
             });
 
@@ -115,43 +131,40 @@ export class ConversationService {
             return existsConversation;
         }
 
-        const conversation =  await this.prismaService.client.conversation.create({
-            data: {
-                orderId,
-                customerId,
-                sellerId,
-            },
-            select: {
-                customer: {
-                    select: {
-                        id: true, 
-                        name: true, 
-                        avatar: true 
-                    }
-                }, 
-                seller: {
-                    select: {
-                        id: true, 
-                        name: true, 
-                        avatar: true 
-                    }
-                }
-            }
-        });
-        console.log(conversation) 
-        return conversation
+        const conversation =
+            await this.prismaService.client.conversation.create({
+                data: {
+                    customerId,
+                    sellerId,
+                },
+                select: {
+                    customer: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                    seller: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                },
+            });
+        return conversation;
     }
 
     async getAllUserConversation(userId: number) {
-        console.log(userId) 
-        const conversations = await this.prismaService.client.conversation.findMany(
-            {
+        const conversations =
+            await this.prismaService.client.conversation.findMany({
                 where: {
                     OR: [{ sellerId: userId }, { customerId: userId }],
                 },
                 select: {
                     id: true,
-                    orderId: true,
                     customerId: true,
                     sellerId: true,
                     updatedAt: true,
@@ -188,29 +201,42 @@ export class ConversationService {
                 orderBy: {
                     updatedAt: 'desc',
                 },
-            },
-        );
+            });
 
-        const orderIds = conversations.map((conversation) => conversation.orderId);
-        const orders = await this.prismaService.client.order.findMany({
-            where: {
-                id: {
-                    in: orderIds,
-                },
-            },
-            select: {
-                id: true,
-                status: true,
-                restaurant: {
-                    select: {
-                        id: true,
-                        name: true,
-                        image: true,
+        if (conversations.length === 0) {
+            return [];
+        }
+
+        const sellerIds = [
+            ...new Set(
+                conversations.map((conversation) => conversation.sellerId),
+            ),
+        ];
+        const restaurants = await this.prismaService.client.restaurant.findMany(
+            {
+                where: {
+                    ownerId: {
+                        in: sellerIds,
                     },
                 },
+                select: {
+                    id: true,
+                    ownerId: true,
+                    name: true,
+                    image: true,
+                },
             },
-        });
-        const orderMap = new Map(orders.map((order) => [order.id, order]));
+        );
+        const restaurantMap = new Map(
+            restaurants.map((restaurant) => [
+                restaurant.ownerId,
+                {
+                    id: restaurant.id,
+                    name: restaurant.name,
+                    image: restaurant.image,
+                },
+            ]),
+        );
 
         const unreadCounts = await this.prismaService.client.message.groupBy({
             by: ['conversationId'],
@@ -233,8 +259,7 @@ export class ConversationService {
 
         return conversations.map((conversation) => {
             const { messages, ...rest } = conversation;
-            const order = orderMap.get(conversation.orderId) ?? null;
-            const restaurant = order?.restaurant ?? null;
+            const restaurant = restaurantMap.get(conversation.sellerId) ?? null;
             return {
                 ...rest,
                 restaurant,
@@ -250,15 +275,41 @@ export class ConversationService {
         limit: number = 20,
         offset: number = 0,
     ) {
-        const conversation = await this.prismaService.client.conversation.findFirst(
-            {
+        const order = await this.prismaService.client.order.findUnique({
+            where: {
+                id: orderId,
+            },
+            select: {
+                userId: true,
+                restaurant: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true,
+                        ownerId: true,
+                    },
+                },
+            },
+        });
+
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        if (order.userId !== userId && order.restaurant.ownerId !== userId) {
+            throw new ForbiddenException(
+                'Only participants of the order conversation can view it',
+            );
+        }
+
+        const conversation =
+            await this.prismaService.client.conversation.findFirst({
                 where: {
-                    orderId,
-                    OR: [{ sellerId: userId }, { customerId: userId }],
+                    customerId: order.userId,
+                    sellerId: order.restaurant.ownerId,
                 },
                 select: {
                     id: true,
-                    orderId: true,
                     customerId: true,
                     sellerId: true,
                     createdAt: true,
@@ -278,27 +329,11 @@ export class ConversationService {
                         },
                     },
                 },
-            },
-        );
+            });
 
         if (!conversation) {
             throw new NotFoundException('Conversation not found');
         }
-
-        const order = await this.prismaService.client.order.findUnique({
-            where: {
-                id: orderId,
-            },
-            select: {
-                restaurant: {
-                    select: {
-                        id: true,
-                        name: true,
-                        image: true,
-                    },
-                },
-            },
-        });
 
         const messages = await this.prismaService.client.message.findMany({
             where: {
@@ -323,7 +358,11 @@ export class ConversationService {
         return {
             conversation: {
                 ...conversation,
-                restaurant: order?.restaurant ?? null,
+                restaurant: {
+                    id: order.restaurant.id,
+                    name: order.restaurant.name,
+                    image: order.restaurant.image,
+                },
             },
             messages: messages.map((message) => ({
                 ...message,
@@ -338,15 +377,14 @@ export class ConversationService {
         limit: number = 20,
         offset: number = 0,
     ) {
-        const conversation = await this.prismaService.client.conversation.findFirst(
-            {
+        const conversation =
+            await this.prismaService.client.conversation.findFirst({
                 where: {
                     id: conversationId,
                     OR: [{ sellerId: userId }, { customerId: userId }],
                 },
                 select: {
                     id: true,
-                    orderId: true,
                     customerId: true,
                     sellerId: true,
                     createdAt: true,
@@ -366,27 +404,24 @@ export class ConversationService {
                         },
                     },
                 },
-            },
-        );
+            });
 
         if (!conversation) {
             throw new NotFoundException('Conversation not found');
         }
 
-        const order = await this.prismaService.client.order.findUnique({
-            where: {
-                id: conversation.orderId,
-            },
-            select: {
-                restaurant: {
-                    select: {
-                        id: true,
-                        name: true,
-                        image: true,
-                    },
+        const restaurant = await this.prismaService.client.restaurant.findFirst(
+            {
+                where: {
+                    ownerId: conversation.sellerId,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    image: true,
                 },
             },
-        });
+        );
 
         const messages = await this.prismaService.client.message.findMany({
             where: {
@@ -411,7 +446,7 @@ export class ConversationService {
         return {
             conversation: {
                 ...conversation,
-                restaurant: order?.restaurant ?? null,
+                restaurant,
             },
             messages: messages.map((message) => ({
                 ...message,
@@ -421,14 +456,13 @@ export class ConversationService {
     }
 
     async markAsRead(userId: number, conversationId: number) {
-        const conversation = await this.prismaService.client.conversation.findFirst(
-            {
+        const conversation =
+            await this.prismaService.client.conversation.findFirst({
                 where: {
                     id: conversationId,
                     OR: [{ sellerId: userId }, { customerId: userId }],
                 },
-            },
-        );
+            });
 
         if (!conversation) {
             throw new NotFoundException('Conversation not found');

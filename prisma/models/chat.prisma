@@ -1,6 +1,5 @@
 model Conversation {
     id         Int       @id @default(autoincrement())
-    orderId    Int       @unique
     customerId Int
     sellerId   Int
     customer   User      @relation("CustomerConversations", fields: [customerId], references: [id])
@@ -10,7 +9,7 @@ model Conversation {
     deleteAt   DateTime?
     messages   Message[]
 
-    @@unique([orderId, customerId, sellerId])
+    @@unique([customerId, sellerId])
     @@index([customerId])
     @@index([sellerId])
 }

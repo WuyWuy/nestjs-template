@@ -124,9 +124,9 @@ Core runtime behaviors:
 - `GET /api/conversation/user/:userId`
   Backward-compatible user conversation route. The authenticated user is still enforced.
 - `POST /api/conversation`
-  Create a conversation for an order if it does not already exist.
+  Create or reuse the single conversation for the authenticated customer and seller.
 - `GET /api/conversation/detail`
-  Load messages by `orderId`.
+  Load messages by using `orderId` to resolve the customer and restaurant owner.
 - `GET /api/conversation/:conversationId`
   Load messages directly by `conversationId`.
 
@@ -135,14 +135,14 @@ Core runtime behaviors:
 Socket.IO events:
 
 - Client -> Server
-  - `join-room`
-  - `leave-room`
-  - `text-chat`
+    - `join-room`
+    - `leave-room`
+    - `text-chat`
 - Server -> Client
-  - `join-room`
-  - `leave-room`
-  - `text-chat`
-  - `exception`
+    - `join-room`
+    - `leave-room`
+    - `text-chat`
+    - `exception`
 
 The gateway authenticates the socket with the same JWT access token used by REST APIs.
 
@@ -199,7 +199,7 @@ Important business-side constraints currently enforced in service logic:
 - A cart can only contain foods from one restaurant at a time
 - All foods in an order must belong to the same restaurant
 - Customer order cancellation preserves order history by using `OrderStatus.CANCELLED`
-- One conversation is tied to one order
+- One conversation is shared by one customer and one restaurant owner
 - One payment snapshot is created per order
 - Restaurant-scoped vouchers can only be used for the matching restaurant
 - Voucher validation respects status, validity window, and minimum order amount
@@ -284,8 +284,8 @@ Notes:
 
 ## Conversation and Realtime Chat Flow
 
-1. Each order can own one conversation.
-2. Users can fetch conversation history by order or conversation id.
+1. Each customer/seller pair can own one conversation.
+2. Users can fetch conversation history by order context or conversation id.
 3. Socket clients connect with bearer token auth.
 4. Users join `room-{conversationId}`.
 5. Messages are validated, stored, and broadcast to the room.

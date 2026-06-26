@@ -4,10 +4,7 @@ import {
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import {
-    CreateOrderDto,
-    UpdateOrderStatus,
-} from './dto/order.dto';
+import { CreateOrderDto, UpdateOrderStatus } from './dto/order.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AddressService } from '../address/address.service';
 import {
@@ -66,7 +63,9 @@ export class OrderService {
 
     private ensureCustomerAccess(orderUserId: number, requesterId: number) {
         if (orderUserId !== requesterId) {
-            throw new ForbiddenException('You are not allowed to access this order');
+            throw new ForbiddenException(
+                'You are not allowed to access this order',
+            );
         }
     }
 
@@ -82,7 +81,9 @@ export class OrderService {
             return;
         }
 
-        throw new ForbiddenException('You are not allowed to access this order');
+        throw new ForbiddenException(
+            'You are not allowed to access this order',
+        );
     }
 
     private validateFoodsFromSameRestaurant(foods: FoodSnapshot[]) {
@@ -199,22 +200,24 @@ export class OrderService {
             throw new BadRequestException('Invalid delivery coordinates');
         }
 
-        const restaurant = await this.prismaService.client.restaurant.findFirst({
-            where: {
-                id: restaurantId,
-                status: RestaurantApprovalStatus.APPROVED,
-                isActive: true,
-            },
-            select: {
-                id: true,
-                address: {
-                    select: {
-                        latitude: true,
-                        longitude: true,
+        const restaurant = await this.prismaService.client.restaurant.findFirst(
+            {
+                where: {
+                    id: restaurantId,
+                    status: RestaurantApprovalStatus.APPROVED,
+                    isActive: true,
+                },
+                select: {
+                    id: true,
+                    address: {
+                        select: {
+                            latitude: true,
+                            longitude: true,
+                        },
                     },
                 },
             },
-        });
+        );
 
         if (!restaurant) {
             throw new NotFoundException('Restaurant not found');
@@ -239,19 +242,17 @@ export class OrderService {
             let voucherId: number | undefined;
             let saleOff = 0;
             let voucherType: VoucherType | undefined;
-            let currentVoucher:
-                | {
-                      id: number;
-                      sale: number;
-                      type: VoucherType;
-                      status: VoucherStatus;
-                      minimumOrderAmount: Prisma.Decimal;
-                      maximumDiscountAmount: Prisma.Decimal | null;
-                      startAt: Date | null;
-                      endAt: Date | null;
-                      restaurantId: number | null;
-                  }
-                | null = null;
+            let currentVoucher: {
+                id: number;
+                sale: number;
+                type: VoucherType;
+                status: VoucherStatus;
+                minimumOrderAmount: Prisma.Decimal;
+                maximumDiscountAmount: Prisma.Decimal | null;
+                startAt: Date | null;
+                endAt: Date | null;
+                restaurantId: number | null;
+            } | null = null;
 
             let addressId: number;
             let deliveryAddress: AddressCoordinates;
@@ -376,7 +377,7 @@ export class OrderService {
                 deliveryAddress.longitude,
             );
 
-            const foodIds = data.orderFoods.map(item => item.foodId);
+            const foodIds = data.orderFoods.map((item) => item.foodId);
             const foods = await tx.food.findMany({
                 where: {
                     id: {
@@ -396,10 +397,10 @@ export class OrderService {
                             price: true,
                             isDefault: true,
                             size: {
-                                select: { name: true }
-                            }
-                        }
-                    }
+                                select: { name: true },
+                            },
+                        },
+                    },
                 },
             });
 
@@ -432,22 +433,34 @@ export class OrderService {
 
             const orderFoodData = [];
             for (const item of data.orderFoods) {
-                const food = foods.find(f => f.id === item.foodId);
+                const food = foods.find((f) => f.id === item.foodId);
                 if (!food) {
-                    throw new BadRequestException(`Food with ID ${item.foodId} not found`);
+                    throw new BadRequestException(
+                        `Food with ID ${item.foodId} not found`,
+                    );
                 }
 
-                let resolvedSize: { id: number; price: Prisma.Decimal; size: { name: string } };
+                let resolvedSize: {
+                    id: number;
+                    price: Prisma.Decimal;
+                    size: { name: string };
+                };
                 if (item.foodSizeId) {
-                    const matchedSize = food.sizes.find(s => s.id === item.foodSizeId);
+                    const matchedSize = food.sizes.find(
+                        (s) => s.id === item.foodSizeId,
+                    );
                     if (!matchedSize) {
-                        throw new BadRequestException(`Selected size ${item.foodSizeId} does not belong to food ${food.name}`);
+                        throw new BadRequestException(
+                            `Selected size ${item.foodSizeId} does not belong to food ${food.name}`,
+                        );
                     }
                     resolvedSize = matchedSize;
                 } else {
-                    const defaultSize = food.sizes.find(s => s.isDefault);
+                    const defaultSize = food.sizes.find((s) => s.isDefault);
                     if (!defaultSize) {
-                        throw new BadRequestException(`Food ${food.name} does not have a default size configured`);
+                        throw new BadRequestException(
+                            `Food ${food.name} does not have a default size configured`,
+                        );
                     }
                     resolvedSize = defaultSize;
                 }
@@ -526,8 +539,7 @@ export class OrderService {
             let finalPrice = Math.ceil(Number(totalPrice));
             if (
                 currentVoucher &&
-                Number(totalPrice) <
-                    Number(currentVoucher.minimumOrderAmount)
+                Number(totalPrice) < Number(currentVoucher.minimumOrderAmount)
             ) {
                 throw new BadRequestException(
                     'Order does not meet voucher minimum amount',
@@ -571,17 +583,19 @@ export class OrderService {
 
             let paymentInformation: unknown;
             if (data.paymentMethod === PaymentMethod.MOMO) {
-                paymentInformation = await this.paymentService.createMoMoPayment(
-                    order.id,
-                    finalPrice,
-                    tx,
-                );
+                paymentInformation =
+                    await this.paymentService.createMoMoPayment(
+                        order.id,
+                        finalPrice,
+                        tx,
+                    );
             } else if (data.paymentMethod === PaymentMethod.CASH) {
-                paymentInformation = await this.paymentService.createCashPayment(
-                    order.id,
-                    finalPrice,
-                    tx,
-                );
+                paymentInformation =
+                    await this.paymentService.createCashPayment(
+                        order.id,
+                        finalPrice,
+                        tx,
+                    );
             } else {
                 throw new BadRequestException('Invalid payment method');
             }
@@ -599,18 +613,17 @@ export class OrderService {
                 });
             }
 
-            const conversation =
-                await tx.conversation.findFirst({
-                    where: {
-                        orderId: order.id,
-                    },
-                });
+            const conversation = await tx.conversation.findFirst({
+                where: {
+                    customerId: userId,
+                    sellerId: restaurant.ownerId,
+                },
+            });
 
             const ensuredConversation =
                 conversation ??
                 (await tx.conversation.create({
                     data: {
-                        orderId: order.id,
                         customerId: userId,
                         sellerId: restaurant.ownerId,
                     },
@@ -632,26 +645,32 @@ export class OrderService {
         });
 
         try {
-            const customerObj = await this.prismaService.client.user.findUnique({
-                where: { id: userId },
-                select: { name: true }
-            });
+            const customerObj = await this.prismaService.client.user.findUnique(
+                {
+                    where: { id: userId },
+                    select: { name: true },
+                },
+            );
             const customerName = customerObj?.name || 'Customer';
 
-            const restaurant = await this.prismaService.client.restaurant.findUnique({
-                where: { id: data.restaurantId },
-                select: { ownerId: true }
-            });
+            const restaurant =
+                await this.prismaService.client.restaurant.findUnique({
+                    where: { id: data.restaurantId },
+                    select: { ownerId: true },
+                });
 
             if (restaurant?.ownerId) {
                 const orderFoodDetails = [];
                 for (const item of data.orderFoods) {
-                    const foodObj = await this.prismaService.client.food.findUnique({
-                        where: { id: item.foodId },
-                        select: { name: true }
-                    });
+                    const foodObj =
+                        await this.prismaService.client.food.findUnique({
+                            where: { id: item.foodId },
+                            select: { name: true },
+                        });
                     if (foodObj) {
-                        orderFoodDetails.push(`${item.quantity}x ${foodObj.name}`);
+                        orderFoodDetails.push(
+                            `${item.quantity}x ${foodObj.name}`,
+                        );
                     }
                 }
                 const itemSummary = orderFoodDetails.join(', ');
@@ -670,7 +689,7 @@ export class OrderService {
                         customerName,
                         totalPrice: result.order.totalPrice,
                         itemSummary,
-                    }
+                    },
                 } as NotificationEvent);
             }
         } catch (err) {
@@ -688,7 +707,8 @@ export class OrderService {
         status?: string,
     ) {
         const isBusiness =
-            this.hasRole(roles, Role.BUSINESS) || this.hasRole(roles, Role.ADMIN);
+            this.hasRole(roles, Role.BUSINESS) ||
+            this.hasRole(roles, Role.ADMIN);
 
         let statusFilter: any = undefined;
 
@@ -704,7 +724,9 @@ export class OrderService {
             } else if (status === 'confirmed') {
                 statusFilter = OrderStatus.CONFIRMED;
             } else {
-                if (Object.values(OrderStatus).includes(status as OrderStatus)) {
+                if (
+                    Object.values(OrderStatus).includes(status as OrderStatus)
+                ) {
                     statusFilter = status as OrderStatus;
                 } else {
                     throw new BadRequestException('Invalid status parameter');
@@ -785,9 +807,17 @@ export class OrderService {
 
         const mappedOrders = orders.map((order) => {
             const paymentDate = order.payments[0]?.createdAt ?? new Date();
-            const dateStr = paymentDate instanceof Date ? paymentDate.toISOString() : new Date(paymentDate).toISOString();
-            const itemCount = order.orderFoods.reduce((acc, f) => acc + f.quantity, 0);
-            const { status: feStatus, status_step } = mapOrderStatusToFrontend(order.status);
+            const dateStr =
+                paymentDate instanceof Date
+                    ? paymentDate.toISOString()
+                    : new Date(paymentDate).toISOString();
+            const itemCount = order.orderFoods.reduce(
+                (acc, f) => acc + f.quantity,
+                0,
+            );
+            const { status: feStatus, status_step } = mapOrderStatusToFrontend(
+                order.status,
+            );
 
             return {
                 ...order,
@@ -912,24 +942,29 @@ export class OrderService {
             throw new NotFoundException('Order not found');
         }
 
-        const conversation = await this.prismaService.client.conversation.findFirst({
-            where: {
-                orderId,
-            },
-            select: {
-                id: true,
-                orderId: true,
-                customerId: true,
-                sellerId: true,
-                updatedAt: true,
-            },
-        });
+        const conversation =
+            await this.prismaService.client.conversation.findFirst({
+                where: {
+                    customerId: order.user.id,
+                    sellerId: order.restaurant.ownerId,
+                },
+                select: {
+                    id: true,
+                    customerId: true,
+                    sellerId: true,
+                    updatedAt: true,
+                },
+            });
 
         const paymentDate = order.payments[0]?.createdAt ?? new Date();
         const estimatedMinutes = order.restaurant?.estimatedDeliveryTime ?? 20;
-        const expectedArrival = new Date(new Date(paymentDate).getTime() + estimatedMinutes * 60000);
+        const expectedArrival = new Date(
+            new Date(paymentDate).getTime() + estimatedMinutes * 60000,
+        );
 
-        const { status: feStatus, status_step } = mapOrderStatusToFrontend(order.status);
+        const { status: feStatus, status_step } = mapOrderStatusToFrontend(
+            order.status,
+        );
 
         return {
             ...order,
@@ -961,7 +996,9 @@ export class OrderService {
             select: { updatedAt: true },
         });
 
-        const { status: feStatus, status_step } = mapOrderStatusToFrontend(order.status);
+        const { status: feStatus, status_step } = mapOrderStatusToFrontend(
+            order.status,
+        );
 
         return {
             order_id: order.id,
@@ -974,17 +1011,22 @@ export class OrderService {
     }
 
     async confirmReceived(userId: number, orderId: number) {
-        const order = await this.findOrderWithAccess(userId, [Role.CUSTOMER], orderId);
-        this.ensureCustomerAccess(order.userId, userId);
-        assertValidStatusTransition(
-            order.status,
-            OrderStatus.CONFIRMED,
+        const order = await this.findOrderWithAccess(
+            userId,
             [Role.CUSTOMER],
+            orderId,
         );
+        this.ensureCustomerAccess(order.userId, userId);
+        assertValidStatusTransition(order.status, OrderStatus.CONFIRMED, [
+            Role.CUSTOMER,
+        ]);
 
         const updatedOrder = await this.prismaService.client.order.update({
             where: { id: order.id },
-            data: buildStatusUpdateData(OrderStatus.CONFIRMED, ConfirmedBy.CUSTOMER),
+            data: buildStatusUpdateData(
+                OrderStatus.CONFIRMED,
+                ConfirmedBy.CUSTOMER,
+            ),
         });
 
         await this.emitOrderStatusNotification(
@@ -1026,7 +1068,10 @@ export class OrderService {
         for (const order of staleOrders) {
             await this.prismaService.client.order.update({
                 where: { id: order.id },
-                data: buildStatusUpdateData(OrderStatus.CONFIRMED, ConfirmedBy.SYSTEM),
+                data: buildStatusUpdateData(
+                    OrderStatus.CONFIRMED,
+                    ConfirmedBy.SYSTEM,
+                ),
             });
 
             await this.emitOrderStatusNotification(
@@ -1074,7 +1119,9 @@ export class OrderService {
         }
 
         if (order.userId !== userId) {
-            throw new ForbiddenException('You can only reorder your own orders');
+            throw new ForbiddenException(
+                'You can only reorder your own orders',
+            );
         }
 
         this.assertAddressCoordinates(order.restaurant.address, 'Restaurant');
@@ -1094,7 +1141,11 @@ export class OrderService {
         }[] = [];
         const skippedItems: { foodId: number; reason: string }[] = [];
         for (const orderFood of order.orderFoods) {
-            if (!orderFood.food || orderFood.food.deleteAt || !orderFood.food.isAvailable) {
+            if (
+                !orderFood.food ||
+                orderFood.food.deleteAt ||
+                !orderFood.food.isAvailable
+            ) {
                 skippedItems.push({
                     foodId: orderFood.foodId,
                     reason: 'Food is no longer available',
@@ -1104,26 +1155,28 @@ export class OrderService {
 
             let resolvedSizeId: number | null = null;
             if (orderFood.foodSizeId) {
-                const sizeMatch = await this.prismaService.client.foodSize.findFirst({
-                    where: {
-                        id: orderFood.foodSizeId,
-                        foodId: orderFood.foodId,
-                        deleteAt: null,
-                    },
-                });
+                const sizeMatch =
+                    await this.prismaService.client.foodSize.findFirst({
+                        where: {
+                            id: orderFood.foodSizeId,
+                            foodId: orderFood.foodId,
+                            deleteAt: null,
+                        },
+                    });
                 if (sizeMatch) {
                     resolvedSizeId = sizeMatch.id;
                 }
             }
 
             if (!resolvedSizeId) {
-                const defaultSize = await this.prismaService.client.foodSize.findFirst({
-                    where: {
-                        foodId: orderFood.foodId,
-                        isDefault: true,
-                        deleteAt: null,
-                    },
-                });
+                const defaultSize =
+                    await this.prismaService.client.foodSize.findFirst({
+                        where: {
+                            foodId: orderFood.foodId,
+                            isDefault: true,
+                            deleteAt: null,
+                        },
+                    });
                 if (defaultSize) {
                     resolvedSizeId = defaultSize.id;
                 }
@@ -1233,7 +1286,7 @@ export class OrderService {
                 metadata: {
                     orderId: order.id,
                     status: OrderStatus.CANCELLED,
-                }
+                },
             } as NotificationEvent);
         } catch (err) {
             console.error('Error emitting cancel order notification:', err);
@@ -1244,7 +1297,11 @@ export class OrderService {
         };
     }
 
-    async cancelOrderCompatible(userId: number, roles: string[], orderId: number) {
+    async cancelOrderCompatible(
+        userId: number,
+        roles: string[],
+        orderId: number,
+    ) {
         const order = await this.findOrderWithAccess(userId, roles, orderId);
 
         if (this.hasRole(roles, Role.CUSTOMER)) {
@@ -1279,13 +1336,15 @@ export class OrderService {
                 metadata: {
                     orderId: order.id,
                     status: OrderStatus.CANCELLED,
-                }
+                },
             } as NotificationEvent);
         } catch (err) {
             console.error('Error emitting cancel order notification:', err);
         }
 
-        const { status: feStatus, status_step } = mapOrderStatusToFrontend(OrderStatus.CANCELLED);
+        const { status: feStatus, status_step } = mapOrderStatusToFrontend(
+            OrderStatus.CANCELLED,
+        );
 
         return {
             order_id: order.id,
@@ -1390,7 +1449,10 @@ export class OrderService {
                 metadata,
             } as NotificationEvent);
         } catch (err) {
-            console.error('Error emitting update order status notification:', err);
+            console.error(
+                'Error emitting update order status notification:',
+                err,
+            );
         }
     }
 }

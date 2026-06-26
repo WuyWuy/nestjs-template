@@ -163,7 +163,6 @@ CREATE TABLE "Category" (
 -- CreateTable
 CREATE TABLE "Conversation" (
     "id" SERIAL NOT NULL,
-    "orderId" INTEGER NOT NULL,
     "customerId" INTEGER NOT NULL,
     "sellerId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -523,16 +522,13 @@ CREATE INDEX "CartItem_foodSizeId_idx" ON "CartItem"("foodSizeId");
 CREATE INDEX "Category_isActive_idx" ON "Category"("isActive");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Conversation_orderId_key" ON "Conversation"("orderId");
-
--- CreateIndex
 CREATE INDEX "Conversation_customerId_idx" ON "Conversation"("customerId");
 
 -- CreateIndex
 CREATE INDEX "Conversation_sellerId_idx" ON "Conversation"("sellerId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Conversation_orderId_customerId_sellerId_key" ON "Conversation"("orderId", "customerId", "sellerId");
+CREATE UNIQUE INDEX "Conversation_customerId_sellerId_key" ON "Conversation"("customerId", "sellerId");
 
 -- CreateIndex
 CREATE INDEX "Message_senderId_idx" ON "Message"("senderId");

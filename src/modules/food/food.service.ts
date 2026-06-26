@@ -209,9 +209,24 @@ export class FoodService {
                 },
             },
         });
+
         if (!food) throw new NotFoundException('Food not found');
+        const totalQuantity = await this.prismaService.orderFood.aggregate({
+            _sum: {
+                quantity: true 
+            }, 
+            where: {
+                foodId : food.id, 
+                deleteAt: null, 
+                order: {
+                    status: OrderStatus.CONFIRMED, 
+                    deleteAt: null 
+                }
+            }
+        })
         return {
             ...food,
+            totalQuantity: totalQuantity._sum.quantity || 0, 
             price: Number(food.price),
             foodIngredients: food.foodIngredients.map((ingredient) => {
                 return { ...ingredient.ingredient };

@@ -40,6 +40,10 @@ describe('ConversationService', () => {
                     findMany: jest.fn(),
                     updateMany: jest.fn(),
                 },
+                restaurant: {
+                    findMany: jest.fn(),
+                    findFirst: jest.fn(),
+                },
             },
         };
 
@@ -56,48 +60,29 @@ describe('ConversationService', () => {
     });
 
     describe('createConversation', () => {
-        it('should throw NotFoundException when order does not exist', async () => {
-            prismaService.client.order.findFirst.mockResolvedValueOnce(null);
-
-            await expect(
-                service.createConversation(2, { orderId: 10, sellerId: 3 }),
-            ).rejects.toThrow('Order not found');
-        });
-
-        it('should throw ForbiddenException when user is not the order customer', async () => {
-            prismaService.client.order.findFirst.mockResolvedValueOnce({
-                id: 10,
-                userId: 9,
-                restaurant: {
-                    ownerId: 3,
-                    image: 'restaurant.jpg',
-                },
-            });
-
-            await expect(
-                service.createConversation(2, { orderId: 10, sellerId: 3 }),
-            ).rejects.toThrow(
-                'Only the customer of the order can open a conversation',
+        it('should throw NotFoundException when seller restaurant does not exist', async () => {
+            prismaService.client.restaurant.findFirst.mockResolvedValueOnce(
+                null,
             );
-        });
-
-        it('should throw BadRequestException when seller does not own the restaurant', async () => {
-            prismaService.client.order.findFirst.mockResolvedValueOnce({
-                id: 10,
-                userId: 2,
-                restaurant: {
-                    ownerId: 4,
-                    image: 'restaurant.jpg',
-                },
-            });
 
             await expect(
-                service.createConversation(2, { orderId: 10, sellerId: 3 }),
-            ).rejects.toThrow('Seller does not match the restaurant owner');
+                service.createConversation(2, { sellerId: 3 }),
+            ).rejects.toThrow('Seller restaurant not found');
         });
 
-        it('should return an existing conversation for the order', async () => {
+        it('should throw BadRequestException when customer and seller are the same user', async () => {
+            await expect(
+                service.createConversation(2, { sellerId: 2 }),
+            ).rejects.toThrow('Customer and seller must be different users');
+        });
+
+        it('should return an existing conversation for the customer and seller pair', async () => {
             const existingConversation = {
+                id: 1,
+                customerId: 2,
+                sellerId: 3,
+                createdAt: new Date(),
+                updatedAt: new Date(),
                 customer: {
                     id: 2,
                     name: 'Customer A',
@@ -109,44 +94,41 @@ describe('ConversationService', () => {
                     avatar: 'seller.jpg',
                 },
             };
-            prismaService.client.order.findFirst.mockResolvedValueOnce({
-                id: 10,
-                userId: 2,
-                restaurant: {
-                    ownerId: 3,
-                    image: 'restaurant.jpg',
-                },
+            prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+                id: 101,
             });
             prismaService.client.conversation.findFirst.mockResolvedValueOnce(
                 existingConversation,
             );
 
             const result = await service.createConversation(2, {
-                orderId: 10,
                 sellerId: 3,
             });
 
-            expect(prismaService.client.order.findFirst).toHaveBeenCalledWith({
+            expect(
+                prismaService.client.restaurant.findFirst,
+            ).toHaveBeenCalledWith({
                 where: {
-                    id: 10,
+                    ownerId: 3,
+                    deleteAt: null,
                 },
                 select: {
                     id: true,
-                    userId: true,
-                    user: {},
-                    restaurant: {
-                        select: {
-                            ownerId: true,
-                            image: true,
-                        },
-                    },
                 },
             });
-            expect(prismaService.client.conversation.findFirst).toHaveBeenCalledWith({
+            expect(
+                prismaService.client.conversation.findFirst,
+            ).toHaveBeenCalledWith({
                 where: {
-                    orderId: 10,
+                    customerId: 2,
+                    sellerId: 3,
                 },
                 select: {
+                    id: true,
+                    customerId: true,
+                    sellerId: true,
+                    createdAt: true,
+                    updatedAt: true,
                     customer: {
                         select: {
                             id: true,
@@ -163,40 +145,59 @@ describe('ConversationService', () => {
                     },
                 },
             });
-            expect(prismaService.client.conversation.create).not.toHaveBeenCalled();
+            expect(
+                prismaService.client.conversation.create,
+            ).not.toHaveBeenCalled();
             expect(result).toEqual(existingConversation);
         });
 
-        it('should create a conversation when no conversation exists for the order', async () => {
+        it('should create a conversation when no conversation exists for the customer and seller pair', async () => {
             const createdConversation = {
                 id: 1,
-                orderId: 10,
                 customerId: 2,
                 sellerId: 3,
             };
-            prismaService.client.order.findFirst.mockResolvedValueOnce({
-                id: 10,
-                userId: 2,
-                restaurant: {
-                    ownerId: 3,
-                    image: 'restaurant.jpg',
-                },
+            prismaService.client.restaurant.findFirst.mockResolvedValueOnce({
+                id: 101,
             });
-            prismaService.client.conversation.findFirst.mockResolvedValueOnce(null);
+            prismaService.client.conversation.findFirst.mockResolvedValueOnce(
+                null,
+            );
             prismaService.client.conversation.create.mockResolvedValueOnce(
                 createdConversation,
             );
 
             const result = await service.createConversation(2, {
-                orderId: 10,
                 sellerId: 3,
             });
 
-            expect(prismaService.client.conversation.create).toHaveBeenCalledWith({
+            expect(
+                prismaService.client.conversation.create,
+            ).toHaveBeenCalledWith({
                 data: {
-                    orderId: 10,
                     customerId: 2,
                     sellerId: 3,
+                },
+                select: {
+                    id: true,
+                    customerId: true,
+                    sellerId: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    customer: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
+                    seller: {
+                        select: {
+                            id: true,
+                            name: true,
+                            avatar: true,
+                        },
+                    },
                 },
             });
             expect(result).toEqual(createdConversation);
@@ -204,10 +205,9 @@ describe('ConversationService', () => {
     });
 
     describe('ensureConversationForOrder', () => {
-        it('should return existing conversation when one already exists for the order', async () => {
+        it('should return existing conversation when one already exists for the customer and seller pair', async () => {
             const existingConversation = {
                 id: 1,
-                orderId: 10,
                 customerId: 2,
                 sellerId: 3,
             };
@@ -217,12 +217,17 @@ describe('ConversationService', () => {
 
             const result = await service.ensureConversationForOrder(10, 2, 3);
 
-            expect(prismaService.client.conversation.findFirst).toHaveBeenCalledWith({
+            expect(
+                prismaService.client.conversation.findFirst,
+            ).toHaveBeenCalledWith({
                 where: {
-                    orderId: 10,
+                    customerId: 2,
+                    sellerId: 3,
                 },
             });
-            expect(prismaService.client.conversation.create).not.toHaveBeenCalled();
+            expect(
+                prismaService.client.conversation.create,
+            ).not.toHaveBeenCalled();
             expect(result).toEqual(existingConversation);
         });
 
@@ -239,16 +244,19 @@ describe('ConversationService', () => {
                     avatar: 'seller.jpg',
                 },
             };
-            prismaService.client.conversation.findFirst.mockResolvedValueOnce(null);
+            prismaService.client.conversation.findFirst.mockResolvedValueOnce(
+                null,
+            );
             prismaService.client.conversation.create.mockResolvedValueOnce(
                 createdConversation,
             );
 
             const result = await service.ensureConversationForOrder(10, 2, 3);
 
-            expect(prismaService.client.conversation.create).toHaveBeenCalledWith({
+            expect(
+                prismaService.client.conversation.create,
+            ).toHaveBeenCalledWith({
                 data: {
-                    orderId: 10,
                     customerId: 2,
                     sellerId: 3,
                 },
@@ -275,9 +283,9 @@ describe('ConversationService', () => {
 
     describe('getAllUserConversation', () => {
         it('should return empty list when user has no conversations', async () => {
-            prismaService.client.conversation.findMany.mockResolvedValueOnce([]);
-            prismaService.client.order.findMany.mockResolvedValueOnce([]);
-            prismaService.client.message.groupBy.mockResolvedValueOnce([]);
+            prismaService.client.conversation.findMany.mockResolvedValueOnce(
+                [],
+            );
 
             const result = await service.getAllUserConversation(1);
             expect(result).toEqual([]);
@@ -288,7 +296,6 @@ describe('ConversationService', () => {
             const mockConversations = [
                 {
                     id: 1,
-                    orderId: 10,
                     customerId: 2,
                     sellerId: 3,
                     createdAt: mockDate,
@@ -316,15 +323,12 @@ describe('ConversationService', () => {
                 },
             ];
 
-            const mockOrders = [
+            const mockRestaurants = [
                 {
-                    id: 10,
-                    status: 'DELIVERED',
-                    restaurant: {
-                        id: 101,
-                        name: 'Pizza Shop',
-                        image: 'pizza.jpg',
-                    },
+                    id: 101,
+                    ownerId: 3,
+                    name: 'Pizza Shop',
+                    image: 'pizza.jpg',
                 },
             ];
 
@@ -337,19 +341,26 @@ describe('ConversationService', () => {
                 },
             ];
 
-            prismaService.client.conversation.findMany.mockResolvedValueOnce(mockConversations);
-            prismaService.client.order.findMany.mockResolvedValueOnce(mockOrders);
-            prismaService.client.message.groupBy.mockResolvedValueOnce(mockUnreadCounts);
+            prismaService.client.conversation.findMany.mockResolvedValueOnce(
+                mockConversations,
+            );
+            prismaService.client.restaurant.findMany.mockResolvedValueOnce(
+                mockRestaurants,
+            );
+            prismaService.client.message.groupBy.mockResolvedValueOnce(
+                mockUnreadCounts,
+            );
 
             const result = await service.getAllUserConversation(2); // customer is user 2
 
-            expect(prismaService.client.conversation.findMany).toHaveBeenCalledWith({
+            expect(
+                prismaService.client.conversation.findMany,
+            ).toHaveBeenCalledWith({
                 where: {
                     OR: [{ sellerId: 2 }, { customerId: 2 }],
                 },
                 select: {
                     id: true,
-                    orderId: true,
                     customerId: true,
                     sellerId: true,
                     updatedAt: true,
@@ -388,6 +399,22 @@ describe('ConversationService', () => {
                 },
             });
 
+            expect(
+                prismaService.client.restaurant.findMany,
+            ).toHaveBeenCalledWith({
+                where: {
+                    ownerId: {
+                        in: [3],
+                    },
+                },
+                select: {
+                    id: true,
+                    ownerId: true,
+                    name: true,
+                    image: true,
+                },
+            });
+
             expect(prismaService.client.message.groupBy).toHaveBeenCalledWith({
                 by: ['conversationId'],
                 where: {
@@ -403,7 +430,6 @@ describe('ConversationService', () => {
             expect(result).toHaveLength(1);
             expect(result[0]).toEqual({
                 id: 1,
-                orderId: 10,
                 customerId: 2,
                 sellerId: 3,
                 createdAt: mockDate,
@@ -438,7 +464,18 @@ describe('ConversationService', () => {
 
     describe('getConversationByOrderId', () => {
         it('should throw NotFoundException if conversation not found', async () => {
-            prismaService.client.conversation.findFirst.mockResolvedValueOnce(null);
+            prismaService.client.order.findUnique.mockResolvedValueOnce({
+                userId: 1,
+                restaurant: {
+                    id: 101,
+                    name: 'Pizza Shop',
+                    image: 'pizza.jpg',
+                    ownerId: 3,
+                },
+            });
+            prismaService.client.conversation.findFirst.mockResolvedValueOnce(
+                null,
+            );
 
             await expect(
                 service.getConversationByOrderId(1, 10),
@@ -449,7 +486,6 @@ describe('ConversationService', () => {
             const mockDate = new Date();
             const mockConversation = {
                 id: 1,
-                orderId: 10,
                 customerId: 2,
                 sellerId: 3,
                 createdAt: mockDate,
@@ -459,29 +495,73 @@ describe('ConversationService', () => {
             };
 
             const mockOrder = {
-                id: 10,
-                restaurant: { id: 101, name: 'Pizza Shop', image: 'pizza.jpg' },
+                userId: 2,
+                restaurant: {
+                    id: 101,
+                    name: 'Pizza Shop',
+                    image: 'pizza.jpg',
+                    ownerId: 3,
+                },
             };
 
             const mockMessages = [
-                { id: 100, conversationId: 1, senderId: 2, content: 'Hello', image: '', isRead: true, createdAt: mockDate },
-                { id: 101, conversationId: 1, senderId: 3, content: 'Hi', image: '', isRead: false, createdAt: mockDate },
+                {
+                    id: 100,
+                    conversationId: 1,
+                    senderId: 2,
+                    content: 'Hello',
+                    image: '',
+                    isRead: true,
+                    createdAt: mockDate,
+                },
+                {
+                    id: 101,
+                    conversationId: 1,
+                    senderId: 3,
+                    content: 'Hi',
+                    image: '',
+                    isRead: false,
+                    createdAt: mockDate,
+                },
             ];
 
-            prismaService.client.conversation.findFirst.mockResolvedValueOnce(mockConversation);
-            prismaService.client.order.findUnique.mockResolvedValueOnce(mockOrder);
-            prismaService.client.message.findMany.mockResolvedValueOnce(mockMessages);
+            prismaService.client.conversation.findFirst.mockResolvedValueOnce(
+                mockConversation,
+            );
+            prismaService.client.order.findUnique.mockResolvedValueOnce(
+                mockOrder,
+            );
+            prismaService.client.message.findMany.mockResolvedValueOnce(
+                mockMessages,
+            );
 
             const result = await service.getConversationByOrderId(2, 10, 20, 0);
 
-            expect(prismaService.client.conversation.findFirst).toHaveBeenCalledWith({
+            expect(prismaService.client.order.findUnique).toHaveBeenCalledWith({
                 where: {
-                    orderId: 10,
-                    OR: [{ sellerId: 2 }, { customerId: 2 }],
+                    id: 10,
+                },
+                select: {
+                    userId: true,
+                    restaurant: {
+                        select: {
+                            id: true,
+                            name: true,
+                            image: true,
+                            ownerId: true,
+                        },
+                    },
+                },
+            });
+            expect(
+                prismaService.client.conversation.findFirst,
+            ).toHaveBeenCalledWith({
+                where: {
+                    customerId: 2,
+                    sellerId: 3,
                 },
                 select: {
                     id: true,
-                    orderId: true,
                     customerId: true,
                     sellerId: true,
                     createdAt: true,
@@ -524,7 +604,11 @@ describe('ConversationService', () => {
             expect(result).toEqual({
                 conversation: {
                     ...mockConversation,
-                    restaurant: { id: 101, name: 'Pizza Shop', image: 'pizza.jpg' },
+                    restaurant: {
+                        id: 101,
+                        name: 'Pizza Shop',
+                        image: 'pizza.jpg',
+                    },
                 },
                 messages: [
                     { ...mockMessages[0], who: 'me' },
@@ -536,18 +620,19 @@ describe('ConversationService', () => {
 
     describe('getConversationById', () => {
         it('should throw NotFoundException if conversation not found', async () => {
-            prismaService.client.conversation.findFirst.mockResolvedValueOnce(null);
+            prismaService.client.conversation.findFirst.mockResolvedValueOnce(
+                null,
+            );
 
-            await expect(
-                service.getConversationById(1, 1),
-            ).rejects.toThrow('Conversation not found');
+            await expect(service.getConversationById(1, 1)).rejects.toThrow(
+                'Conversation not found',
+            );
         });
 
         it('should return conversation details and messages with who field by conversationId', async () => {
             const mockDate = new Date();
             const mockConversation = {
                 id: 1,
-                orderId: 10,
                 customerId: 2,
                 sellerId: 3,
                 createdAt: mockDate,
@@ -556,40 +641,61 @@ describe('ConversationService', () => {
                 seller: { id: 3, name: 'Seller B', avatar: 'seller.jpg' },
             };
 
-            const mockOrder = {
-                id: 10,
-                restaurant: { id: 101, name: 'Pizza Shop', image: 'pizza.jpg' },
+            const mockRestaurant = {
+                id: 101,
+                name: 'Pizza Shop',
+                image: 'pizza.jpg',
             };
 
             const mockMessages = [
-                { id: 100, conversationId: 1, senderId: 2, content: 'Hello', image: '', isRead: true, createdAt: mockDate },
-                { id: 101, conversationId: 1, senderId: 3, content: 'Hi', image: '', isRead: false, createdAt: mockDate },
+                {
+                    id: 100,
+                    conversationId: 1,
+                    senderId: 2,
+                    content: 'Hello',
+                    image: '',
+                    isRead: true,
+                    createdAt: mockDate,
+                },
+                {
+                    id: 101,
+                    conversationId: 1,
+                    senderId: 3,
+                    content: 'Hi',
+                    image: '',
+                    isRead: false,
+                    createdAt: mockDate,
+                },
             ];
 
-            prismaService.client.conversation.findFirst.mockResolvedValueOnce(mockConversation);
-            prismaService.client.order.findUnique.mockResolvedValueOnce(mockOrder);
-            prismaService.client.message.findMany.mockResolvedValueOnce(mockMessages);
+            prismaService.client.conversation.findFirst.mockResolvedValueOnce(
+                mockConversation,
+            );
+            prismaService.client.restaurant.findFirst.mockResolvedValueOnce(
+                mockRestaurant,
+            );
+            prismaService.client.message.findMany.mockResolvedValueOnce(
+                mockMessages,
+            );
 
             const result = await service.getConversationById(2, 1, 20, 0);
 
-            expect(prismaService.client.order.findUnique).toHaveBeenCalledWith({
+            expect(
+                prismaService.client.restaurant.findFirst,
+            ).toHaveBeenCalledWith({
                 where: {
-                    id: 10,
+                    ownerId: 3,
                 },
                 select: {
-                    restaurant: {
-                        select: {
-                            id: true,
-                            name: true,
-                            image: true,
-                        },
-                    },
+                    id: true,
+                    name: true,
+                    image: true,
                 },
             });
             expect(result).toEqual({
                 conversation: {
                     ...mockConversation,
-                    restaurant: { id: 101, name: 'Pizza Shop', image: 'pizza.jpg' },
+                    restaurant: mockRestaurant,
                 },
                 messages: [
                     { ...mockMessages[0], who: 'me' },
@@ -601,33 +707,43 @@ describe('ConversationService', () => {
 
     describe('markAsRead', () => {
         it('should throw NotFoundException if conversation not found or user is not part of it', async () => {
-            prismaService.client.conversation.findFirst.mockResolvedValueOnce(null);
+            prismaService.client.conversation.findFirst.mockResolvedValueOnce(
+                null,
+            );
 
-            await expect(
-                service.markAsRead(1, 10),
-            ).rejects.toThrow('Conversation not found');
+            await expect(service.markAsRead(1, 10)).rejects.toThrow(
+                'Conversation not found',
+            );
         });
 
-        it('should mark other sender\'s unread messages in the conversation as read', async () => {
+        it("should mark other sender's unread messages in the conversation as read", async () => {
             const mockConversation = {
                 id: 10,
                 customerId: 2,
                 sellerId: 3,
             };
 
-            prismaService.client.conversation.findFirst.mockResolvedValueOnce(mockConversation);
-            prismaService.client.message.updateMany.mockResolvedValueOnce({ count: 2 });
+            prismaService.client.conversation.findFirst.mockResolvedValueOnce(
+                mockConversation,
+            );
+            prismaService.client.message.updateMany.mockResolvedValueOnce({
+                count: 2,
+            });
 
             await service.markAsRead(2, 10); // current user is customer 2
 
-            expect(prismaService.client.conversation.findFirst).toHaveBeenCalledWith({
+            expect(
+                prismaService.client.conversation.findFirst,
+            ).toHaveBeenCalledWith({
                 where: {
                     id: 10,
                     OR: [{ sellerId: 2 }, { customerId: 2 }],
                 },
             });
 
-            expect(prismaService.client.message.updateMany).toHaveBeenCalledWith({
+            expect(
+                prismaService.client.message.updateMany,
+            ).toHaveBeenCalledWith({
                 where: {
                     conversationId: 10,
                     senderId: { not: 2 },

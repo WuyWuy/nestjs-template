@@ -8,9 +8,9 @@ CREATE UNIQUE INDEX idx_Identity_userId_provider
 ON "Identity"("userId", "provider") 
 WHERE "deleteAt" IS NULL; 
 
-CREATE UNIQUE INDEX idx_Conversation_orderId_customerId_sellerId 
-ON "Conversation"("orderId","customerId","sellerId") 
-WHERE "deleteAt" IS NULL; 
+CREATE UNIQUE INDEX idx_Conversation_customerId_sellerId
+ON "Conversation"("customerId","sellerId")
+WHERE "deleteAt" IS NULL;
 
 CREATE UNIQUE INDEX idx_FoodIngredient_foodId_ingredientId 
 ON "FoodIngredient"("ingredientId","foodId")  
@@ -23,6 +23,4 @@ WHERE "deleteAt" IS NULL;
 CREATE UNIQUE INDEX idx_restaurant_phone 
 ON "Restaurant"("phone") 
 WHERE "deleteAt" IS NULL; 
-
-
 

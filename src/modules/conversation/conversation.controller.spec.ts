@@ -49,27 +49,35 @@ describe('ConversationController', () => {
     });
 
     it('should forward my conversations request with authenticated user id', async () => {
-        conversationService.getAllUserConversation.mockResolvedValue([{ id: 1 }]);
+        conversationService.getAllUserConversation.mockResolvedValue([
+            { id: 1 },
+        ]);
 
         const result = await controller.getMyConversations({
             user: { id: 99 },
         } as any);
 
         expect(result).toEqual([{ id: 1 }]);
-        expect(conversationService.getAllUserConversation).toHaveBeenCalledWith(99);
+        expect(conversationService.getAllUserConversation).toHaveBeenCalledWith(
+            99,
+        );
     });
 
     it('should forward admin user conversations request with route user id', async () => {
-        conversationService.getAllUserConversation.mockResolvedValue([{ id: 1 }]);
+        conversationService.getAllUserConversation.mockResolvedValue([
+            { id: 1 },
+        ]);
 
         const result = await controller.getAllUsersConversations(2);
 
         expect(result).toEqual([{ id: 1 }]);
-        expect(conversationService.getAllUserConversation).toHaveBeenCalledWith(2);
+        expect(conversationService.getAllUserConversation).toHaveBeenCalledWith(
+            2,
+        );
     });
 
     it('should forward create conversation request with authenticated user id and body', async () => {
-        const body = { orderId: 10, sellerId: 3 };
+        const body = { sellerId: 3 };
         conversationService.createConversation.mockResolvedValue({ id: 1 });
 
         const result = await controller.createConversation(
@@ -78,7 +86,10 @@ describe('ConversationController', () => {
         );
 
         expect(result).toEqual({ id: 1 });
-        expect(conversationService.createConversation).toHaveBeenCalledWith(2, body);
+        expect(conversationService.createConversation).toHaveBeenCalledWith(
+            2,
+            body,
+        );
     });
 
     it('should forward order detail request with default pagination', async () => {
@@ -87,22 +98,17 @@ describe('ConversationController', () => {
             messages: [],
         });
 
-        const result = await controller.getConversationDetailById(
-            10,
-            {},
-            { user: { id: 2 } } as any,
-        );
+        const result = await controller.getConversationDetailById(10, {}, {
+            user: { id: 2 },
+        } as any);
 
         expect(result).toEqual({
             conversation: { id: 1 },
             messages: [],
         });
-        expect(conversationService.getConversationByOrderId).toHaveBeenCalledWith(
-            2,
-            10,
-            20,
-            0,
-        );
+        expect(
+            conversationService.getConversationByOrderId,
+        ).toHaveBeenCalledWith(2, 10, 20, 0);
     });
 
     it('should forward conversation detail request with provided pagination', async () => {
@@ -131,7 +137,9 @@ describe('ConversationController', () => {
 
     it('should upload chat image through MinioService', async () => {
         const file = { originalname: 'chat.jpg' } as any;
-        minioService.uploadFile.mockResolvedValue('https://cdn.example.com/chat.jpg');
+        minioService.uploadFile.mockResolvedValue(
+            'https://cdn.example.com/chat.jpg',
+        );
 
         const result = await controller.uploadChatImage(file);
 
@@ -142,18 +150,17 @@ describe('ConversationController', () => {
     });
 
     it('should reject chat image upload without a file', async () => {
-        await expect(controller.uploadChatImage(undefined as any)).rejects.toThrow(
-            BadRequestException,
-        );
+        await expect(
+            controller.uploadChatImage(undefined as any),
+        ).rejects.toThrow(BadRequestException);
     });
 
     it('should mark conversation messages as read and return success response', async () => {
         conversationService.markAsRead.mockResolvedValue(undefined);
 
-        const result = await controller.markAsRead(
-            1,
-            { user: { id: 2 } } as any,
-        );
+        const result = await controller.markAsRead(1, {
+            user: { id: 2 },
+        } as any);
 
         expect(conversationService.markAsRead).toHaveBeenCalledWith(2, 1);
         expect(result).toEqual({

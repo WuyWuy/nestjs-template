@@ -13,7 +13,14 @@ import {
     BadRequestException,
     Patch,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+    ApiBearerAuth,
+    ApiBody,
+    ApiConsumes,
+    ApiOperation,
+    ApiQuery,
+    ApiTags,
+} from '@nestjs/swagger';
 import { ConversationService } from './conversation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { Request } from 'express';
@@ -42,33 +49,31 @@ export class ConversationController {
     @Get('/me')
     async getMyConversations(@Req() req: Request) {
         const userId = Number((req.user as { id?: number })?.id);
-        const response = await this.conversationService.getAllUserConversation(
-            userId,
-        );
+        const response =
+            await this.conversationService.getAllUserConversation(userId);
         return response;
     }
-    // Chi danh cho admin moi duoc truy cap route nay 
-    
+    // Chi danh cho admin moi duoc truy cap route nay
+
     @ApiOperation({ summary: 'Lấy danh sách hội thoại theo user (admin)' })
     @Roles(Role.ADMIN)
-    @UseGuards(JwtAuthGuard , RolesGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('/user/:userId')
     async getAllUsersConversations(
-        @Param('userId', ParseIntPipe) userId: number
+        @Param('userId', ParseIntPipe) userId: number,
     ) {
-        return await this.conversationService.getAllUserConversation(
-            userId,
-        );
+        return await this.conversationService.getAllUserConversation(userId);
     }
 
-    @ApiOperation({ summary: 'Tạo hội thoại mới cho khách hàng' })
+    @ApiOperation({
+        summary: 'Tạo hoặc lấy hội thoại duy nhất giữa khách hàng và người bán',
+    })
     @ApiBody({
         type: CreateConversationDto,
         examples: {
             example: {
-                summary: 'Tạo hội thoại theo đơn hàng',
+                summary: 'Tạo hoặc lấy hội thoại theo cặp customer/seller',
                 value: {
-                    orderId: 1,
                     sellerId: 2,
                 },
             },
@@ -89,7 +94,16 @@ export class ConversationController {
         return response;
     }
 
-    @ApiOperation({ summary: 'Xem chi tiết hội thoại theo order' })
+    @ApiOperation({
+        summary:
+            'Xem chi tiết hội thoại bằng orderId; hệ thống suy ra customer và seller từ order',
+    })
+    @ApiQuery({
+        name: 'orderId',
+        required: true,
+        description:
+            'Order dùng làm ngữ cảnh để xác định cặp customer/seller. Conversation không còn lưu orderId.',
+    })
     @UseGuards(JwtAuthGuard)
     @Get('detail')
     async getConversationDetailById(
@@ -108,7 +122,7 @@ export class ConversationController {
         return response;
     }
 
-        @ApiOperation({ summary: 'Xem chi tiết hội thoại theo conversation id' })
+    @ApiOperation({ summary: 'Xem chi tiết hội thoại theo conversation id' })
     @UseGuards(JwtAuthGuard)
     @Get(':conversationId')
     async getConversationById(
@@ -143,9 +157,7 @@ export class ConversationController {
     @UseGuards(JwtAuthGuard)
     @Post('/upload-image')
     @UseInterceptors(FileInterceptor('file'))
-    async uploadChatImage(
-        @UploadedFile() file: Express.Multer.File,
-    ) {
+    async uploadChatImage(@UploadedFile() file: Express.Multer.File) {
         if (!file) {
             throw new BadRequestException('No file provided');
         }
@@ -153,7 +165,9 @@ export class ConversationController {
         return { imageUrl };
     }
 
-    @ApiOperation({ summary: 'Đánh dấu đã đọc toàn bộ tin nhắn trong cuộc hội thoại' })
+    @ApiOperation({
+        summary: 'Đánh dấu đã đọc toàn bộ tin nhắn trong cuộc hội thoại',
+    })
     @UseGuards(JwtAuthGuard)
     @Patch('/:conversationId/read')
     async markAsRead(

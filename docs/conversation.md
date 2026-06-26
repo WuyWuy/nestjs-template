@@ -2,7 +2,7 @@
 
 ## 1. Thuật ngữ và khái niệm
 
-- `Conversation`: phòng chat gắn với 1 `orderId` (mỗi hóa đơn tương ứng 1 phòng chat).
+- `Conversation`: phòng chat duy nhất giữa một `customerId` và một `sellerId`.
 - `Room`: room của Socket.IO theo format `room-{conversationId}`.
 - `Customer`: người mua, thường là người tạo conversation.
 - `Seller`: người bán, là đối tượng chat với customer.
@@ -14,16 +14,16 @@
 ## 2. Thành phần chính
 
 - REST API:
-  - `conversation.controller.ts`
-  - `conversation.service.ts`
+    - `conversation.controller.ts`
+    - `conversation.service.ts`
 - Realtime Socket:
-  - `chat.gateway.ts`
-  - `chat.service.ts`
-  - `ws-exception.filter.ts`
+    - `chat.gateway.ts`
+    - `chat.service.ts`
+    - `ws-exception.filter.ts`
 
 ## 3. Tổng quan luồng hoạt động
 
-1. FE tạo hoặc lấy conversation theo order.
+1. FE tạo hoặc lấy conversation theo `sellerId`.
 2. FE mở socket kèm `Authorization: Bearer <access_token>`.
 3. FE emit `join-room` với `conversationId`.
 4. Backend kiểm tra user có thuộc conversation không.
@@ -38,12 +38,13 @@
 - Endpoint: `POST /conversation`
 - Guard: `JwtAuthGuard`, `RolesGuard`
 - Role yêu cầu: `CUSTOMER`
-- Body: `CreateConversationDto` (chứa `orderId`, `sellerId`)
+- Body: `CreateConversationDto` (chứa `sellerId`)
 
 Logic chính trong service:
-- Kiểm tra customer và seller có tồn tại.
-- Tạo bản ghi `conversation` trong transaction.
-- Trả về conversation vừa tạo.
+
+- Kiểm tra seller là owner của một restaurant.
+- Tìm conversation theo cặp `customerId + sellerId`; nếu chưa có thì tạo mới.
+- Trả về conversation đã có hoặc vừa tạo.
 
 ## 4.2. Lấy danh sách conversation của user
 
@@ -54,23 +55,25 @@ Logic chính trong service:
 
 - Endpoint: `GET /conversation/detail?orderId=...&limit=...&offset=...`
 - Guard: `JwtAuthGuard`
+- Backend dùng `orderId` để suy ra `customerId` và `sellerId`, sau đó tìm conversation theo cặp này.
 - Trả về:
-  - `conversation`
-  - `messages` (sắp xếp `createdAt desc`)
+    - `conversation`
+    - `messages` (sắp xếp `createdAt desc`)
 - Message được map thêm trường:
-  - `who = "me"` nếu `senderId == userId`
-  - `who = "other"` nếu ngược lại
+    - `who = "me"` nếu `senderId == userId`
+    - `who = "other"` nếu ngược lại
 
 ## 5. Luồng Realtime Socket
 
 ## 5.1. Kết nối socket
 
 Khi client connect:
+
 - Backend đọc header `authorization` trong handshake.
 - Nếu token hợp lệ: decode JWT và gán vào `client.user`.
 - Nếu thiếu/sai token:
-  - emit `exception` với status `error`
-  - ngắt kết nối.
+    - emit `exception` với status `error`
+    - ngắt kết nối.
 
 ## 5.2. Join room
 
@@ -78,9 +81,10 @@ Khi client connect:
 - Payload: `{ conversationId }`
 
 Backend xử lý:
+
 - `chatService.validateConversation(userId, conversationId)`:
-  - kiểm tra conversation tồn tại
-  - kiểm tra user phải là `customer` hoặc `seller` của conversation
+    - kiểm tra conversation tồn tại
+    - kiểm tra user phải là `customer` hoặc `seller` của conversation
 - Nếu hợp lệ: `client.join('room-{conversationId}')`
 
 ## 5.3. Gửi tin nhắn
@@ -89,23 +93,24 @@ Backend xử lý:
 - Payload: `{ conversationId, content }`
 
 Backend xử lý:
+
 - Kiểm tra conversation tồn tại.
 - Kiểm tra sender thuộc conversation.
 - Lưu DB vào bảng `message`.
 - Emit lại cho room:
-  - Event ra: `text-chat`
-  - Payload:
+    - Event ra: `text-chat`
+    - Payload:
 
 ```json
 {
-  "data": {
-    "id": 100,
-    "conversationId": 20,
-    "senderId": 5,
-    "content": "Xin chao",
-    "createdAt": "2026-05-07T10:20:00.000Z"
-  },
-  "status": "success"
+    "data": {
+        "id": 100,
+        "conversationId": 20,
+        "senderId": 5,
+        "content": "Xin chao",
+        "createdAt": "2026-05-07T10:20:00.000Z"
+    },
+    "status": "success"
 }
 ```
 
@@ -116,19 +121,19 @@ Backend xử lý:
 
 ```json
 {
-  "status": "error",
-  "content": "Chat message is invalid"
+    "status": "error",
+    "content": "Chat message is invalid"
 }
 ```
 
 ## 6. Danh sách event Socket chuẩn
 
 - Client -> Server:
-  - `join-room`
-  - `text-chat`
+    - `join-room`
+    - `text-chat`
 - Server -> Client:
-  - `text-chat`
-  - `exception`
+    - `text-chat`
+    - `exception`
 
 ## 7. Ví dụ FE Kotlin (Socket.IO)
 
@@ -180,4 +185,3 @@ socket.connect()
 2. Chỉ emit `text-chat` sau khi đã `join-room` thành công.
 3. Bắt event `exception` để xử lý token hết hạn, không thuộc conversation, payload sai format.
 4. Khi rời màn chat, có thể disconnect socket hoặc leave room tùy kiến trúc app.
-

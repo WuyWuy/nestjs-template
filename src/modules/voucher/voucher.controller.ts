@@ -60,6 +60,18 @@ export class VoucherController {
             restaurantId ? Number(restaurantId) : undefined,
         );
     }
+    @ApiOperation({summary: 'Lấy các voucher mà khách hàng mong muốn thấy uh uh'}) 
+    @Roles(Role.CUSTOMER) 
+    @ApiBearerAuth() 
+    @UseGuards(JwtAuthGuard , RolesGuard)
+    @Get('customer/:restaurantId') 
+    async getCustomerVoucher(
+        @Param('restaurantId') restaurantId : number 
+    ) 
+    {
+        const response = await this.voucherService.getCustomerVoucherById(Number(restaurantId)) 
+        return response 
+    }
     //Lay danh sach voucher co the dung duoc cho 1 don hang 
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth() 

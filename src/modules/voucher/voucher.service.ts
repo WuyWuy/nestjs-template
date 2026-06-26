@@ -75,11 +75,35 @@ export class VoucherService {
             );
         }
     }
-    async getCustomerVoucherById() 
+    async getCustomerVoucherById(restaurantId : number) 
     {
         try 
         {
-            console.log("Lat ranh lam. Chua co ranh")
+            const vouchers = await this.prismaService.voucher.findMany({
+                where: {
+                    restaurantId, 
+                    deleteAt: null, 
+                    endAt: {
+                        gte: new Date() 
+                    }, 
+                    status: VoucherStatus.APPLYING, 
+                    startAt: {
+                        lte: new Date() 
+                    }, 
+                    restaurant: {
+                        isActive: true 
+                    }                                                                                                                                                                                   
+                }, 
+                include: {
+                    restaurant: {
+                        select: {
+                            id: true, 
+                            name: true 
+                        }
+                    }
+                }
+            })
+            return vouchers 
         } 
         catch (err) 
         {

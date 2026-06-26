@@ -75,6 +75,18 @@ export class VoucherService {
             );
         }
     }
+    async getCustomerVoucherById() 
+    {
+        try 
+        {
+            console.log("Lat ranh lam. Chua co ranh")
+        } 
+        catch (err) 
+        {
+            console.log("Get all restaurant vouchers error: " , err) 
+            throw err 
+        }
+    }
     async getSuitableVoucher(restaurantId : number , cost : number | undefined) 
     {
         try 
@@ -90,9 +102,9 @@ export class VoucherService {
                         }
                     ], 
                     deleteAt: null, 
-                    // minimumOrderAmount: {
-                    //     lte: (cost? cost : 0)
-                    // }, 
+                    minimumOrderAmount: {
+                        lte: (cost? cost : 0)
+                    }, 
                     endAt: {
                         gte: new Date() 
                     }, 

@@ -32,7 +32,7 @@ export class HomeService {
         let cartItemCount = 0;
         if (cart) {
             const sumResult = await this.prismaService.client.cartItem.aggregate({
-                where: { cartId: cart.id },
+                where: { cartId: cart.id , deleteAt: null },
                 _sum: { quantity: true },
             });
             cartItemCount = sumResult._sum.quantity || 0;

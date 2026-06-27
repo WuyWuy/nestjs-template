@@ -38,6 +38,12 @@ export const categories = [
         sortOrder: 6,
         image: seedImages.categories.drinks,
     },
+    {
+        name: 'Pizza',
+        description: 'Wood-fired pies, flatbreads, and Italian sides.',
+        sortOrder: 7,
+        image: seedImages.categories.pizza,
+    },
 ] as const;
 
 /** 12 ingredients — icon keys map to Material Icons on FE. */
@@ -63,18 +69,22 @@ export const foodIngredientLinks: Record<string, IngredientName[]> = {
     cheeseburger: ['Burger Bun', 'Pork', 'Chili', 'Fresh Herbs'],
     doubleBurger: ['Burger Bun', 'Pork', 'Chili'],
     chickenBurger: ['Burger Bun', 'Pork', 'Fresh Herbs'],
+    fries: ['Corn', 'Chili'],
     lavaCake: ['Fresh Milk', 'Corn'],
 
     grilledChickenRice: ['Rice', 'Pork', 'Fresh Herbs'],
     lemongrassPorkRice: ['Rice', 'Pork', 'Mint'],
+    comTamSuon: ['Rice', 'Pork', 'Fresh Herbs'],
     beefNoodles: ['Noodles', 'Pork', 'Mint', 'Chili'],
 
     salmonRoll: ['Seafood', 'Fresh Herbs'],
     chickenTeriyakiRoll: ['Pork', 'Fresh Herbs', 'Rice'],
+    tunaRoll: ['Seafood', 'Fresh Herbs', 'Chili'],
 
     bunBoHue: ['Noodles', 'Pork', 'Mint', 'Chili'],
     bunChaHaNoi: ['Noodles', 'Pork', 'Fresh Herbs'],
     phoBo: ['Noodles', 'Pork', 'Mint', 'Fresh Herbs'],
+    goiCuon: ['Seafood', 'Fresh Herbs', 'Mint'],
     milkTea: ['Black Tea', 'Fresh Milk', 'Tapioca Pearls'],
 
     classicMilkTea: ['Black Tea', 'Fresh Milk', 'Tapioca Pearls'],
@@ -82,4 +92,23 @@ export const foodIngredientLinks: Record<string, IngredientName[]> = {
     mangoSmoothie: ['Fresh Milk', 'Corn'],
     puddingFlan: ['Fresh Milk', 'Corn'],
     seafoodFriedRice: ['Rice', 'Seafood', 'Fresh Herbs', 'Chili'],
+
+    margheritaPizza: ['Fresh Herbs', 'Corn'],
+    pepperoniPizza: ['Pork', 'Chili'],
+    bbqChickenPizza: ['Pork', 'Fresh Herbs'],
+    garlicBread: ['Corn', 'Fresh Herbs'],
+    caesarSalad: ['Fresh Herbs', 'Corn'],
+    tiramisu: ['Fresh Milk', 'Corn'],
+
+    vietnameseCoffee: ['Black Tea', 'Fresh Milk'],
+    cappuccino: ['Fresh Milk', 'Black Tea'],
+    icedLatte: ['Fresh Milk', 'Black Tea'],
+    croissant: ['Fresh Milk', 'Corn'],
+    banhMi: ['Burger Bun', 'Pork', 'Fresh Herbs', 'Chili'],
+
+    bbqRibs: ['Pork', 'Chili', 'Fresh Herbs'],
+    grilledPorkPlate: ['Pork', 'Rice', 'Fresh Herbs'],
+    cornOnCob: ['Corn', 'Chili'],
+    stickyRice: ['Rice', 'Pork', 'Fresh Herbs'],
+    icedTea: ['Black Tea', 'Mint'],
 };

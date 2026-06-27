@@ -1,0 +1,110 @@
+/** Public image URLs for dev seed (Unsplash). FE can load directly without Minio. */
+const p = (id: string, w = 800) =>
+    `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}`;
+
+export const seedImages = {
+    categories: {
+        burger: p('1571091718767-18b5b1457add', 400),
+        rice: p('1603133872878-684f208fb84b', 400),
+        sushi: p('1579584425555-c3ce17fd4351', 400),
+        noodles: p('1559314809-0d155014e29e', 400),
+        dessert: p('1551024506-0bccd828d307', 400),
+        drinks: p('1571934811356-5cc061b6821f', 400),
+        pizza: p('1513104890138-7c749659a591', 400),
+    },
+    restaurants: {
+        burgerTown: {
+            logo: p('1571091718767-18b5b1457add', 400),
+            cover: p('1550547660-d9450f859349', 1200),
+        },
+        riceExpress: {
+            logo: p('1517248135467-4c7edcad34c4', 400),
+            cover: p('1603133872878-684f208fb84b', 1200),
+        },
+        sushiLab: {
+            logo: p('1579584425555-c3ce17fd4351', 400),
+            cover: p('1579584425555-c3ce17fd4351', 1200),
+        },
+        bepViet: {
+            logo: p('1555396273-367ea4eb4db5', 400),
+            cover: p('1414235077428-338989a2e8c0', 1200),
+        },
+        cocoTea: {
+            logo: p('1559339352-11d035aa65de', 400),
+            cover: p('1571934811356-5cc061b6821f', 1200),
+        },
+        pizzaCorner: {
+            logo: p('1513104890138-7c749659a591', 400),
+            cover: p('1565299624946-b28f40a0ae38', 1200),
+        },
+        saigonCoffee: {
+            logo: p('1551218808-94e220e084d2', 400),
+            cover: p('1504674900247-0877df9cc836', 1200),
+        },
+        bbqHouse: {
+            logo: p('1551218808-94e220e084d2', 400),
+            cover: p('1544025162-d76694265947', 1200),
+        },
+    },
+    avatars: {
+        admin: p('1535713875002-d1d0cf377fde', 200),
+        business: p('1560250097-0b93528c311a', 200),
+        business2: p('1472099645785-5658abf4ff4e', 200),
+        business3: p('1535713875002-d1d0cf377fde', 200),
+        business4: p('1507003211132-936500a4baa5', 200),
+        business5: p('1438761681033-6461ffad8d80', 200),
+        business6: p('1500648767791-00dcc994a43e', 200),
+        business7: p('151934518256-9f9027ebee44', 200),
+        business8: p('1522075469731-3a1d0bb66108', 200),
+        customer1: p('1494790108377-be9c29b29330', 200),
+        customer2: p('1472099645785-5658abf4ff4e', 200),
+        customer3: p('1494790108377-be9c29b29330', 200),
+    },
+    vouchers: {
+        promo: p('1512621776951-a57141f2eefd', 800),
+        discount: p('1553909489-cd47e0907980', 800),
+        foodDeal: p('1546069901-ba9599a7e63c', 800),
+    },
+    foods: {
+        cheeseburger: p('1568901346375-23c9450c58cd'),
+        doubleBurger: p('1550547660-d9450f859349'),
+        chickenBurger: p('1551782450-a2132b4ba21d'),
+        lavaCake: p('1606313564200-e75d5e30476c'),
+        fries: p('1551782450-a2132b4ba21d'),
+        grilledChickenRice: p('1603133872878-684f208fb84b'),
+        lemongrassPorkRice: p('1544025162-d76694265947'),
+        comTamSuon: p('1504674900247-0877df9cc836'),
+        beefNoodles: p('1563379926898-05f4575a45d8'),
+        salmonRoll: p('1579584425555-c3ce17fd4351'),
+        chickenTeriyakiRoll: p('1628840042765-356cda07504e'),
+        tunaRoll: p('1467003909585-2f8a72700288'),
+        bunBoHue: p('1546069901-ba9599a7e63c'),
+        bunChaHaNoi: p('1553621042-f6e147245754'),
+        phoBo: p('1476224203421-9ac39bcb3327'),
+        goiCuon: p('1512621776951-a57141f2eefd'),
+        milkTea: p('1571934811356-5cc061b6821f'),
+        classicMilkTea: p('1571934811356-5cc061b6821f'),
+        matchaLatte: p('1540189549336-e6e99c3679fe'),
+        mangoSmoothie: p('1553909489-cd47e0907980'),
+        puddingFlan: p('1488477181946-6428a0291777'),
+        seafoodFriedRice: p('1512058564366-18510be2db19'),
+        margheritaPizza: p('1565299624946-b28f40a0ae38'),
+        pepperoniPizza: p('1513104890138-7c749659a591'),
+        bbqChickenPizza: p('1567620905732-2d1ec7ab7445'),
+        garlicBread: p('1567620905732-2d1ec7ab7445'),
+        caesarSalad: p('1512621776951-a57141f2eefd'),
+        tiramisu: p('1565958011703-44f9829ba187'),
+        vietnameseCoffee: p('1553909489-cd47e0907980'),
+        cappuccino: p('1467003909585-2f8a72700288'),
+        icedLatte: p('1540189549336-e6e99c3679fe'),
+        croissant: p('1565958011703-44f9829ba187'),
+        banhMi: p('1553621042-f6e147245754'),
+        bbqRibs: p('1544025162-d76694265947'),
+        grilledPorkPlate: p('1504674900247-0877df9cc836'),
+        cornOnCob: p('1512058564366-18510be2db19'),
+        stickyRice: p('1603133872878-684f208fb84b'),
+        icedTea: p('1571934811356-5cc061b6821f'),
+    },
+} as const;
+
+export type SeedFoodImageKey = keyof typeof seedImages.foods;

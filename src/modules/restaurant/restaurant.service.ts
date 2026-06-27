@@ -315,6 +315,9 @@ export class RestaurantService {
                             take: 8,
                         },
                         ratings: {
+                            where: {
+                                deleteAt: null,
+                            },
                             select: {
                                 vote: true,
                             },
@@ -711,6 +714,9 @@ export class RestaurantService {
                 name: true,
                 status: true,
                 ratings: {
+                    where: {
+                        deleteAt: null,
+                    },
                     select: {
                         id: true,
                         vote: true,

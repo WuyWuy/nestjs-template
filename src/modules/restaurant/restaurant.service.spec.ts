@@ -395,6 +395,77 @@ describe('RestaurantService - deleteRestaurantRating', () => {
     });
 });
 
+describe('RestaurantService - getRestaurantRatings', () => {
+    let service: RestaurantService;
+    let prismaService: any;
+
+    beforeEach(() => {
+        const ratings = [
+            {
+                id: 11,
+                vote: 5,
+                comment: 'Excellent',
+                reply: null,
+                replyCreatedAt: null,
+                createdAt: new Date('2026-06-27T10:00:00.000Z'),
+                deleteAt: null,
+                user: {
+                    id: 5,
+                    name: 'Active reviewer',
+                    avatar: null,
+                },
+            },
+            {
+                id: 12,
+                vote: 1,
+                comment: 'Deleted review',
+                reply: null,
+                replyCreatedAt: null,
+                createdAt: new Date('2026-06-26T10:00:00.000Z'),
+                deleteAt: new Date('2026-06-28T10:00:00.000Z'),
+                user: {
+                    id: 6,
+                    name: 'Deleted reviewer',
+                    avatar: null,
+                },
+            },
+        ];
+
+        prismaService = {
+            client: {
+                restaurant: {
+                    findFirst: jest.fn(async ({ select }) => ({
+                        id: 101,
+                        name: 'Burger Town',
+                        status: 'APPROVED',
+                        ratings:
+                            select.ratings.where?.deleteAt === null
+                                ? ratings.filter(
+                                      (rating) => rating.deleteAt === null,
+                                  )
+                                : ratings,
+                    })),
+                },
+            },
+        };
+
+        service = new RestaurantService(
+            prismaService,
+            {} as any,
+            {} as any,
+            {} as any,
+        );
+    });
+
+    it('excludes soft-deleted reviews from the public rating summary', async () => {
+        const result = await service.getRestaurantRatings(101);
+
+        expect(result.ratingCount).toBe(1);
+        expect(result.averageRating).toBe(5);
+        expect(result.ratings.map((rating) => rating.id)).toEqual([11]);
+    });
+});
+
 describe('RestaurantService - getRestaurantRatingsForVendor', () => {
     let service: RestaurantService;
     let prismaService: any;
@@ -638,6 +709,49 @@ describe('RestaurantService - getAllRestaurants', () => {
             },
             select: { restaurantId: true },
         });
+    });
+
+    it('excludes soft-deleted reviews from restaurant list summaries', async () => {
+        const ratings = [
+            { vote: 5, deleteAt: null },
+            {
+                vote: 1,
+                deleteAt: new Date('2026-06-28T10:00:00.000Z'),
+            },
+        ];
+
+        prismaService.client.restaurant.findMany.mockImplementationOnce(
+            async ({ select }: any) => [
+                {
+                    id: 101,
+                    name: 'Pizza Shop',
+                    image: 'pizza.jpg',
+                    deliveryFee: 1.5,
+                    ratings:
+                        select.ratings.where?.deleteAt === null
+                            ? ratings.filter(
+                                  (rating) => rating.deleteAt === null,
+                              )
+                            : ratings,
+                    foods: [],
+                    createdAt: new Date(),
+                },
+            ],
+        );
+
+        const result = await service.getAllRestaurants(
+            20,
+            0,
+            '',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+        );
+
+        expect(result[0].ratingCount).toBe(1);
+        expect(result[0].averageRating).toBe(5);
     });
 });
 

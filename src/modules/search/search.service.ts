@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import { RestaurantApprovalStatus } from '@prisma/client';
+import { OrderStatus, RestaurantApprovalStatus } from '@prisma/client';
+import { VoucherService } from '../voucher/voucher.service';
 import {
     SearchQueryDto,
     SearchSuggestionsQueryDto,
@@ -8,77 +9,25 @@ import {
     TrendingQueryDto,
 } from './dto/search.dto';
 
+const SOLD_ORDER_STATUSES: OrderStatus[] = [OrderStatus.CONFIRMED];
+
+type CustomerVoucher = Awaited<
+    ReturnType<VoucherService['getCustomerActiveVouchers']>
+>[number];
+
 @Injectable()
 export class SearchService {
-    constructor(private readonly prismaService: PrismaService) {}
+    constructor(
+        private readonly prismaService: PrismaService,
+        private readonly voucherService: VoucherService,
+    ) {}
 
     async search(query: SearchQueryDto) {
         const { q, lat, lng, limit = 20, offset = 0, sort, categoryId } = query;
-        const now = new Date();
+        const keyword = q.trim();
 
-        // 1. Vouchers đang hoạt động
-        const activeVouchers = await this.prismaService.client.voucher.findMany({
-            where: {
-                status: 'APPLYING',
-                AND: [
-                    {
-                        OR: [
-                            { startAt: null },
-                            { startAt: { lte: now } },
-                        ],
-                    },
-                    {
-                        OR: [
-                            { endAt: null },
-                            { endAt: { gte: now } },
-                        ],
-                    },
-                ],
-            },
-        });
+        const foodKeywordFilter = buildFoodKeywordFilter(keyword);
 
-        // Map restaurantId -> max percent discount tag
-        const restaurantPromoMap = new Map<number, string>();
-        for (const voucher of activeVouchers) {
-            if (voucher.restaurantId && voucher.type === 'PERCENT') {
-                const currentMax = restaurantPromoMap.get(voucher.restaurantId);
-                const currentSaleValue = currentMax ? parseInt(currentMax.replace('Giảm ', '').replace('%', '')) : 0;
-                if (voucher.sale > currentSaleValue) {
-                    restaurantPromoMap.set(voucher.restaurantId, `Giảm ${voucher.sale}%`);
-                }
-            }
-        }
-
-        // 2. soldCount của món ăn từ CONFIRMED orders
-        const soldCounts = await this.prismaService.client.orderFood.groupBy({
-            by: ['foodId'],
-            _sum: {
-                quantity: true,
-            },
-            where: {
-                order: {
-                    status: 'CONFIRMED',
-                },
-            },
-        });
-        const soldCountMap = new Map<number, number>();
-        for (const item of soldCounts) {
-            soldCountMap.set(item.foodId, item._sum.quantity || 0);
-        }
-
-        // 3. averageRating của nhà hàng
-        const avgRatings = await this.prismaService.client.restaurantRating.groupBy({
-            by: ['restaurantId'],
-            _avg: {
-                vote: true,
-            },
-        });
-        const avgRatingMap = new Map<number, number>();
-        for (const item of avgRatings) {
-            avgRatingMap.set(item.restaurantId, parseFloat((item._avg.vote || 0).toFixed(1)));
-        }
-
-        // --- TRUY VẤN MÓN ĂN (FOODS) ---
         const foodsDb = await this.prismaService.client.food.findMany({
             where: {
                 deleteAt: null,
@@ -92,10 +41,7 @@ export class SearchService {
                     deleteAt: null,
                     status: RestaurantApprovalStatus.APPROVED,
                 },
-                OR: [
-                    { name: { contains: q, mode: 'insensitive' } },
-                    { label: { contains: q, mode: 'insensitive' } },
-                ],
+                OR: foodKeywordFilter,
                 categoryId: categoryId ? categoryId : undefined,
             },
             include: {
@@ -105,6 +51,7 @@ export class SearchService {
                     },
                 },
                 ratings: {
+                    where: { deleteAt: null },
                     select: {
                         vote: true,
                     },
@@ -112,74 +59,32 @@ export class SearchService {
             },
         });
 
-        const mappedFoods = foodsDb.map((food) => {
-            const avgFoodRating = food.ratings.length > 0
-                ? parseFloat((food.ratings.reduce((sum, r) => sum + r.vote, 0) / food.ratings.length).toFixed(1))
-                : food.rating;
-
-            let distance = 0;
-            if (lat !== undefined && lng !== undefined && food.restaurant.address.latitude && food.restaurant.address.longitude) {
-                distance = calculateDistance(lat, lng, food.restaurant.address.latitude, food.restaurant.address.longitude);
-            }
-
-            return {
-                id: food.id,
-                name: food.name,
-                price: Number(food.price),
-                imageUrl: food.image,
-                restaurantId: food.restaurantId,
-                restaurantName: food.restaurant.name,
-                rating: avgFoodRating,
-                soldCount: soldCountMap.get(food.id) || 0,
-                promoTag: restaurantPromoMap.get(food.restaurantId) || null,
-                distance,
-                updatedAt: food.updatedAt,
-            };
-        });
-
-        // Sắp xếp Foods
-        if (sort === 'distance' && lat !== undefined && lng !== undefined) {
-            mappedFoods.sort((a, b) => a.distance - b.distance);
-        } else if (sort === 'rating') {
-            mappedFoods.sort((a, b) => b.rating - a.rating);
-        } else if (sort === 'price_low_to_high') {
-            mappedFoods.sort((a, b) => a.price - b.price);
-        } else {
-            mappedFoods.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-        }
-
-        // Phân trang Foods
-        const slicedFoods = mappedFoods.slice(offset, offset + limit).map(({ distance, updatedAt, ...rest }) => rest);
-
-
-        // --- TRUY VẤN NHÀ HÀNG (RESTAURANTS) ---
         const restaurantsDb = await this.prismaService.client.restaurant.findMany({
             where: {
                 deleteAt: null,
                 status: RestaurantApprovalStatus.APPROVED,
                 isActive: true,
                 OR: [
-                    { name: { contains: q, mode: 'insensitive' } },
+                    { name: { contains: keyword, mode: 'insensitive' } },
                     {
                         foods: {
                             some: {
                                 deleteAt: null,
                                 isAvailable: true,
-                                OR: [
-                                    { name: { contains: q, mode: 'insensitive' } },
-                                    { label: { contains: q, mode: 'insensitive' } },
-                                ],
+                                OR: foodKeywordFilter,
                             },
                         },
                     },
                 ],
-                foods: categoryId ? {
-                    some: {
-                        categoryId,
-                        deleteAt: null,
-                        isAvailable: true,
-                    }
-                } : undefined,
+                foods: categoryId
+                    ? {
+                          some: {
+                              categoryId,
+                              deleteAt: null,
+                              isAvailable: true,
+                          },
+                      }
+                    : undefined,
             },
             include: {
                 address: true,
@@ -194,21 +99,119 @@ export class SearchService {
             },
         });
 
+        const foodIds = foodsDb.map((food) => food.id);
+        const restaurantIds = [
+            ...new Set([
+                ...restaurantsDb.map((restaurant) => restaurant.id),
+                ...foodsDb.map((food) => food.restaurantId),
+            ]),
+        ];
+
+        const [activeVouchers, soldCounts, avgRatings] = await Promise.all([
+            restaurantIds.length > 0
+                ? this.voucherService.getCustomerActiveVouchers(restaurantIds)
+                : Promise.resolve([]),
+            foodIds.length > 0
+                ? this.prismaService.client.orderFood.groupBy({
+                      by: ['foodId'],
+                      _sum: { quantity: true },
+                      where: {
+                          foodId: { in: foodIds },
+                          order: { status: { in: SOLD_ORDER_STATUSES } },
+                      },
+                  })
+                : Promise.resolve([]),
+            restaurantIds.length > 0
+                ? this.prismaService.client.restaurantRating.groupBy({
+                      by: ['restaurantId'],
+                      _avg: { vote: true },
+                      where: { restaurantId: { in: restaurantIds } },
+                  })
+                : Promise.resolve([]),
+        ]);
+
+        const voucherMap = groupVouchersByRestaurantId(activeVouchers);
+        const soldCountMap = new Map<number, number>();
+        for (const item of soldCounts) {
+            soldCountMap.set(item.foodId, item._sum.quantity || 0);
+        }
+        const avgRatingMap = new Map<number, number>();
+        for (const item of avgRatings) {
+            avgRatingMap.set(
+                item.restaurantId,
+                parseFloat((item._avg.vote || 0).toFixed(1)),
+            );
+        }
+
+        const mappedFoods = foodsDb.map((food) => {
+            let distance = 0;
+            if (
+                lat !== undefined &&
+                lng !== undefined &&
+                isValidCoordinate(food.restaurant.address.latitude) &&
+                isValidCoordinate(food.restaurant.address.longitude)
+            ) {
+                distance = calculateDistance(
+                    lat,
+                    lng,
+                    food.restaurant.address.latitude,
+                    food.restaurant.address.longitude,
+                );
+            }
+
+            return {
+                id: food.id,
+                name: food.name,
+                price: Number(food.price),
+                imageUrl: food.image,
+                restaurantId: food.restaurantId,
+                restaurantName: food.restaurant.name,
+                rating: computeFoodRating(food),
+                soldCount: soldCountMap.get(food.id) || 0,
+                distance,
+                updatedAt: food.updatedAt,
+            };
+        });
+
+        if (sort === 'distance' && lat !== undefined && lng !== undefined) {
+            mappedFoods.sort((a, b) => a.distance - b.distance);
+        } else if (sort === 'rating') {
+            mappedFoods.sort((a, b) => b.rating - a.rating);
+        } else if (sort === 'price_low_to_high') {
+            mappedFoods.sort((a, b) => a.price - b.price);
+        } else {
+            mappedFoods.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+        }
+
+        const slicedFoods = mappedFoods
+            .slice(offset, offset + limit)
+            .map(({ distance, updatedAt, ...rest }) => rest);
+
         const mappedRestaurants = restaurantsDb.map((restaurant) => {
             let distance = 0;
-            if (lat !== undefined && lng !== undefined && restaurant.address.latitude && restaurant.address.longitude) {
-                distance = calculateDistance(lat, lng, restaurant.address.latitude, restaurant.address.longitude);
+            if (
+                lat !== undefined &&
+                lng !== undefined &&
+                isValidCoordinate(restaurant.address.latitude) &&
+                isValidCoordinate(restaurant.address.longitude)
+            ) {
+                distance = calculateDistance(
+                    lat,
+                    lng,
+                    restaurant.address.latitude,
+                    restaurant.address.longitude,
+                );
             }
 
             const tags = Array.from(
                 new Set(
                     restaurant.foods
                         .map((f) => f.category?.name)
-                        .filter(Boolean)
-                )
+                        .filter(Boolean),
+                ),
             );
 
-            const hasVoucher = activeVouchers.some(v => v.restaurantId === restaurant.id);
+            const restaurantVouchers = voucherMap.get(restaurant.id) ?? [];
             const averageRating = avgRatingMap.get(restaurant.id) || 0;
 
             return {
@@ -219,27 +222,30 @@ export class SearchService {
                 deliveryFee: Number(restaurant.deliveryFee),
                 distance,
                 tags,
-                hasVoucher,
+                hasVoucher: restaurantVouchers.length > 0,
+                vouchers: restaurantVouchers,
                 createdAt: restaurant.createdAt,
             };
         });
 
-        // Sắp xếp Restaurants
         if (sort === 'distance' && lat !== undefined && lng !== undefined) {
             mappedRestaurants.sort((a, b) => a.distance - b.distance);
         } else if (sort === 'rating') {
             mappedRestaurants.sort((a, b) => b.averageRating - a.averageRating);
         } else {
-            mappedRestaurants.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            mappedRestaurants.sort(
+                (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+            );
         }
 
-        // Phân trang Restaurants
-        const slicedRestaurants = mappedRestaurants.slice(offset, offset + limit).map(({ createdAt, ...rest }) => {
-            if (lat === undefined || lng === undefined) {
-                return { ...rest, distance: 0 };
-            }
-            return rest;
-        });
+        const slicedRestaurants = mappedRestaurants
+            .slice(offset, offset + limit)
+            .map(({ createdAt, ...rest }) => {
+                if (lat === undefined || lng === undefined) {
+                    return { ...rest, distance: 0 };
+                }
+                return rest;
+            });
 
         return {
             foods: slicedFoods,
@@ -249,69 +255,42 @@ export class SearchService {
 
     async getSuggestions(query: SearchSuggestionsQueryDto) {
         const { lat, lng, limit = 10 } = query;
-        const now = new Date();
 
-        // 1. Lọc vouchers đang hoạt động
-        const activeVouchers = await this.prismaService.client.voucher.findMany({
-            where: {
-                status: 'APPLYING',
-                AND: [
-                    { OR: [{ startAt: null }, { startAt: { lte: now } }] },
-                    { OR: [{ endAt: null }, { endAt: { gte: now } }] },
-                ],
-            },
-        });
-        const hasVoucherSet = new Set(activeVouchers.map(v => v.restaurantId).filter(Boolean));
+        const activeVouchers =
+            await this.voucherService.getCustomerActiveVouchers();
+        const voucherMap = groupVouchersByRestaurantId(activeVouchers);
+        const hasVoucherSet = new Set(voucherMap.keys());
 
-        // Map restaurantId -> max percent discount tag
-        const restaurantPromoMap = new Map<number, string>();
-        for (const voucher of activeVouchers) {
-            if (voucher.restaurantId && voucher.type === 'PERCENT') {
-                const currentMax = restaurantPromoMap.get(voucher.restaurantId);
-                const currentSaleValue = currentMax ? parseInt(currentMax.replace('Giảm ', '').replace('%', '')) : 0;
-                if (voucher.sale > currentSaleValue) {
-                    restaurantPromoMap.set(voucher.restaurantId, `Giảm ${voucher.sale}%`);
-                }
-            }
-        }
-
-        // 2. averageRating của nhà hàng
         const avgRatings = await this.prismaService.client.restaurantRating.groupBy({
             by: ['restaurantId'],
-            _avg: {
-                vote: true,
-            },
+            _avg: { vote: true },
         });
         const avgRatingMap = new Map<number, number>();
         for (const item of avgRatings) {
-            avgRatingMap.set(item.restaurantId, parseFloat((item._avg.vote || 0).toFixed(1)));
+            avgRatingMap.set(
+                item.restaurantId,
+                parseFloat((item._avg.vote || 0).toFixed(1)),
+            );
         }
 
-        // --- SUGGESTED FOODS (TOP SELLER) ---
         const topFoods = await this.prismaService.client.orderFood.groupBy({
             by: ['foodId'],
-            _sum: {
-                quantity: true,
-            },
+            _sum: { quantity: true },
             where: {
-                order: {
-                    status: 'CONFIRMED',
-                },
+                order: { status: { in: SOLD_ORDER_STATUSES } },
                 food: {
                     deleteAt: null,
                     isAvailable: true,
                 },
             },
             orderBy: {
-                _sum: {
-                    quantity: 'desc',
-                },
+                _sum: { quantity: 'desc' },
             },
             take: limit,
         });
 
-        const topFoodIds = topFoods.map(f => f.foodId);
-        
+        const topFoodIds = topFoods.map((f) => f.foodId);
+
         let foodsDb = await this.prismaService.client.food.findMany({
             where: {
                 id: { in: topFoodIds },
@@ -334,14 +313,17 @@ export class SearchService {
                     },
                 },
                 ratings: {
-                    select: {
-                        vote: true,
-                    },
+                    where: { deleteAt: null },
+                    select: { vote: true },
                 },
             },
         });
 
-        // Nếu thiếu thì lấy thêm món mặc định xếp theo rating
+        const foodsById = new Map(foodsDb.map((food) => [food.id, food]));
+        foodsDb = topFoodIds
+            .map((id) => foodsById.get(id))
+            .filter((food): food is NonNullable<typeof food> => food !== undefined);
+
         if (foodsDb.length < limit) {
             const extraFoods = await this.prismaService.client.food.findMany({
                 where: {
@@ -365,115 +347,110 @@ export class SearchService {
                         },
                     },
                     ratings: {
-                        select: {
-                            vote: true,
-                        },
+                        where: { deleteAt: null },
+                        select: { vote: true },
                     },
                 },
                 take: limit - foodsDb.length,
-                orderBy: {
-                    rating: 'desc',
-                },
+                orderBy: { rating: 'desc' },
             });
             foodsDb = [...foodsDb, ...extraFoods];
         }
 
-        // Map soldCount cho Foods
-        const soldCounts = await this.prismaService.client.orderFood.groupBy({
-            by: ['foodId'],
-            _sum: {
-                quantity: true,
-            },
-            where: {
-                foodId: { in: foodsDb.map(f => f.id) },
-                order: {
-                    status: 'CONFIRMED',
-                },
-            },
-        });
+        const soldCounts =
+            foodsDb.length > 0
+                ? await this.prismaService.client.orderFood.groupBy({
+                      by: ['foodId'],
+                      _sum: { quantity: true },
+                      where: {
+                          foodId: { in: foodsDb.map((f) => f.id) },
+                          order: { status: { in: SOLD_ORDER_STATUSES } },
+                      },
+                  })
+                : [];
         const soldCountMap = new Map<number, number>();
         for (const item of soldCounts) {
             soldCountMap.set(item.foodId, item._sum.quantity || 0);
         }
 
-        const mappedFoods = foodsDb.map((food) => {
-            const avgFoodRating = food.ratings.length > 0
-                ? parseFloat((food.ratings.reduce((sum, r) => sum + r.vote, 0) / food.ratings.length).toFixed(1))
-                : food.rating;
+        const mappedFoods = foodsDb.slice(0, limit).map((food) => ({
+            id: food.id,
+            name: food.name,
+            price: Number(food.price),
+            imageUrl: food.image,
+            restaurantId: food.restaurantId,
+            restaurantName: food.restaurant.name,
+            rating: computeFoodRating(food),
+            soldCount: soldCountMap.get(food.id) || 0,
+        }));
 
-            return {
-                id: food.id,
-                name: food.name,
-                price: Number(food.price),
-                imageUrl: food.image,
-                restaurantId: food.restaurantId,
-                restaurantName: food.restaurant.name,
-                rating: avgFoodRating,
-                soldCount: soldCountMap.get(food.id) || 0,
-                promoTag: restaurantPromoMap.get(food.restaurantId) || null,
-            };
-        });
+        const qualifyingRestaurantIds = new Set<number>(hasVoucherSet);
+        for (const item of avgRatings) {
+            if ((item._avg.vote || 0) >= 4.5) {
+                qualifyingRestaurantIds.add(item.restaurantId);
+            }
+        }
 
+        const candidateRestaurants =
+            qualifyingRestaurantIds.size > 0
+                ? await this.prismaService.client.restaurant.findMany({
+                      where: {
+                          id: { in: Array.from(qualifyingRestaurantIds) },
+                          deleteAt: null,
+                          status: RestaurantApprovalStatus.APPROVED,
+                          isActive: true,
+                      },
+                      include: {
+                          address: true,
+                          foods: {
+                              where: { deleteAt: null },
+                              include: { category: true },
+                          },
+                      },
+                  })
+                : [];
 
-        // --- SUGGESTED RESTAURANTS ---
-        const allRestaurants = await this.prismaService.client.restaurant.findMany({
-            where: {
-                deleteAt: null,
-                status: RestaurantApprovalStatus.APPROVED,
-                isActive: true,
-            },
-            include: {
-                address: true,
-                foods: {
-                    where: {
-                        deleteAt: null,
-                    },
-                    include: {
-                        category: true,
-                    },
-                },
-            },
-        });
-
-        const filteredRestaurants = allRestaurants.filter((restaurant) => {
-            const hasVoucher = hasVoucherSet.has(restaurant.id);
-            const averageRating = avgRatingMap.get(restaurant.id) || 0;
-            return hasVoucher || averageRating >= 4.5;
-        });
-
-        let suggestedRestaurants = filteredRestaurants.map((restaurant) => {
+        let suggestedRestaurants = candidateRestaurants.map((restaurant) => {
             let distance = 0;
-            if (lat !== undefined && lng !== undefined && restaurant.address.latitude && restaurant.address.longitude) {
-                distance = calculateDistance(lat, lng, restaurant.address.latitude, restaurant.address.longitude);
+            if (
+                lat !== undefined &&
+                lng !== undefined &&
+                isValidCoordinate(restaurant.address.latitude) &&
+                isValidCoordinate(restaurant.address.longitude)
+            ) {
+                distance = calculateDistance(
+                    lat,
+                    lng,
+                    restaurant.address.latitude,
+                    restaurant.address.longitude,
+                );
             }
 
             const tags = Array.from(
                 new Set(
                     restaurant.foods
                         .map((f) => f.category?.name)
-                        .filter(Boolean)
-                )
+                        .filter(Boolean),
+                ),
             );
-
-            const hasVoucher = hasVoucherSet.has(restaurant.id);
-            const averageRating = avgRatingMap.get(restaurant.id) || 0;
 
             return {
                 id: restaurant.id,
                 name: restaurant.name,
                 imageUrl: restaurant.image,
-                averageRating,
+                averageRating: avgRatingMap.get(restaurant.id) || 0,
                 deliveryFee: Number(restaurant.deliveryFee),
                 distance,
                 tags,
-                hasVoucher,
+                hasVoucher: (voucherMap.get(restaurant.id) ?? []).length > 0,
+                vouchers: voucherMap.get(restaurant.id) ?? [],
                 createdAt: restaurant.createdAt,
             };
         });
 
         let useFallback = false;
         if (lat !== undefined && lng !== undefined) {
-            const within10km = suggestedRestaurants.filter(r => r.distance <= 10.0);
+            const within10km = suggestedRestaurants.filter((r) => r.distance <= 10.0);
             if (within10km.length > 0) {
                 suggestedRestaurants = within10km;
                 suggestedRestaurants.sort((a, b) => a.distance - b.distance);
@@ -493,12 +470,14 @@ export class SearchService {
             });
         }
 
-        const finalRestaurants = suggestedRestaurants.slice(0, limit).map(({ createdAt, ...rest }) => {
-            if (lat === undefined || lng === undefined) {
-                return { ...rest, distance: 0 };
-            }
-            return rest;
-        });
+        const finalRestaurants = suggestedRestaurants
+            .slice(0, limit)
+            .map(({ createdAt, ...rest }) => {
+                if (lat === undefined || lng === undefined) {
+                    return { ...rest, distance: 0 };
+                }
+                return rest;
+            });
 
         return {
             foods: mappedFoods,
@@ -507,19 +486,15 @@ export class SearchService {
     }
 
     async getHistory(userId: number) {
-        return await this.prismaService.client.searchHistory.findMany({
-            where: {
-                userId,
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
+        return await this.prismaService.searchHistory.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
         });
     }
 
     async saveHistory(userId: number, data: SaveSearchHistoryDto) {
-        const { keyword } = data;
-        return await this.prismaService.client.searchHistory.upsert({
+        const keyword = data.keyword.trim();
+        return await this.prismaService.searchHistory.upsert({
             where: {
                 userId_keyword: {
                     userId,
@@ -537,20 +512,17 @@ export class SearchService {
     }
 
     async clearHistory(userId: number) {
-        await this.prismaService.client.searchHistory.deleteMany({
-            userId,
+        await this.prismaService.searchHistory.deleteMany({
+            where: { userId },
         });
         return {
-            success: true,
             message: 'Clear search history successfully',
         };
     }
 
     async deleteHistoryItem(userId: number, id: number) {
-        const historyItem = await this.prismaService.client.searchHistory.findFirst({
-            where: {
-                id,
-            },
+        const historyItem = await this.prismaService.searchHistory.findFirst({
+            where: { id },
         });
 
         if (!historyItem) {
@@ -558,15 +530,16 @@ export class SearchService {
         }
 
         if (historyItem.userId !== userId) {
-            throw new ForbiddenException('You do not have permission to delete this history item');
+            throw new ForbiddenException(
+                'You do not have permission to delete this history item',
+            );
         }
 
-        await this.prismaService.client.searchHistory.delete({
-            id,
+        await this.prismaService.searchHistory.delete({
+            where: { id },
         });
 
         return {
-            success: true,
             message: 'Delete history item successfully',
         };
     }
@@ -576,20 +549,14 @@ export class SearchService {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        const trends = await this.prismaService.client.searchHistory.groupBy({
+        const trends = await this.prismaService.searchHistory.groupBy({
             by: ['keyword'],
-            _count: {
-                keyword: true,
-            },
+            _count: { keyword: true },
             where: {
-                createdAt: {
-                    gte: sevenDaysAgo,
-                },
+                createdAt: { gte: sevenDaysAgo },
             },
             orderBy: {
-                _count: {
-                    keyword: 'desc',
-                },
+                _count: { keyword: 'desc' },
             },
             take: limit,
         });
@@ -601,8 +568,59 @@ export class SearchService {
     }
 }
 
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371; // Bán kính Trái Đất tính bằng km
+function groupVouchersByRestaurantId(vouchers: CustomerVoucher[]) {
+    const map = new Map<number, CustomerVoucher[]>();
+    for (const voucher of vouchers) {
+        if (voucher.restaurantId == null) {
+            continue;
+        }
+        const existing = map.get(voucher.restaurantId) ?? [];
+        existing.push(voucher);
+        map.set(voucher.restaurantId, existing);
+    }
+    return map;
+}
+
+function buildFoodKeywordFilter(keyword: string) {
+    return [
+        { name: { contains: keyword, mode: 'insensitive' as const } },
+        { label: { contains: keyword, mode: 'insensitive' as const } },
+        {
+            category: {
+                name: { contains: keyword, mode: 'insensitive' as const },
+                isActive: true,
+                deleteAt: null,
+            },
+        },
+    ];
+}
+
+function computeFoodRating(food: {
+    ratings: { vote: number }[];
+    rating: number;
+}) {
+    if (food.ratings.length > 0) {
+        return parseFloat(
+            (
+                food.ratings.reduce((sum, r) => sum + r.vote, 0) /
+                food.ratings.length
+            ).toFixed(1),
+        );
+    }
+    return Number(food.rating);
+}
+
+function isValidCoordinate(value: number | null | undefined): value is number {
+    return value != null;
+}
+
+function calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+): number {
+    const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =

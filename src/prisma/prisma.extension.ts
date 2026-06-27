@@ -55,7 +55,12 @@ export const filterSoftDeleted = Prisma.defineExtension({
                     operation === 'findFirst' ||
                     operation === 'findMany'
                 ) {
-                    const excludeModels = ['Size', 'Ingredient', 'AuthToken'];
+                    const excludeModels = [
+                        'Size',
+                        'Ingredient',
+                        'AuthToken',
+                        'SearchHistory',
+                    ];
                     if (model && excludeModels.includes(model)) {
                         return query(args);
                     }

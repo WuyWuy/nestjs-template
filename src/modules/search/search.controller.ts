@@ -44,11 +44,7 @@ export class SearchController {
     @Get('history')
     async getHistory(@Req() req: Request) {
         const userId = Number((req.user as { id?: number })?.id);
-        const data = await this.searchService.getHistory(userId);
-        return {
-            success: true,
-            data,
-        };
+        return await this.searchService.getHistory(userId);
     }
 
     @ApiOperation({ summary: 'Lưu từ khóa vào lịch sử tìm kiếm' })
@@ -59,7 +55,6 @@ export class SearchController {
         const userId = Number((req.user as { id?: number })?.id);
         const result = await this.searchService.saveHistory(userId, data);
         return {
-            success: true,
             message: 'Save search history successfully',
             data: result,
         };
@@ -89,10 +84,6 @@ export class SearchController {
     @ApiOperation({ summary: 'Lấy từ khóa thịnh hành 7 ngày qua' })
     @Get('trending')
     async getTrending(@Query() query: TrendingQueryDto) {
-        const data = await this.searchService.getTrending(query);
-        return {
-            success: true,
-            data,
-        };
+        return await this.searchService.getTrending(query);
     }
 }

@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
     IsInt,
     IsNotEmpty,
@@ -17,6 +17,7 @@ export class SearchQueryDto {
     })
     @IsNotEmpty()
     @IsString()
+    @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
     q: string;
 
     @ApiPropertyOptional({
@@ -117,6 +118,7 @@ export class SaveSearchHistoryDto {
     })
     @IsNotEmpty()
     @IsString()
+    @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
     keyword: string;
 }
 

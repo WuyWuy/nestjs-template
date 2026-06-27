@@ -75,40 +75,42 @@ export class VoucherService {
             );
         }
     }
-    async getCustomerVoucherById(restaurantId : number) 
-    {
-        try 
-        {
-            const vouchers = await this.prismaService.voucher.findMany({
+    async getCustomerVoucherById(restaurantId: number) {
+        return this.getCustomerActiveVouchers([restaurantId]);
+    }
+
+    async getCustomerActiveVouchers(restaurantIds?: number[]) {
+        try {
+            const now = new Date();
+            return await this.prismaService.voucher.findMany({
                 where: {
-                    restaurantId, 
-                    deleteAt: null, 
+                    ...(restaurantIds?.length
+                        ? { restaurantId: { in: restaurantIds } }
+                        : { restaurantId: { not: null } }),
+                    deleteAt: null,
                     endAt: {
-                        gte: new Date() 
-                    }, 
-                    status: VoucherStatus.APPLYING, 
+                        gte: now,
+                    },
+                    status: VoucherStatus.APPLYING,
                     startAt: {
-                        lte: new Date() 
-                    }, 
+                        lte: now,
+                    },
                     restaurant: {
-                        isActive: true 
-                    }                                                                                                                                                                                   
-                }, 
+                        isActive: true,
+                    },
+                },
                 include: {
                     restaurant: {
                         select: {
-                            id: true, 
-                            name: true 
-                        }
-                    }
-                }
-            })
-            return vouchers 
-        } 
-        catch (err) 
-        {
-            console.log("Get all restaurant vouchers error: " , err) 
-            throw err 
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            });
+        } catch (err) {
+            console.log('Get customer active vouchers error: ', err);
+            throw err;
         }
     }
     async getSuitableVoucher(restaurantId : number , cost : number | undefined) 

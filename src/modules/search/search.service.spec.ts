@@ -27,6 +27,14 @@ jest.mock('@prisma/client', () => ({
         APPROVED: 'APPROVED',
         REJECTED: 'REJECTED',
     },
+    OrderStatus: {
+        PENDING: 'PENDING',
+        CONFIRMED: 'CONFIRMED',
+        PREPARING: 'PREPARING',
+        DELIVERING: 'DELIVERING',
+        DELIVERED: 'DELIVERED',
+        CANCELLED: 'CANCELLED',
+    },
     TokenType: {
         ACCESS: 'ACCESS',
         REFRESH: 'REFRESH',
@@ -40,6 +48,7 @@ import { SearchQueryDto } from './dto/search.dto';
 describe('SearchService', () => {
     let service: SearchService;
     let prismaService: any;
+    let voucherService: { getCustomerActiveVouchers: jest.Mock };
     let tx: any;
 
     beforeEach(() => {
@@ -49,15 +58,23 @@ describe('SearchService', () => {
                 delete: jest.fn(),
             },
         };
+        voucherService = {
+            getCustomerActiveVouchers: jest.fn(),
+        };
         prismaService = {
+            searchHistory: {
+                findMany: jest.fn(),
+                upsert: jest.fn(),
+                deleteMany: jest.fn(),
+                findFirst: jest.fn(),
+                groupBy: jest.fn(),
+                delete: jest.fn(),
+            },
             client: {
                 food: {
                     findMany: jest.fn(),
                 },
                 restaurant: {
-                    findMany: jest.fn(),
-                },
-                voucher: {
                     findMany: jest.fn(),
                 },
                 restaurantRating: {
@@ -78,7 +95,7 @@ describe('SearchService', () => {
             transaction: jest.fn(async (callback) => callback(tx)),
         };
 
-        service = new SearchService(prismaService);
+        service = new SearchService(prismaService, voucherService as any);
     });
 
     it('should be defined', () => {
@@ -88,20 +105,7 @@ describe('SearchService', () => {
     describe('search', () => {
         it('should return search results for foods and restaurants with proper structures', async () => {
             const mockNow = new Date();
-            // Mock Vouchers
-            prismaService.client.voucher.findMany.mockResolvedValueOnce([
-                { id: 1, restaurantId: 101, type: 'PERCENT', sale: 15, status: 'APPLYING', startAt: null, endAt: null },
-            ]);
-            // Mock Sold Counts
-            prismaService.client.orderFood.groupBy.mockResolvedValueOnce([
-                { foodId: 1, _sum: { quantity: 10 } },
-            ]);
-            // Mock Avg Ratings
-            prismaService.client.restaurantRating.groupBy.mockResolvedValueOnce([
-                { restaurantId: 101, _avg: { vote: 4.5 } },
-            ]);
 
-            // Mock Foods findMany
             prismaService.client.food.findMany.mockResolvedValueOnce([
                 {
                     id: 1,
@@ -120,7 +124,6 @@ describe('SearchService', () => {
                 },
             ]);
 
-            // Mock Restaurants findMany
             prismaService.client.restaurant.findMany.mockResolvedValueOnce([
                 {
                     id: 101,
@@ -129,10 +132,35 @@ describe('SearchService', () => {
                     deliveryFee: 1.5,
                     createdAt: mockNow,
                     address: { latitude: 10.7, longitude: 106.6 },
-                    foods: [
-                        { category: { name: 'Fast Food' } },
-                    ],
+                    foods: [{ category: { name: 'Fast Food' } }],
                 },
+            ]);
+
+            voucherService.getCustomerActiveVouchers.mockResolvedValueOnce([
+                {
+                    id: 1,
+                    name: 'Summer Sale',
+                    code: 'SUMMER15',
+                    description: '',
+                    image: '',
+                    sale: 15,
+                    type: 'PERCENT',
+                    status: 'APPLYING',
+                    restaurantId: 101,
+                    minimumOrderAmount: 0,
+                    maximumDiscountAmount: null,
+                    startAt: new Date('2026-01-01T00:00:00.000Z'),
+                    endAt: new Date('2026-12-31T23:59:59.000Z'),
+                    createdAt: mockNow,
+                    updatedAt: mockNow,
+                    restaurant: { id: 101, name: 'Burger Town' },
+                },
+            ]);
+            prismaService.client.orderFood.groupBy.mockResolvedValueOnce([
+                { foodId: 1, _sum: { quantity: 10 } },
+            ]);
+            prismaService.client.restaurantRating.groupBy.mockResolvedValueOnce([
+                { restaurantId: 101, _avg: { vote: 4.5 } },
             ]);
 
             const query: SearchQueryDto = {
@@ -145,24 +173,21 @@ describe('SearchService', () => {
             const result = await service.search(query);
             expect(result.foods.length).toBe(1);
             expect(result.foods[0].name).toBe('Burger Phô Mai');
-            expect(result.foods[0].rating).toBe(5); // Calculated from ratings average
-            expect(result.foods[0].promoTag).toBe('Giảm 15%');
+            expect(result.foods[0].rating).toBe(5);
+            expect(result.foods[0]).not.toHaveProperty('promoTag');
             expect(result.foods[0].soldCount).toBe(10);
-            
+
             expect(result.restaurants.length).toBe(1);
             expect(result.restaurants[0].name).toBe('Burger Town');
             expect(result.restaurants[0].averageRating).toBe(4.5);
             expect(result.restaurants[0].hasVoucher).toBe(true);
+            expect(result.restaurants[0].vouchers).toHaveLength(1);
+            expect(result.restaurants[0].vouchers[0].code).toBe('SUMMER15');
             expect(result.restaurants[0].tags).toContain('Fast Food');
+            expect(voucherService.getCustomerActiveVouchers).toHaveBeenCalledWith([101]);
         });
 
         it('should apply category filters, sort foods by price, paginate results and omit food distance metadata', async () => {
-            prismaService.client.voucher.findMany.mockResolvedValueOnce([]);
-            prismaService.client.orderFood.groupBy.mockResolvedValueOnce([
-                { foodId: 1, _sum: { quantity: 2 } },
-                { foodId: 2, _sum: { quantity: 5 } },
-            ]);
-            prismaService.client.restaurantRating.groupBy.mockResolvedValueOnce([]);
             prismaService.client.food.findMany.mockResolvedValueOnce([
                 {
                     id: 1,
@@ -205,6 +230,13 @@ describe('SearchService', () => {
                 },
             ]);
 
+            voucherService.getCustomerActiveVouchers.mockResolvedValueOnce([]);
+            prismaService.client.orderFood.groupBy.mockResolvedValueOnce([
+                { foodId: 1, _sum: { quantity: 2 } },
+                { foodId: 2, _sum: { quantity: 5 } },
+            ]);
+            prismaService.client.restaurantRating.groupBy.mockResolvedValueOnce([]);
+
             const result = await service.search({
                 q: 'pizza',
                 limit: 1,
@@ -245,9 +277,9 @@ describe('SearchService', () => {
                     restaurantName: 'Pizza Town',
                     rating: 4,
                     soldCount: 5,
-                    promoTag: null,
                 },
             ]);
+            expect(result.foods[0]).not.toHaveProperty('promoTag');
             expect(result.foods[0]).not.toHaveProperty('distance');
             expect(result.foods[0]).not.toHaveProperty('updatedAt');
             expect(result.restaurants[0]).toEqual(
@@ -264,15 +296,32 @@ describe('SearchService', () => {
         it('should return suggested foods (top sellers) and nearby restaurants', async () => {
             const mockNow = new Date();
 
-            // Mock top sold foods groupBy
-            prismaService.client.orderFood.groupBy.mockResolvedValueOnce([
-                { foodId: 1, _sum: { quantity: 15 } },
+            voucherService.getCustomerActiveVouchers.mockResolvedValueOnce([
+                {
+                    id: 1,
+                    name: 'Summer Sale',
+                    code: 'SUMMER15',
+                    description: '',
+                    image: '',
+                    sale: 15,
+                    type: 'PERCENT',
+                    status: 'APPLYING',
+                    restaurantId: 101,
+                    minimumOrderAmount: 0,
+                    maximumDiscountAmount: null,
+                    startAt: new Date('2026-01-01T00:00:00.000Z'),
+                    endAt: new Date('2026-12-31T23:59:59.000Z'),
+                    createdAt: mockNow,
+                    updatedAt: mockNow,
+                    restaurant: { id: 101, name: 'Burger Town' },
+                },
+            ]);
+            prismaService.client.restaurantRating.groupBy.mockResolvedValueOnce([
+                { restaurantId: 101, _avg: { vote: 4.6 } },
             ]);
             prismaService.client.orderFood.groupBy.mockResolvedValueOnce([
                 { foodId: 1, _sum: { quantity: 15 } },
             ]);
-
-            // Mock food findMany
             prismaService.client.food.findMany.mockResolvedValueOnce([
                 {
                     id: 1,
@@ -291,18 +340,9 @@ describe('SearchService', () => {
                 },
             ]);
             prismaService.client.food.findMany.mockResolvedValueOnce([]);
-
-            // Mock active vouchers
-            prismaService.client.voucher.findMany.mockResolvedValueOnce([
-                { id: 1, restaurantId: 101, type: 'PERCENT', sale: 15, status: 'APPLYING', startAt: null, endAt: null },
+            prismaService.client.orderFood.groupBy.mockResolvedValueOnce([
+                { foodId: 1, _sum: { quantity: 15 } },
             ]);
-
-            // Mock avg ratings
-            prismaService.client.restaurantRating.groupBy.mockResolvedValueOnce([
-                { restaurantId: 101, _avg: { vote: 4.6 } },
-            ]);
-
-            // Mock restaurants findMany (approved: true)
             prismaService.client.restaurant.findMany.mockResolvedValueOnce([
                 {
                     id: 101,
@@ -329,11 +369,30 @@ describe('SearchService', () => {
             expect(result.restaurants.length).toBe(1);
             expect(result.restaurants[0].distance).toBeLessThanOrEqual(1.0); // Within 10km
             expect(result.restaurants[0].hasVoucher).toBe(true);
+            expect(result.restaurants[0].vouchers).toHaveLength(1);
+            expect(voucherService.getCustomerActiveVouchers).toHaveBeenCalledWith();
         });
 
         it('should fill suggestion foods with rating fallback and sort restaurants by rating when location is missing', async () => {
-            prismaService.client.voucher.findMany.mockResolvedValueOnce([
-                { id: 1, restaurantId: 102, type: 'FIXED', sale: 5 },
+            voucherService.getCustomerActiveVouchers.mockResolvedValueOnce([
+                {
+                    id: 1,
+                    name: 'Fixed Deal',
+                    code: 'FIXED5',
+                    description: '',
+                    image: '',
+                    sale: 5,
+                    type: 'FIXED',
+                    status: 'APPLYING',
+                    restaurantId: 102,
+                    minimumOrderAmount: 0,
+                    maximumDiscountAmount: null,
+                    startAt: new Date('2026-01-01T00:00:00.000Z'),
+                    endAt: new Date('2026-12-31T23:59:59.000Z'),
+                    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+                    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+                    restaurant: { id: 102, name: 'Voucher Burger' },
+                },
             ]);
             prismaService.client.restaurantRating.groupBy.mockResolvedValueOnce([
                 { restaurantId: 101, _avg: { vote: 4.6 } },
@@ -442,32 +501,26 @@ describe('SearchService', () => {
     describe('history management', () => {
         it('should get search history list', async () => {
             const historyRows = [{ id: 1, keyword: 'pizza', createdAt: new Date() }];
-            prismaService.client.searchHistory.findMany.mockResolvedValueOnce(
-                historyRows,
-            );
+            prismaService.searchHistory.findMany.mockResolvedValueOnce(historyRows);
 
             const history = await service.getHistory(1);
 
-            expect(prismaService.client.searchHistory.findMany).toHaveBeenCalledWith({
-                where: {
-                    userId: 1,
-                },
-                orderBy: {
-                    createdAt: 'desc',
-                },
+            expect(prismaService.searchHistory.findMany).toHaveBeenCalledWith({
+                where: { userId: 1 },
+                orderBy: { createdAt: 'desc' },
             });
             expect(history).toBe(historyRows);
         });
 
         it('should save/upsert keyword to history', async () => {
             const mockDate = new Date();
-            prismaService.client.searchHistory.upsert.mockResolvedValueOnce({
+            prismaService.searchHistory.upsert.mockResolvedValueOnce({
                 id: 1,
                 keyword: 'pizza',
                 createdAt: mockDate,
             });
             const result = await service.saveHistory(1, { keyword: 'pizza' });
-            expect(prismaService.client.searchHistory.upsert).toHaveBeenCalledWith({
+            expect(prismaService.searchHistory.upsert).toHaveBeenCalledWith({
                 where: {
                     userId_keyword: {
                         userId: 1,
@@ -488,40 +541,38 @@ describe('SearchService', () => {
         it('should clear all history', async () => {
             const result = await service.clearHistory(1);
 
-            expect(prismaService.client.searchHistory.deleteMany).toHaveBeenCalledWith({
-                userId: 1,
+            expect(prismaService.searchHistory.deleteMany).toHaveBeenCalledWith({
+                where: { userId: 1 },
             });
-            expect(result.success).toBe(true);
+            expect(result.message).toBe('Clear search history successfully');
         });
 
         it('should delete a single history item', async () => {
-            prismaService.client.searchHistory.findFirst.mockResolvedValueOnce({
+            prismaService.searchHistory.findFirst.mockResolvedValueOnce({
                 id: 99,
                 userId: 1,
                 keyword: 'pizza',
             });
             const result = await service.deleteHistoryItem(1, 99);
 
-            expect(prismaService.client.searchHistory.findFirst).toHaveBeenCalledWith({
-                where: {
-                    id: 99,
-                },
+            expect(prismaService.searchHistory.findFirst).toHaveBeenCalledWith({
+                where: { id: 99 },
             });
-            expect(prismaService.client.searchHistory.delete).toHaveBeenCalledWith({
-                id: 99,
+            expect(prismaService.searchHistory.delete).toHaveBeenCalledWith({
+                where: { id: 99 },
             });
-            expect(result.success).toBe(true);
+            expect(result.message).toBe('Delete history item successfully');
         });
 
         it('should throw NotFoundException if history item does not exist', async () => {
-            prismaService.client.searchHistory.findFirst.mockResolvedValueOnce(null);
+            prismaService.searchHistory.findFirst.mockResolvedValueOnce(null);
             await expect(service.deleteHistoryItem(1, 99)).rejects.toThrow(
                 NotFoundException,
             );
         });
 
         it('should throw ForbiddenException if user tries to delete another user\'s history item', async () => {
-            prismaService.client.searchHistory.findFirst.mockResolvedValueOnce({
+            prismaService.searchHistory.findFirst.mockResolvedValueOnce({
                 id: 99,
                 userId: 2,
                 keyword: 'pizza',
@@ -529,7 +580,7 @@ describe('SearchService', () => {
             await expect(service.deleteHistoryItem(1, 99)).rejects.toThrow(
                 ForbiddenException,
             );
-            expect(prismaService.client.searchHistory.delete).not.toHaveBeenCalled();
+            expect(prismaService.searchHistory.delete).not.toHaveBeenCalled();
         });
     });
 
@@ -539,11 +590,11 @@ describe('SearchService', () => {
                 { keyword: 'trà sữa', _count: { keyword: 150 } },
                 { keyword: 'pizza', _count: { keyword: 98 } },
             ];
-            prismaService.client.searchHistory.groupBy.mockResolvedValueOnce(mockTrending);
+            prismaService.searchHistory.groupBy.mockResolvedValueOnce(mockTrending);
 
             const result = await service.getTrending({ limit: 5 });
 
-            expect(prismaService.client.searchHistory.groupBy).toHaveBeenCalledWith({
+            expect(prismaService.searchHistory.groupBy).toHaveBeenCalledWith({
                 by: ['keyword'],
                 _count: {
                     keyword: true,

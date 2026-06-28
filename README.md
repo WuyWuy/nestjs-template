@@ -1,296 +1,131 @@
-# NestJS Template Server
+# Food Delivery Backend (NestJS)
 
-A **clean and ready-to-use backend template** built with NestJS.
-This template helps you quickly start building scalable backend applications with authentication, database integration, API documentation, and modern developer tooling.
+![NestJS](https://img.shields.io/badge/NestJS-%23E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
+![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 
----
-
-# Tech Stack
-
-* **Framework**: NestJS
-* **Language**: TypeScript
-* **ORM**: Prisma
-* **Database**: PostgreSQL
-* **Runtime**: Bun
-* **Authentication**: JWT + Passport
-* **API Documentation**: Scalar
-* **Containerization**: Docker & Docker Compose
-* **Code Quality**: ESLint + Prettier
-* **Git Workflow**: Conventional Commits + Husky + lint-staged
+An enterprise-ready, modular food delivery backend built with NestJS, Prisma ORM, and Bun runtime.
 
 ---
 
-# Badges
+## 🚀 Project Overview & Architecture
 
-![NestJS](https://img.shields.io/badge/NestJS-framework-E0234E?style=for-the-badge\&logo=nestjs\&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-language-007ACC?style=for-the-badge\&logo=typescript\&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-ORM-3982CE?style=for-the-badge\&logo=prisma\&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-database-316192?style=for-the-badge\&logo=postgresql\&logoColor=white)
-![Bun](https://img.shields.io/badge/Bun-runtime-F9F1E1?style=for-the-badge\&logo=bun\&logoColor=black)
-![Docker](https://img.shields.io/badge/Docker-container-2496ED?style=for-the-badge\&logo=docker\&logoColor=white)
+This repository acts as the scalable core backend for a food delivery ecosystem. It exposes RESTful APIs and real-time WebSockets to handle user management, vendor dashboards, dynamic food menus with sizes, cart management, payments, order workflows, and real-time chat.
 
----
+### 🏛️ System Architecture
 
-# Features Included
+The application is structured following modern NestJS module-based architecture:
 
-This template already provides several useful configurations so you can focus on building your application.
-
-## Prisma Configuration
-
-* Ready-to-use Prisma setup
-* PostgreSQL integration
-* Database migrations
-* Seed scripts support
-* Auto-generated TypeScript types
-
-Example commands:
-
-```
-bunx prisma migrate dev
-bunx prisma db seed
-```
+- **Modular Modules:** Each domain feature (Auth, User, Restaurant, Food, Cart, Order, Payment, Chat, Conversation, Notification) is isolated in its own folder under `src/modules/` containing dedicated controllers, services, and data transfer objects (DTOs).
+- **Domain Event Pub/Sub:** Decoupled event emissions via `@nestjs/event-emitter` to run secondary tasks (e.g. pushing Firebase devices/in-app notifications, updating database status logs) asynchronously without blocking primary execution threads.
+- **Data Persistence:** Prisma ORM abstraction using PostgreSQL, utilizing client extensions for transparent global soft deletes (`deleteAt` timestamping).
+- **Real-Time Communication:** Bi-directional real-time chat over WebSockets (Socket.IO rooms) authenticated with JWT guard checks.
+- **Storage Service:** Local or cloud S3/Minio bucket uploads for static media assets (such as conversation image attachments, food photos, and restaurant covers).
 
 ---
 
-## Scalar API Documentation
+## 📁 Folder Structure
 
-Interactive API documentation is available automatically.
-
-Features:
-
-* Clean API interface
-* OpenAPI specification support
-* Live updates when your API changes
-
-After running the server, open:
-
-```
-http://localhost:4000/api/docs
-```
+- `src/` - Application source code
+  - `modules/` - Business domain modules (Auth, Order, Notification, etc.)
+  - `bases/` - Generic application bases (guards, filters, interceptors, decorators)
+  - `prisma/` - Prisma custom client initialization and soft-delete extensions
+  - `realtime/` - Socket.IO gateway and chat handlers
+  - `main.ts` - NestJS application bootstrap entrypoint
+- `prisma/` - Database schema, migrations, and seed scripts
+- `docs/` - Support documentation and guides
 
 ---
 
-## Commit Convention + lint-staged
+## ⚡ Setup & Local Execution
 
-This project enforces **clean commit history** and **code quality**.
-
-Tools included:
-
-* Conventional Commits
-* Husky Git hooks
-* lint-staged
-* ESLint
-* Prettier
-
-Before each commit:
-
-* Lint runs automatically
-* Formatting is applied
-* Invalid commits are blocked
-
----
-
-## Authentication Workflow
-
-Authentication is already implemented using JWT.
-
-Includes:
-
-* Login and Register workflow
-* JWT Access Token
-* Passport strategies
-* Guards for protected routes
-* Role-based authorization
-
-Typical flow:
-
-```
-User Login
-   ↓
-Server generates JWT
-   ↓
-Client sends Authorization header
-   ↓
-JWT Guard verifies token
-   ↓
-User information attached to request
-```
-
----
-
-# Project Structure
-
-```
-src
-│
-├── app.module.ts
-├── main.ts
-│
-├── bases
-│   ├── commons
-│   ├── decorators
-│   ├── guards
-│   ├── filters
-│   └── interceptors
-│
-├── modules
-│   ├── auth
-│   └── test
-│
-└── prisma
-```
-
-Prisma schema files are located in:
-
-```
-prisma/models
-```
-
----
-
-# Prerequisites
-
-Make sure you have installed:
-
-* Bun
-* Docker
-* Docker Compose
-* Node.js 18+
-
----
-
-# Installation
-
-## 1 Clone the repository
-
-```
-git clone <repository-url>
-cd template-server
-```
-
----
-
-## 2 Install dependencies using Bun
-
-```
+### 1. Install Dependencies
+```bash
 bun install
 ```
 
----
-
-## 3 Setup environment variables
-
-Create a `.env` file in the root directory.
-
-Example:
-
-```
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/app_db"
-JWT_SECRET="your-secret-key"
-PORT=4000
+### 2. Configure Environment Variables
+Copy the template environment file and fill in your connection details (Database URL, JWT Secret, Minio keys, Firebase credentials, etc.):
+```bash
+cp .env.example .env
 ```
 
----
-
-## 4 Start database services
-
+### 3. Database Migration & Seeding
+Synchronize the PostgreSQL schema and seed the initial dataset:
+```bash
+bun prisma db push
+bun prisma generate
+bun prisma db seed
 ```
-docker-compose up -d
-```
 
----
-
-## 5 Run database migration
-
-```
-bunx prisma migrate dev
-```
+### 4. Run the Server
+- **Development Mode:**
+  ```bash
+  bun dev
+  ```
+- **Production Mode:**
+  ```bash
+  bun run build
+  bun run start
+  ```
 
 ---
 
-## 6 (Optional) Seed the database
+## 📐 Database Diagram (ERD)
 
-```
-bunx prisma db seed
+```mermaid
+erDiagram
+    User ||--o{ UserRole : has
+    User ||--o{ UserAddress : has
+    User ||--o{ UserCard : has
+    User ||--o{ Device : registers
+    User ||--o{ Notification : receives
+    User ||--o{ Order : places
+    User ||--o{ Cart : owns
+    User ||--o{ RestaurantRating : writes
+    User ||--o{ FoodRating : writes
+    User ||--o{ Conversation : chats_as_customer
+    User ||--o{ Conversation : chats_as_seller
+    User ||--o{ Message : sends
+
+    Address ||--o{ UserAddress : linked
+    Address ||--o{ Restaurant : locates
+    Address ||--o{ Order : ships_to
+
+    Restaurant ||--o{ Food : sells
+    Restaurant ||--o{ RestaurantRating : reviewed
+    Restaurant ||--o{ Voucher : issues
+    Restaurant ||--o{ Order : receives
+
+    Category ||--o{ Food : categorizes
+
+    Food ||--o{ FoodSize : has_sizes
+    Food ||--o{ FoodIngredient : has_ingredients
+    Food ||--o{ FoodRating : reviewed
+    Food ||--o{ CartItem : added
+    Food ||--o{ OrderFood : ordered
+
+    Size ||--o{ FoodSize : defines
+    Ingredient ||--o{ FoodIngredient : defines
+
+    Cart ||--o{ CartItem : contains
+    FoodSize ||--o{ CartItem : selected_size
+
+    Order ||--o{ OrderFood : contains
+    Order ||--|| Payment : details
+    FoodSize ||--o{ OrderFood : selected_size
+    Voucher ||--o{ Order : applied_to
+
+    Notification ||--o{ NotificationChannel : delivers_via
+    Conversation ||--o{ Message : contains
 ```
 
 ---
 
-# Running the Project with Bun
-
-## Development mode
-
-```
-bun dev
-```
-
-Server runs at:
-
-```
-http://localhost:4000
-```
-
-Hot reload is enabled.
-
----
-
-## Production build
-
-```
-bun run build
-bun run start:prod
-```
-
----
-
-## Run with Docker
-
-```
-docker-compose up --build
-```
-
----
-
-# Available Scripts
-
-| Command          | Description              |
-| ---------------- | ------------------------ |
-| `bun dev`        | Start development server |
-| `bun start`      | Start production server  |
-| `bun run build`  | Build the project        |
-| `bun run lint`   | Run ESLint               |
-| `bun run format` | Format code              |
-| `bun test`       | Run tests                |
-| `bun test:e2e`   | Run end-to-end tests     |
-| `bun test:cov`   | Test coverage            |
-
----
-
-# Contributing
-
-Before submitting code:
-
-1. Follow Conventional Commit format
-2. Run lint
-
-```
-bun run lint
-```
-
-3. Format code
-
-```
-bun run format
-```
-
-4. Ensure tests pass
-
-```
+## 🧪 Testing
+```bash
+# Run unit and E2E integration tests
 bun test
 ```
-
----
-
-# License
-
-- Belong to Cloudian 

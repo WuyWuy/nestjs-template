@@ -1,0 +1,29 @@
+model Payment {
+    id            Int           @id @default(autoincrement())
+    orderId       Int       @unique
+    method        PaymentMethod
+    amount        Decimal 
+    paymentStatus PaymentStatus
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @updatedAt
+    order         Order         @relation(fields: [orderId], references: [id])
+    deleteAt      DateTime?
+
+    @@unique([orderId, method])
+}
+
+model UserCard {
+    id                    Int       @id @default(autoincrement())
+    userId                Int
+    user                  User      @relation(fields: [userId], references: [id])
+    brand                 String
+    last4                 String
+    expiryMonth           Int
+    expiryYear            Int
+    stripePaymentMethodId String
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
+    deleteAt              DateTime?
+
+    @@index([userId])
+}

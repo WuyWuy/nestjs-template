@@ -1,0 +1,24 @@
+model Address {
+    id           Int           @id @default(autoincrement())
+    title        String
+    latitude     Float?
+    longitude    Float?
+    fullText     String?
+    updatedAt    DateTime      @updatedAt
+    deleteAt    DateTime?
+    restaurants Restaurant[]
+    userAddress UserAddress[]
+    orders      Order[]
+}
+
+//Mot nguoi se co nhieu loai dia chi ==== Them 1 bang de lien ket giua nguoi va dia chi 
+model UserAddress {
+    id             Int       @id @default(autoincrement())
+    userId         Int
+    title          String
+    addressId      Int
+    addressDetail  String?   @db.VarChar(500)
+    user           User      @relation(fields: [userId], references: [id])
+    address        Address   @relation(fields: [addressId], references: [id])
+    deleteAt       DateTime?
+}

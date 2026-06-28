@@ -1,0 +1,46 @@
+model User {
+    id                    Int                @id @default(autoincrement())
+    name                  String
+    password              String
+    phone                 String?             @unique
+    birthday              DateTime
+    email                 String             @unique
+    active                Boolean            @default(false)
+    isBlocked             Boolean            @default(false)
+    blockedReason         String?
+    blockedAt             DateTime?
+    createdAt             DateTime           @default(now())
+    updatedAt             DateTime           @updatedAt
+    deleteAt              DateTime?
+    avatar                String             @default("")
+    restaurants           Restaurant[]
+    ratings               RestaurantRating[]
+    cart                  Cart?
+    userRoles             UserRole[]
+    devices               Device[]
+    notifications         Notification[]
+    userAddress           UserAddress[]
+    customerConversations Conversation[]     @relation("CustomerConversations")
+    sellerConversations   Conversation[]     @relation("SellerConversations")
+    chatMessages          Message[]          @relation("ChatMessages")
+    identities            Identity[]
+    orders                Order[]
+    auditLogs             AuditLog[]
+    stripeCustomerId      String?
+    userCards             UserCard[]
+    foodRatings           FoodRating[]
+    searchHistories       SearchHistory[]
+    favoriteRestaurants   UserFavoriteRestaurant[]
+
+    @@index([isBlocked])
+}
+
+model UserRole {
+    id      Int       @id @default(autoincrement())
+    userId  Int
+    user    User      @relation(fields: [userId], references: [id])
+    role    Role
+    deleteAt DateTime?
+
+    @@unique([userId, role])
+}

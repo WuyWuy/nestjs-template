@@ -1,0 +1,40 @@
+model OTP {
+    id        Int       @id @default(autoincrement())
+    otp       String
+    userId    Int
+    type      OTPType
+    createdAt DateTime  @default(now())
+    deleteAt  DateTime?
+    usedAt    DateTime?
+    expiresAt DateTime
+}
+
+model Identity {
+    id             Int          @id @default(autoincrement())
+    userId         Int
+    user           User         @relation(fields: [userId], references: [id])
+    provider       AuthProvider
+    providerUserId String
+    accessToken    String?
+    createdAt      DateTime     @default(now())
+    updatedAt      DateTime     @updatedAt
+    deleteAt       DateTime?
+
+    @@unique([provider, providerUserId])
+    @@unique([userId, provider])
+    @@index([userId])
+}
+
+model AuthToken {
+    id     Int       @id @default(autoincrement())
+    token  String
+    userId Int
+    type   TokenType
+
+    createdAt DateTime  @default(now())
+    usedAt    DateTime?
+    expiresAt DateTime
+
+    @@index([userId])
+    @@index([token])
+}

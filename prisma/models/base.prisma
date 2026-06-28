@@ -1,12 +1,84 @@
-
 enum Role {
-    ADMIN 
-    USER 
-    //Enter more roles if you want 
+    ADMIN
+    BUSINESS
+    CUSTOMER
 }
+
+enum RestaurantApprovalStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
 enum TokenType {
-    RESET_PASSWORD 
-    RESET_EMAIL 
-    ACCESS 
-    REFRESH 
+    ACCESS
+    REFRESH
+}
+
+enum OTPType {
+    RESET_PASSWORD_OTP   //Reset Password 
+    RESET_EMAIL_OTP   //Change Email 
+    VERIFY_OTP   //Verify When Register 
+}
+
+enum AuthProvider {
+    LOCAL
+    FACEBOOK
+    GOOGLE
+}
+
+enum OrderStatus {
+    PENDING
+    CONFIRMED
+    PREPARING
+    DELIVERING
+    DELIVERED
+    CANCELLED
+}
+
+enum ConfirmedBy {
+    CUSTOMER
+    SYSTEM
+    ADMIN
+}
+
+enum PaymentMethod {
+    MOMO
+    CASH
+}
+
+enum PaymentStatus {
+    UNPAID 
+    FAILED
+    SOLVING
+    DONE
+}
+
+enum VoucherType {
+    PERCENT 
+    MONEY 
+} 
+enum VoucherStatus {
+    APPLYING 
+    ENDED 
+}
+
+enum NotificationType {
+    SYSTEM
+    ORDER
+    PAYMENT
+    PROMOTION
+    CHAT
+}
+
+enum DeliveryChannel {
+    IN_APP
+    DEVICE
+}
+
+enum DeliveryStatus {
+    PENDING
+    SENT
+    FAILED
+    SKIPPED
 }

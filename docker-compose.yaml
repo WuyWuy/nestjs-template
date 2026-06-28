@@ -3,14 +3,14 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16
-    container_name: postgres
+    container_name: food-delivery-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: app_db # Change this for your template 
     ports:
-      - "5432:5432"
+      - "5430:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -32,7 +32,17 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
-
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    volumes:
+      - mailpit-data:/data
+    environment:
+      MP_DATA_FILE: /data/mailpit.db
   api:
     container_name: app-be-server
     build:
@@ -43,18 +53,7 @@ services:
       - "4000:4000"
     env_file:
       - .env
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/app_db
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_USE_SSL: "false"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_started
 volumes:
   postgres_data:
   minio_data:
+  mailpit-data: 

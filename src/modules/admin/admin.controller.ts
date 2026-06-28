@@ -1,0 +1,240 @@
+import {
+    Body,
+    Controller,
+    Get,
+    Param,
+    ParseIntPipe,
+    Patch,
+    Post,
+    Query,
+    Req,
+    UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
+import {
+    Role,
+    PaymentStatus,
+    RestaurantApprovalStatus,
+} from '@prisma/client';
+import { Roles } from '@/bases/decorators/role.decorators';
+import { RolesGuard } from '@/bases/guards/role.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminService } from './admin.service';
+import {
+    AdminResetPasswordDto,
+    AdminUsersQueryDto,
+    ApproveRestaurantDto,
+    AuditLogQueryDto,
+    BlockUserDto,
+    PaymentAdminQueryDto,
+    RevenueDetailsQueryDto,
+    UpdateRestaurantActiveStatusDto,
+    UpdatePaymentStatusDto,
+} from './dto/admin.dto';
+
+@ApiTags('15. Admin')
+@ApiBearerAuth()
+@Controller('admin')
+@Roles(Role.ADMIN)
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class AdminController {
+    constructor(private readonly adminService: AdminService) {}
+
+    @ApiOperation({ summary: 'Xem dashboard admin' })
+    @Get('dashboard')
+    async getDashboard(@Req() req: Request) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.getDashboardSummary(actorId);
+    }
+
+    @ApiOperation({ summary: 'Xem doanh thu admin' })
+    @Get('revenue')
+    async getRevenue(@Req() req: Request) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.getRevenueSummary(actorId);
+    }
+
+    @ApiOperation({ summary: 'Xem chi tiết các đơn đóng góp vào doanh thu' })
+    @Get('dashboard/revenue-details')
+    async getRevenueDetails(
+        @Req() req: Request,
+        @Query() query: RevenueDetailsQueryDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.getRevenueDetails(actorId, query);
+    }
+
+    @ApiOperation({ summary: 'Xem danh sách người dùng' })
+    @Get('users')
+    async getUsers(
+        @Req() req: Request,
+        @Query() query: AdminUsersQueryDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.getUsers(actorId, query);
+    }
+
+    @ApiOperation({ summary: 'Khóa hoặc mở khóa tài khoản người dùng' })
+    @Post('users/:userId/block')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                isBlocked: {
+                    type: 'boolean',
+                    example: true
+                }, 
+                reason: {
+                    type: 'string', 
+                    example: 'Ăn quá nhiều'
+                }
+            }
+        },
+    })
+    async updateUserBlockStatus(
+        @Req() req: Request,
+        @Param('userId', ParseIntPipe) userId: number,
+        @Body() data: BlockUserDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.updateUserBlockStatus(
+            actorId,
+            userId,
+            data,
+        );
+    }
+
+    @ApiOperation({ summary: 'Bật hoặc tắt hoạt động của nhà hàng' })
+    @Patch('restaurant/:restaurantId/status')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                isActive: {
+                    type: 'boolean',
+                    example: true
+                }
+            }
+        },
+    })
+    async updateRestaurantActiveStatus(
+        @Req() req: Request,
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Body() data: UpdateRestaurantActiveStatusDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.updateRestaurantActiveStatus(
+            actorId,
+            restaurantId,
+            data.isActive,
+        );
+    }
+
+    @ApiOperation({ summary: 'Xem audit logs' })
+    @Get('audit-logs')
+    async getAuditLogs(@Req() req: Request, @Query() query: AuditLogQueryDto) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.getAuditLogs(actorId, query);
+    }
+
+    @ApiOperation({ summary: 'Xem danh sách thanh toán admin' })
+    @Get('payments')
+    async getPayments(
+        @Req() req: Request,
+        @Query() query: PaymentAdminQueryDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.getPayments(actorId, query);
+    }
+
+    @ApiOperation({ summary: 'Cập nhật trạng thái thanh toán' })
+    @ApiBody({
+        type: UpdatePaymentStatusDto,
+        examples: {
+            example: {
+                summary: 'Chuyển thanh toán sang đã hoàn tất',
+                value: {
+                    paymentStatus: 'DONE',
+                },
+            },
+        },
+    })
+    @Patch('payments/:paymentId')
+    async updatePaymentStatus(
+        @Req() req: Request,
+        @Param('paymentId', ParseIntPipe) paymentId: number,
+        @Body() data: UpdatePaymentStatusDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.updatePaymentStatus(
+            actorId,
+            paymentId,
+            data.paymentStatus as PaymentStatus,
+        );
+    }
+
+    @ApiOperation({ summary: 'Reset mật khẩu user' })
+    @ApiBody({
+        type: AdminResetPasswordDto,
+        examples: {
+            sendEmail: {
+                summary: 'Reset và gửi email cho user',
+                value: {
+                    sendEmail: true,
+                },
+            },
+            noEmail: {
+                summary: 'Reset không gửi email',
+                value: {
+                    sendEmail: false,
+                },
+            },
+        },
+    })
+    @Post('users/:userId/reset-password')
+    async resetUserPassword(
+        @Req() req: Request,
+        @Param('userId', ParseIntPipe) userId: number,
+        @Body() data: AdminResetPasswordDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.resetUserPassword(
+            actorId,
+            userId,
+            data,
+        );
+    }
+
+    @ApiOperation({ summary: 'Duyệt hoặc từ chối nhà hàng' })
+    @ApiBody({
+        type: ApproveRestaurantDto,
+        examples: {
+            approve: {
+                summary: 'Duyệt nhà hàng',
+                value: {
+                    status: RestaurantApprovalStatus.APPROVED,
+                },
+            },
+            reject: {
+                summary: 'Từ chối nhà hàng',
+                value: {
+                    status: RestaurantApprovalStatus.REJECTED,
+                },
+            },
+        },
+    })
+    @Patch('restaurants/:restaurantId/approval')
+    async updateRestaurantApproval(
+        @Req() req: Request,
+        @Param('restaurantId', ParseIntPipe) restaurantId: number,
+        @Body() data: ApproveRestaurantDto,
+    ) {
+        const actorId = Number((req.user as { id?: number })?.id);
+        return await this.adminService.updateRestaurantApproval(
+            actorId,
+            restaurantId,
+            data.status,
+        );
+    }
+}

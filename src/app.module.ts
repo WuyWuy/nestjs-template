@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TestModule } from './modules/test/test.module';
@@ -9,31 +11,79 @@ import { TransformInterceptor } from './bases/interceptors/transform.interceptor
 import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
-//Add  e module here
+import { TwilioModule } from './modules/twilio/twilio.module';
+import { DeviceModule } from './modules/device/device.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { EmailModule } from './modules/email/email.module';
+import { MinioModule } from './modules/minio/minio.module';
+import { UserModule } from './modules/user/user.module';
+import { AddressModule } from './modules/address/address.module';
+import { ChatGateway } from './realtime/chat.gateway';
+import { ChatService } from './realtime/chat.service';
+import { ConversationModule } from './modules/conversation/conversation.module';
+import { FoodModule } from './modules/food/food.module';
+import { RestaurantModule } from './modules/restaurant/restaurant.module';
+import { CartModule } from './modules/cart/cart.module';
+import { OrderModule } from './modules/order/order.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { CategoryModule } from './modules/category/category.module';
+import { VoucherModule } from './modules/voucher/voucher.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { HealthModule } from './modules/health/health.module';
+import { SearchModule } from './modules/search/search.module';
+import { FavoriteModule } from './modules/favorite/favorite.module';
+import { HomeModule } from './modules/home/home.module';
+
 @Module({
-  imports: [
-    TestModule,
-    PrismaModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    AuthModule
-  ],
-  controllers: [AppController],
-  providers: [
-    AppService,
-    {
-      provide: APP_FILTER,
-      useClass: HttpExceptionFilter,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: LoggingInterceptor,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: TransformInterceptor,
-    },
-  ],
+    imports: [
+        TestModule,
+        PrismaModule,
+        ConfigModule.forRoot({
+            isGlobal: true,
+        }),
+        EventEmitterModule.forRoot(),
+        ScheduleModule.forRoot(),
+        AuditModule,
+        AuthModule,
+        TwilioModule, //Sending SmS
+        DeviceModule,
+        NotificationModule,
+        EmailModule,
+        MinioModule,
+        UserModule,
+        AddressModule,
+        ConversationModule,
+        FoodModule,
+        RestaurantModule,
+        CartModule,
+        OrderModule,
+        PaymentModule, //Mot lat sau nho go cai nay ra
+        CategoryModule,
+        VoucherModule,
+        AdminModule,
+        HealthModule,
+        SearchModule,
+        FavoriteModule,
+        HomeModule,
+    ],
+    controllers: [AppController],
+    providers: [
+        ChatGateway,
+        ChatService,
+        AppService,
+        {
+            provide: APP_FILTER,
+            useClass: HttpExceptionFilter,
+        },
+        {
+            provide: APP_INTERCEPTOR,
+            useClass: LoggingInterceptor,
+        },
+        {
+            provide: APP_INTERCEPTOR,
+            useClass: TransformInterceptor,
+        },
+    ],
 })
 export class AppModule {}

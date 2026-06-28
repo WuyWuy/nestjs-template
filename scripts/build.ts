@@ -6,10 +6,10 @@ async function main() {
     await $`rm -rf dist`;
 
     console.log("Prisma generate...");
-    await $`bunx prisma generate`;
+    await $`bun prisma generate`;
 
     console.log("Build with tsc (via Bun)...");
-    await $`bunx tsc -p tsconfig.build.json`;
+    await $`bun tsc -p tsconfig.build.json`;
 
     console.log("Build success");
   } catch (err) {

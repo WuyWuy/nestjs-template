@@ -1,9 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('01. Init')
 @Controller('/test')
 export class TestController {
-  @Get()
-  testing() {
-    return 'Server testing successfully';
-  }
+    @ApiOperation({ summary: 'Smoke test nhanh cho server' })
+    @Get()
+    testing() {
+        return 'Server testing successfully';
+    }
 }

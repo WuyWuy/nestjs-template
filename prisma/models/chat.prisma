@@ -1,0 +1,32 @@
+model Conversation {
+    id         Int       @id @default(autoincrement())
+    customerId Int
+    sellerId   Int
+    customer   User      @relation("CustomerConversations", fields: [customerId], references: [id])
+    seller     User      @relation("SellerConversations", fields: [sellerId], references: [id])
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
+    deleteAt   DateTime?
+    messages   Message[]
+
+    @@unique([customerId, sellerId])
+    @@index([customerId])
+    @@index([sellerId])
+}
+
+model Message {
+    id             Int          @id @default(autoincrement())
+    conversationId Int
+    conversation   Conversation @relation(fields: [conversationId], references: [id])
+    senderId       Int
+    sender         User         @relation("ChatMessages", fields: [senderId], references: [id])
+    content        String       @db.Text
+    image          String       @default("")
+    isRead         Boolean      @default(false)
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    deleteAt  DateTime?
+
+    @@index([senderId])
+}

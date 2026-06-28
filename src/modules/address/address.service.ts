@@ -16,6 +16,7 @@ import {
     UpdateAddressDto,
 } from './dto/address.dto';
 import { AuditService } from '../audit/audit.service';
+import { assertValidAddressCoordinates } from './address-coordinates.helper';
 
 type AddressDb = CustomPrismaClient | TransactionClientExtended;
 
@@ -67,6 +68,12 @@ export class AddressService {
 
     async createAddress(address: CreateAddressDto, db?: AddressDb) {
         try {
+            assertValidAddressCoordinates(address.latitude, address.longitude);
+
+            if (!address.fullText?.trim()) {
+                throw new BadRequestException('fullText is required');
+            }
+
             const addressDb = this.getAddressDb(db);
             const existsAddress = await this.findAddress(address, addressDb);
             if (existsAddress) return existsAddress;
@@ -74,12 +81,25 @@ export class AddressService {
             return await addressDb.address.create({
                 data: {
                     ...address,
+                    fullText: address.fullText.trim(),
                 },
             });
         } catch (err) {
             console.log('creating address error:', err);
             throw err;
         }
+    }
+
+    async updateAddressInPlace(
+        id: number,
+        data: Record<string, unknown>,
+        db?: AddressDb,
+    ) {
+        const addressDb = this.getAddressDb(db);
+        return await addressDb.address.update({
+            where: { id },
+            data,
+        });
     }
 
     async getAllAddresses(query: AddressListQueryDto) {
@@ -326,11 +346,16 @@ export class AddressService {
             mergedAddress.longitude !== null &&
             mergedAddress.longitude !== undefined
         ) {
+            assertValidAddressCoordinates(
+                mergedAddress.latitude,
+                mergedAddress.longitude,
+            );
+
             const duplicatedAddress = await this.findAddress({
                 title: mergedAddress.title,
                 latitude: mergedAddress.latitude,
                 longitude: mergedAddress.longitude,
-                fullText: mergedAddress.fullText,
+                fullText: mergedAddress.fullText ?? '',
             });
 
             if (duplicatedAddress && duplicatedAddress.id !== id) {
@@ -340,11 +365,21 @@ export class AddressService {
             }
         }
 
+        const updateData: UpdateAddressDto = {};
+        if (data.title !== undefined) updateData.title = data.title;
+        if (data.fullText !== undefined) updateData.fullText = data.fullText;
+        if (data.latitude !== undefined && data.latitude !== 0) {
+            updateData.latitude = data.latitude;
+        }
+        if (data.longitude !== undefined && data.longitude !== 0) {
+            updateData.longitude = data.longitude;
+        }
+
         const updatedAddress = await this.prismaService.client.address.update({
             where: {
                 id,
             },
-            data,
+            data: updateData,
         });
 
         await this.auditService.log(

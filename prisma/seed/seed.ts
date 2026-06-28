@@ -20,6 +20,7 @@ import {
     ingredients,
 } from './data/catalog';
 import { seedImages } from './data/media-urls';
+import { addressSeeds } from './data/addresses';
 import {
     favoriteSeeds,
     foodSeeds,
@@ -37,44 +38,35 @@ type DbClient = PrismaClient | Prisma.TransactionClient;
 const now = new Date();
 const oneDay = 24 * 60 * 60 * 1000;
 
-const addresses = [
-    {
-        key: 'district-1',
-        title: 'District 1 Hub',
-        latitude: 10.776889,
-        longitude: 106.700806,
-        fullText: '123 Nguyen Hue, Ben Nghe Ward, District 1, Ho Chi Minh City',
-    },
-    {
-        key: 'district-3',
-        title: 'District 3 Home',
-        latitude: 10.786749,
-        longitude: 106.690529,
-        fullText: '45 Vo Van Tan, Ward 6, District 3, Ho Chi Minh City',
-    },
-    {
-        key: 'phu-nhuan',
-        title: 'Phu Nhuan Office',
-        latitude: 10.799055,
-        longitude: 106.680168,
-        fullText: '12 Hoang Van Thu, Ward 9, Phu Nhuan, Ho Chi Minh City',
-    },
-    {
-        key: 'thu-duc',
-        title: 'Thu Duc Stop',
-        latitude: 10.845161,
-        longitude: 106.794357,
-        fullText: '99 Vo Van Ngan, Linh Chieu Ward, Thu Duc City',
-    },
-    {
-        key: 'binh-thanh',
-        title: 'Binh Thanh Corner',
-        latitude: 10.808153,
-        longitude: 106.709572,
-        fullText: '18 Dien Bien Phu, Ward 15, Binh Thanh, Ho Chi Minh City',
-    },
-] as const;
+const addresses = addressSeeds;
 
+async function cleanupStaleAddresses(db: DbClient) {
+    const knownFullTexts = addresses.map((item) => item.fullText);
+
+    await db.userAddress.updateMany({
+        where: {
+            deleteAt: null,
+            address: {
+                fullText: { notIn: knownFullTexts },
+            },
+        },
+        data: {
+            deleteAt: new Date(),
+        },
+    });
+
+    await db.address.updateMany({
+        where: {
+            deleteAt: null,
+            fullText: { notIn: knownFullTexts },
+            restaurants: { none: {} },
+            orders: { none: {} },
+        },
+        data: {
+            deleteAt: new Date(),
+        },
+    });
+}
 
 const users = {
     admin: {
@@ -176,8 +168,8 @@ const users = {
         roles: [Role.CUSTOMER],
         avatar: seedImages.avatars.customer1,
         addressTitles: [
-            { addressKey: 'district-3', title: 'Home' },
-            { addressKey: 'binh-thanh', title: 'Office' },
+            { addressKey: 'district-3', title: 'Home', addressDetail: 'Tầng 12, căn B2, Sky Garden Residence' },
+            { addressKey: 'binh-thanh', title: 'Office', addressDetail: 'Lầu 8, cổng bên phải thang máy' },
         ],
     },
     customer2: {
@@ -188,7 +180,7 @@ const users = {
         birthday: '2000-09-08T00:00:00.000Z',
         roles: [Role.CUSTOMER],
         avatar: seedImages.avatars.customer2,
-        addressTitles: [{ addressKey: 'thu-duc', title: 'Home' }],
+        addressTitles: [{ addressKey: 'thu-duc', title: 'Home', addressDetail: 'Chung cư Sunrise, block A, căn 1502' }],
     },
     customer3: {
         name: 'Seed Customer Three',
@@ -198,7 +190,67 @@ const users = {
         birthday: '1999-07-22T00:00:00.000Z',
         roles: [Role.CUSTOMER],
         avatar: seedImages.avatars.customer3,
-        addressTitles: [{ addressKey: 'phu-nhuan', title: 'Home' }],
+        addressTitles: [{ addressKey: 'phu-nhuan', title: 'Home', addressDetail: 'Nhà riêng, gọi trước khi giao 10 phút' }],
+    },
+    business9: {
+        name: 'Seed Business Nine',
+        email: 'business9@seed.local',
+        phone: '0900000013',
+        password: 'business123',
+        birthday: '1984-03-11T00:00:00.000Z',
+        roles: [Role.BUSINESS],
+        avatar: seedImages.avatars.business9,
+        addressTitles: [{ addressKey: 'district-7', title: 'Business HQ' }],
+    },
+    business10: {
+        name: 'Seed Business Ten',
+        email: 'business10@seed.local',
+        phone: '0900000014',
+        password: 'business123',
+        birthday: '1983-09-19T00:00:00.000Z',
+        roles: [Role.BUSINESS],
+        avatar: seedImages.avatars.business10,
+        addressTitles: [{ addressKey: 'go-vap', title: 'Business HQ' }],
+    },
+    business11: {
+        name: 'Seed Business Eleven',
+        email: 'business11@seed.local',
+        phone: '0900000015',
+        password: 'business123',
+        birthday: '1982-01-27T00:00:00.000Z',
+        roles: [Role.BUSINESS],
+        avatar: seedImages.avatars.business11,
+        addressTitles: [{ addressKey: 'tan-binh', title: 'Business HQ' }],
+    },
+    business12: {
+        name: 'Seed Business Twelve',
+        email: 'business12@seed.local',
+        phone: '0900000016',
+        password: 'business123',
+        birthday: '1981-06-06T00:00:00.000Z',
+        roles: [Role.BUSINESS],
+        avatar: seedImages.avatars.business12,
+        addressTitles: [{ addressKey: 'district-1', title: 'Business HQ' }],
+    },
+    business13: {
+        name: 'Seed Business Thirteen',
+        email: 'business13@seed.local',
+        phone: '0900000017',
+        password: 'business123',
+        birthday: '1980-10-14T00:00:00.000Z',
+        roles: [Role.BUSINESS],
+        avatar: seedImages.avatars.business13,
+        addressTitles: [{ addressKey: 'phu-nhuan', title: 'Business HQ' }],
+    },
+    business14: {
+        name: 'Seed Business Fourteen',
+        email: 'business14@seed.local',
+        phone: '0900000018',
+        password: 'business123',
+        birthday: '1979-12-01T00:00:00.000Z',
+        roles: [Role.BUSINESS],
+        avatar: seedImages.avatars.business14,
+        addressTitles: [{ addressKey: 'binh-thanh', title: 'Business HQ' }],
     },
 } as const;
 
@@ -324,6 +376,7 @@ async function ensureUserAddress(
     userId: number,
     title: string,
     addressId: number,
+    addressDetail?: string | null,
 ) {
     const existing = await db.userAddress.findFirst({
         where: {
@@ -337,6 +390,7 @@ async function ensureUserAddress(
             where: { id: existing.id },
             data: {
                 addressId,
+                addressDetail: addressDetail ?? null,
                 deleteAt: null,
             },
         });
@@ -347,6 +401,7 @@ async function ensureUserAddress(
             userId,
             title,
             addressId,
+            addressDetail: addressDetail ?? null,
         },
     });
 }
@@ -1023,6 +1078,8 @@ async function backfillEmptyFoodImages(db: DbClient) {
 async function main() {
     await prisma.$transaction(
         async (tx) => {
+            await cleanupStaleAddresses(tx);
+
             const addressMap = new Map<
                 string,
                 Awaited<ReturnType<typeof upsertAddress>>
@@ -1082,6 +1139,9 @@ async function main() {
                         user.id,
                         addressLink.title,
                         address.id,
+                        'addressDetail' in addressLink
+                            ? addressLink.addressDetail
+                            : null,
                     );
                 }
             }
@@ -1123,6 +1183,11 @@ async function main() {
             const dessertCategory = categoryMap.get('Dessert');
             const drinksCategory = categoryMap.get('Drinks');
             const pizzaCategory = categoryMap.get('Pizza');
+            const seafoodCategory = categoryMap.get('Seafood');
+            const koreanCategory = categoryMap.get('Korean');
+            const healthyCategory = categoryMap.get('Healthy');
+            const breakfastCategory = categoryMap.get('Breakfast');
+            const bbqCategory = categoryMap.get('BBQ');
 
             if (
                 !burgerCategory ||
@@ -1131,7 +1196,12 @@ async function main() {
                 !noodlesCategory ||
                 !dessertCategory ||
                 !drinksCategory ||
-                !pizzaCategory
+                !pizzaCategory ||
+                !seafoodCategory ||
+                !koreanCategory ||
+                !healthyCategory ||
+                !breakfastCategory ||
+                !bbqCategory
             ) {
                 throw new Error('Seed categories were not created correctly');
             }
@@ -1148,8 +1218,20 @@ async function main() {
             const thuDuc = addressMap.get('thu-duc');
             const binhThanh = addressMap.get('binh-thanh');
             const phuNhuan = addressMap.get('phu-nhuan');
+            const district7 = addressMap.get('district-7');
+            const goVap = addressMap.get('go-vap');
+            const tanBinh = addressMap.get('tan-binh');
 
-            if (!district1 || !district3 || !thuDuc || !binhThanh || !phuNhuan) {
+            if (
+                !district1 ||
+                !district3 ||
+                !thuDuc ||
+                !binhThanh ||
+                !phuNhuan ||
+                !district7 ||
+                !goVap ||
+                !tanBinh
+            ) {
                 throw new Error('Seed addresses were not created correctly');
             }
 
@@ -1878,6 +1960,12 @@ async function main() {
                 { userId: business8.id, keyword: 'bbq ribs' },
                 { userId: customer1.id, keyword: 'matcha' },
                 { userId: customer2.id, keyword: 'coco tea' },
+                { userId: customer1.id, keyword: 'ramen' },
+                { userId: customer1.id, keyword: 'bibimbap' },
+                { userId: customer2.id, keyword: 'seafood' },
+                { userId: customer3.id, keyword: 'healthy bowl' },
+                { userId: customer3.id, keyword: 'breakfast' },
+                { userId: customer1.id, keyword: 'tom yum' },
             ];
 
             for (const history of searchHistories) {
@@ -1991,18 +2079,27 @@ async function main() {
     console.log('BUSINESS phone=0900000010 password=business123 (Pizza Corner)');
     console.log('BUSINESS phone=0900000011 password=business123 (Saigon Coffee & Bites)');
     console.log('BUSINESS phone=0900000012 password=business123 (BBQ House)');
+    console.log('BUSINESS phone=0900000013 password=business123 (Pho 24 Legend)');
+    console.log('BUSINESS phone=0900000014 password=business123 (Tokyo Ramen House)');
+    console.log('BUSINESS phone=0900000015 password=business123 (Seoul Kitchen)');
+    console.log('BUSINESS phone=0900000016 password=business123 (Ocean Catch Seafood)');
+    console.log('BUSINESS phone=0900000017 password=business123 (Green Bowl Healthy)');
+    console.log('BUSINESS phone=0900000018 password=business123 (Sunrise Breakfast Club)');
     console.log('CUSTOMER phone=0900000003 password=customer123');
     console.log('CUSTOMER phone=0900000004 password=customer456');
     console.log('CUSTOMER phone=0900000007 password=customer789');
     console.log(
-        'Restaurants: 8 (Burger Town, Rice Express, Sushi Lab, Bep Viet, CoCo Tea, Pizza Corner, Saigon Coffee, BBQ House)',
+        'Restaurants: 14 (Burger Town, Rice Express, Sushi Lab, Bep Viet, CoCo Tea, Pizza Corner, Saigon Coffee, BBQ House, Pho 24 Legend, Tokyo Ramen, Seoul Kitchen, Ocean Catch, Green Bowl, Sunrise Breakfast)',
     );
-    console.log('Foods: 38 items across 7 categories');
+    console.log('Foods: 62 items across 12 categories');
+    console.log(
+        'Addresses: 8 map pins with Photon titles + addressDetail on customer saved addresses',
+    );
     console.log(
         'Multi-restaurant carts: customer1=Burger+Rice; customer2=Rice+CoCo; customer3=Pizza+BBQ+Coffee',
     );
     console.log(
-        'Search keywords: bun bo, milk tea, burger, pho, pizza, bbq ribs, banh mi, matcha, coco tea, coffee',
+        'Search keywords: bun bo, milk tea, burger, pho, pizza, bbq ribs, banh mi, matcha, ramen, bibimbap, seafood, healthy bowl, breakfast, tom yum',
     );
     console.log(
         'Voucher codes: WELCOME5, BURGER10, RICEOLD, BEPVIET15, COCO20, TEA10, PIZZA15, BBQ12',

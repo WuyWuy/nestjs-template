@@ -1,22 +1,33 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
-import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+    IsInt,
+    IsNotEmpty,
+    IsNumber,
+    IsOptional,
+    IsString,
+    Min,
+    NotEquals,
+} from 'class-validator';
 
 export class CreateAddressDto {
     @IsString()
+    @IsNotEmpty()
     title: string;
 
     @Type(() => Number)
     @IsNumber()
+    @NotEquals(0, { message: 'latitude must not be 0' })
     latitude: number;
 
     @Type(() => Number)
     @IsNumber()
+    @NotEquals(0, { message: 'longitude must not be 0' })
     longitude: number;
 
     @IsString()
-    @IsOptional()
-    fullText?: string;
+    @IsNotEmpty()
+    fullText: string;
 }
 
 export class AddressListQueryDto {
@@ -58,3 +69,23 @@ export class FindAddressDto extends AddressListQueryDto {
 }
 
 export class UpdateAddressDto extends PartialType(CreateAddressDto) {}
+
+export class ChangeUserAddressLocationDto {
+    @IsString()
+    @IsNotEmpty()
+    title: string;
+
+    @IsString()
+    @IsNotEmpty()
+    fullText: string;
+
+    @Type(() => Number)
+    @IsNumber()
+    @NotEquals(0, { message: 'latitude must not be 0' })
+    latitude: number;
+
+    @Type(() => Number)
+    @IsNumber()
+    @NotEquals(0, { message: 'longitude must not be 0' })
+    longitude: number;
+}

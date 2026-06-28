@@ -264,6 +264,9 @@ describe('OrderService', () => {
             amount: 24,
         });
         tx.cart.findFirst.mockResolvedValueOnce({ id: 5 });
+        tx.cartItem.findMany.mockResolvedValueOnce([
+            { foodId: 3, foodSizeId: 30, quantity: 2 },
+        ]);
         tx.conversation.findFirst.mockResolvedValueOnce(null);
         tx.conversation.create.mockResolvedValueOnce({
             id: 9,
@@ -318,8 +321,8 @@ describe('OrderService', () => {
         );
         expect(tx.cartItem.deleteMany).toHaveBeenCalledWith({
             cartId: 5,
-            foodId: {
-                in: [3],
+            food: {
+                restaurantId: 7,
             },
         });
         expect(eventEmitter.emit).toHaveBeenCalledWith(
@@ -361,6 +364,162 @@ describe('OrderService', () => {
                 method: PaymentMethod.CASH,
                 amount: 24,
             },
+        });
+    });
+
+    it('should copy saved address addressDetail into order note when note is empty', async () => {
+        tx.userAddress.findFirst.mockResolvedValueOnce({
+            id: 2,
+            addressId: 11,
+            addressDetail: 'Floor 12, unit 1203',
+            address: {
+                latitude: 10.77,
+                longitude: 106.7,
+            },
+        });
+        tx.restaurant.findFirst.mockResolvedValueOnce({
+            id: 7,
+            ownerId: 55,
+            address: {
+                latitude: 10.78,
+                longitude: 106.71,
+            },
+        });
+        tx.food.findMany.mockResolvedValueOnce([
+            {
+                id: 3,
+                name: 'Chicken rice',
+                price: decimal(10),
+                restaurantId: 7,
+                sizes: [
+                    {
+                        id: 30,
+                        price: decimal(12),
+                        isDefault: true,
+                        size: { name: 'Regular' },
+                    },
+                ],
+            },
+        ]);
+        tx.order.create.mockResolvedValueOnce({ id: 100 });
+        tx.order.update.mockResolvedValueOnce({
+            id: 100,
+            restaurantId: 7,
+            totalPrice: decimal(24),
+            status: OrderStatus.PENDING,
+            userId: 99,
+            addressId: 11,
+            voucherId: undefined,
+            note: 'Floor 12, unit 1203',
+        });
+        paymentService.createCashPayment.mockResolvedValueOnce({
+            method: PaymentMethod.CASH,
+            amount: 24,
+        });
+        tx.cart.findFirst.mockResolvedValueOnce({ id: 5 });
+        tx.cartItem.findMany.mockResolvedValueOnce([
+            { foodId: 3, foodSizeId: 30, quantity: 2 },
+        ]);
+        tx.conversation.findFirst.mockResolvedValueOnce(null);
+        tx.conversation.create.mockResolvedValueOnce({
+            id: 9,
+            orderId: 100,
+        });
+        prismaService.client.user.findUnique.mockResolvedValueOnce({
+            name: 'Huy',
+        });
+        prismaService.client.restaurant.findUnique.mockResolvedValueOnce({
+            ownerId: 55,
+        });
+        prismaService.client.food.findUnique.mockResolvedValueOnce({
+            name: 'Chicken rice',
+        });
+
+        await service.createOrder(99, {
+            restaurantId: 7,
+            savedAddressId: 2,
+            orderFoods: [{ foodId: 3, quantity: 2, fullText: '' }],
+            paymentMethod: PaymentMethod.CASH,
+        });
+
+        expect(tx.order.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                note: 'Floor 12, unit 1203',
+            }),
+        });
+    });
+
+    it('should copy custom addressDetail into order note when note is empty', async () => {
+        addressService.createAddress.mockResolvedValueOnce({
+            id: 22,
+            latitude: 10,
+            longitude: 106,
+        });
+        tx.restaurant.findFirst.mockResolvedValueOnce({
+            id: 7,
+            ownerId: 55,
+            address: {
+                latitude: 10.78,
+                longitude: 106.71,
+            },
+        });
+        tx.food.findMany.mockResolvedValueOnce([
+            {
+                id: 3,
+                name: 'Noodles',
+                price: decimal(10),
+                restaurantId: 7,
+                sizes: [
+                    {
+                        id: 31,
+                        price: decimal(20),
+                        isDefault: true,
+                        size: { name: 'Large' },
+                    },
+                ],
+            },
+        ]);
+        tx.order.create.mockResolvedValueOnce({ id: 101 });
+        tx.order.update.mockResolvedValueOnce({
+            id: 101,
+            restaurantId: 7,
+            totalPrice: decimal(20),
+            status: OrderStatus.PENDING,
+            userId: 99,
+            addressId: 22,
+            voucherId: undefined,
+            note: 'Side gate, block B',
+        });
+        paymentService.createMoMoPayment.mockResolvedValueOnce({
+            payUrl: 'https://pay.local',
+        });
+        tx.cart.findFirst.mockResolvedValueOnce({ id: 5 });
+        tx.cartItem.findMany.mockResolvedValueOnce([
+            { foodId: 3, foodSizeId: 31, quantity: 1 },
+        ]);
+        tx.conversation.findFirst.mockResolvedValueOnce({
+            id: 12,
+            orderId: 101,
+        });
+
+        await service.createOrder(99, {
+            restaurantId: 7,
+            customAddress: {
+                title: 'Home',
+                latitude: 10,
+                longitude: 106,
+                fullText: 'District 1',
+            },
+            addressDetail: 'Side gate, block B',
+            orderFoods: [{ foodId: 3, quantity: 1, fullText: '' }],
+            paymentMethod: PaymentMethod.MOMO,
+            clearCartAfterOrder: false,
+        });
+
+        expect(tx.order.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                note: 'Side gate, block B',
+            }),
         });
     });
 
@@ -408,6 +567,10 @@ describe('OrderService', () => {
         paymentService.createMoMoPayment.mockResolvedValueOnce({
             payUrl: 'https://pay.local',
         });
+        tx.cart.findFirst.mockResolvedValueOnce({ id: 5 });
+        tx.cartItem.findMany.mockResolvedValueOnce([
+            { foodId: 3, foodSizeId: 31, quantity: 1 },
+        ]);
         tx.conversation.findFirst.mockResolvedValueOnce({
             id: 12,
             orderId: 101,
@@ -440,7 +603,6 @@ describe('OrderService', () => {
             23.4,
             tx,
         );
-        expect(tx.cart.findFirst).not.toHaveBeenCalled();
         expect(result.paymentInformation).toEqual({
             payUrl: 'https://pay.local',
         });
@@ -460,6 +622,10 @@ describe('OrderService', () => {
         tx.userAddress.findFirst.mockResolvedValueOnce({
             id: 2,
             addressId: 11,
+            address: {
+                latitude: 10.77,
+                longitude: 106.7,
+            },
         });
         tx.voucher.findFirst.mockResolvedValueOnce({
             id: 8,
@@ -585,13 +751,20 @@ describe('OrderService', () => {
     });
 
     it('should return order detail when requester has access', async () => {
-        const paidAt = new Date('2025-01-01T00:00:00.000Z');
+        const deliveringAt = new Date('2025-01-01T00:00:00.000Z');
+        const paidAt = deliveringAt;
         prismaService.client.order.findFirst
             .mockResolvedValueOnce(accessOrder)
             .mockResolvedValueOnce({
                 id: 1,
                 totalPrice: decimal(45),
                 status: OrderStatus.DELIVERING,
+                deliveringAt,
+                deliveryMinutes: 30,
+                deliveredAt: null,
+                confirmedAt: null,
+                confirmedBy: null,
+                autoConfirmAt: null,
                 user: {
                     id: 99,
                     name: 'Huy',
@@ -612,6 +785,10 @@ describe('OrderService', () => {
                     phone: '1900',
                     ownerId: 55,
                     estimatedDeliveryTime: 30,
+                    address: {
+                        latitude: 10.1,
+                        longitude: 106.1,
+                    },
                 },
                 orderFoods: [
                     {
@@ -657,6 +834,8 @@ describe('OrderService', () => {
                 id: 1,
                 totalPrice: 45,
                 expected_arrival: '2025-01-01T00:30:00.000Z',
+                delivering_at: '2025-01-01T00:00:00.000Z',
+                delivery_minutes: 30,
                 status: 'DELIVERING',
                 status_step: 2,
                 backend_status: OrderStatus.DELIVERING,
@@ -686,6 +865,8 @@ describe('OrderService', () => {
         prismaService.client.order.findFirst.mockResolvedValueOnce({
             ...accessOrder,
             status: OrderStatus.CANCELLED,
+            deliveringAt: null,
+            deliveryMinutes: null,
         });
         prismaService.client.payment.findFirst.mockResolvedValueOnce({
             updatedAt,
@@ -704,6 +885,9 @@ describe('OrderService', () => {
             confirmed_by: null,
             auto_confirm_at: null,
             hours_until_auto_confirm: null,
+            delivery_minutes: null,
+            delivering_at: null,
+            expected_arrival: null,
         });
     });
 
@@ -765,10 +949,12 @@ describe('OrderService', () => {
             subtotal: 24,
             deliveryFee: 3.4,
             totalPrice: 27.4,
+            addedCount: 1,
+            skippedItems: [],
         });
     });
 
-    it('should reject reorder for unavailable order items', async () => {
+    it('should skip unavailable items when reordering', async () => {
         prismaService.client.order.findUnique.mockResolvedValueOnce({
             id: 1,
             userId: 99,
@@ -788,6 +974,7 @@ describe('OrderService', () => {
                     foodId: 3,
                     foodSizeId: 30,
                     quantity: 2,
+                    fullText: '',
                     food: {
                         id: 3,
                         isAvailable: false,
@@ -796,10 +983,29 @@ describe('OrderService', () => {
                 },
             ],
         });
+        tx.cart.findFirst.mockResolvedValueOnce({ id: 5 });
+        cartService.getCart.mockResolvedValueOnce({
+            id: 5,
+            items: [],
+            subtotal: 0,
+        });
 
-        await expect(service.reorder(99, 1)).rejects.toThrow(
-            BadRequestException,
-        );
+        const result = await service.reorder(99, 1);
+
+        expect(result).toEqual({
+            id: 5,
+            items: [],
+            subtotal: 0,
+            deliveryFee: 3.4,
+            totalPrice: 3.4,
+            addedCount: 0,
+            skippedItems: [
+                {
+                    foodId: 3,
+                    reason: 'Food is no longer available',
+                },
+            ],
+        });
     });
 
     it('should throw NotFoundException when reorder order does not exist', async () => {

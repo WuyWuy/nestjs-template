@@ -30,6 +30,7 @@ describe('UserController', () => {
         getAllAddress: jest.Mock;
         getUserAddressById: jest.Mock;
         updateUserAddress: jest.Mock;
+        updateUserAddressLocation: jest.Mock;
         deleteUserAddress: jest.Mock;
         getMyReviews: jest.Mock;
     };
@@ -44,6 +45,7 @@ describe('UserController', () => {
             getAllAddress: jest.fn(),
             getUserAddressById: jest.fn(),
             updateUserAddress: jest.fn(),
+            updateUserAddressLocation: jest.fn(),
             deleteUserAddress: jest.fn(),
             getMyReviews: jest.fn(),
         };

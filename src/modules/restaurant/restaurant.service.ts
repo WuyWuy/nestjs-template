@@ -1669,8 +1669,11 @@ export class RestaurantService {
             throw new ForbiddenException('You do not have permission to delete this review');
         }
 
-        await this.prismaService.client.restaurantRating.delete({
-            id: reviewId,
+        await this.prismaService.client.restaurantRating.update({
+            where: { id: reviewId },
+            data: {
+                deleteAt: new Date(),
+            },
         });
 
         return {

@@ -32,6 +32,7 @@ import {
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import type { Request } from 'express';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 
 @ApiTags('02. Auth')
 @Controller('auth')
@@ -288,26 +289,34 @@ export class AuthController {
             },
         },
         examples: {
-            accessToken: {
-                summary: 'Đăng nhập bằng access token',
+            // accessToken: {
+            //     summary: 'Đăng nhập bằng access token',
+            //     value: {
+            //         accessToken: 'ya29.a0AfH6SMC-example-token',
+            //     },
+            // },
+            idToken: {
+                summary: 'Đăng nhập bằng identity code cua google',
                 value: {
-                    accessToken: 'ya29.a0AfH6SMC-example-token',
-                },
-            },
-            code: {
-                summary: 'Đăng nhập bằng authorization code',
-                value: {
-                    code: '4/0AbUR2V-example-code',
+                    idToken: '4/0AbUR2V-example-code',
                 },
             },
         },
     })
-    @Post('login-google')
-    async loginGoogle(@Body() data: Omit<SocialLoginData, 'provider'>) {
-        const accessToken = data.accessToken || data.code;
-        if (!accessToken) throw new BadRequestException('invalid access token');
-        return await this.authService.googleLogin(accessToken);
+    // @Post('login-google')
+    // async loginGoogle(@Body() data: Omit<SocialLoginData, 'provider'>) {
+    //     const accessToken = data.accessToken || data.code;
+    //     if (!accessToken) throw new BadRequestException('invalid authorization code');
+    //     return await this.authService.googleLogin(accessToken);
+    // }
+
+    @Post('login-google') 
+    async loginGoogle(@Body() data : GoogleAuthDto) 
+    {
+        const response = await this.authService.googleLogin(data.idToken) 
+        return response 
     }
+
     @ApiOperation({ summary: 'Đăng nhập social theo provider' })
     @ApiBody({
         type: SocialLoginData,
@@ -328,6 +337,7 @@ export class AuthController {
             },
         },
     })
+    
     @Post('login-social')
     async loginSocial(@Body() data: SocialLoginData) {
         const accessToken = data.accessToken || data.code;

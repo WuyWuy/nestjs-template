@@ -1,5 +1,5 @@
 import { PrismaService } from '@/prisma/prisma.service';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -29,7 +29,7 @@ import { EmailService } from '../email/email.service';
 import { APP_NAME } from '@/bases/commons/constants/app.constant';
 import axios from 'axios';
 import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
-
+import { OAuth2Client } from 'google-auth-library';
 type SocialProfile = {
     provider: AuthProvider;
     providerUserId: string;
@@ -48,7 +48,9 @@ type AuthPayload = {
 @Injectable()
 export class AuthService {
     //this is the simple Authentication. You can config it to suitable for your job
-    constructor(
+    constructor( 
+        @Inject('GOOGLE_OAUTH_CLIENT')
+        private readonly oauthClient : OAuth2Client, 
         private readonly prismaService: PrismaService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
@@ -381,6 +383,21 @@ export class AuthService {
         }
         return refreshSecretKey;
     }
+    private getGoogleClientId() 
+    {
+        const googleClientId = 
+            this.configService.get<string>('GOOGLE_OAUTH_CLIENT_ID')
+        console.log(googleClientId) 
+        if (!googleClientId) 
+            throw new BadRequestException("Google client is not configured")
+        return googleClientId
+    } 
+    private getGoogleClientSecret() 
+    {
+        const secret = 
+            this.configService.get<string>('GOOGLE_OAUTH_CLIENT_SECRET')
+        return secret 
+    }
     private async getAuthPayload(userId: number): Promise<{
         user: {
             id: number;
@@ -680,29 +697,52 @@ export class AuthService {
             avatar: data.picture?.data?.url || '',
         };
     }
+    // private async getGoogleProfile(
+    //     accessToken: string,
+    // ): Promise<SocialProfile> {
+    //     const { data } = await axios.get(
+    //         'https://www.googleapis.com/oauth2/v3/userinfo',
+    //         {
+    //             headers: {
+    //                 Authorization: `Bearer ${accessToken}`,
+    //             },
+    //         },
+    //     );
+    //     if (!data?.sub) {
+    //         throw new BadRequestException('Invalid Google account');
+    //     }
+    //     return {
+    //         provider: AuthProvider.GOOGLE,
+    //         providerUserId: String(data.sub),
+    //         accessToken,
+    //         email: data.email,
+    //         name: data.name || data.given_name || 'Google User',
+    //         avatar: data.picture || '',
+    //     };
+    // }
     private async getGoogleProfile(
-        accessToken: string,
-    ): Promise<SocialProfile> {
-        const { data } = await axios.get(
-            'https://www.googleapis.com/oauth2/v3/userinfo',
-            {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            },
-        );
-        if (!data?.sub) {
-            throw new BadRequestException('Invalid Google account');
+        idToken : string 
+    )
+    {
+        const ticket = await this.oauthClient.verifyIdToken({
+            idToken, 
+            audience: process.env.GOOGLE_OAUTH_CLIENT_ID
+        }) 
+        const payload = ticket.getPayload() 
+        if (!payload?.sub) 
+            throw new BadRequestException("Invalid google token id") 
+        const googleUser = {
+            provider: AuthProvider.GOOGLE,  
+            accessToken : "", //Khong co acctrsstoken, co the sau nay se co 
+            email: payload.email,   
+            name: payload.name || payload.given_name ||'Google User', 
+            providerUserId : String(payload.sub), 
+            avatar: payload.picture || '' 
         }
-        return {
-            provider: AuthProvider.GOOGLE,
-            providerUserId: String(data.sub),
-            accessToken,
-            email: data.email,
-            name: data.name || data.given_name || 'Google User',
-            avatar: data.picture || '',
-        };
+        return googleUser
+
     }
+
     async changeEmail(phone: string, password: string) {
         try {
             const user = await this.prismaService.client.user.findFirst({
@@ -941,13 +981,25 @@ export class AuthService {
             throw err;
         }
     }
-    async googleLogin(accessToken: string) {
-        try {
-            const profile = await this.getGoogleProfile(accessToken);
-            return await this.resolveSocialLogin(profile);
-        } catch (err) {
-            console.log('Login google error: ', err);
-            throw err;
+    // async googleLogin(accessToken: string) {
+    //     try {
+    //         const profile = await this.getGoogleProfile(accessToken);
+    //         return await this.resolveSocialLogin(profile);
+    //     } catch (err) {
+    //         console.log('Login google error: ', err);
+    //         throw err;
+    //     }
+    // }
+    async googleLogin(tokenId : string) 
+    {
+        try 
+        {
+            const userProfile = await this.getGoogleProfile(tokenId) 
+            return await this.resolveSocialLogin(userProfile)
+        } 
+        catch (err) {
+            console.log("Login google error: " , err) 
+            throw err 
         }
     }
 }

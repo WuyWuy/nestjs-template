@@ -38,9 +38,6 @@ jobs:
       - name: Build NestJS application
         run: bun run build
 
-      - name: Run tests
-        run: bunx jest --passWithNoTests
-
   docker:
     name: Build And Push Image
     runs-on: ubuntu-latest

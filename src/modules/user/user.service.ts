@@ -12,7 +12,17 @@ import {
     UpdateUserProfileDto,
 } from './dto/user.dto';
 import { AddressService } from '../address/address.service';
+import { ChangeUserAddressLocationDto } from '../address/dto/address.dto';
+import { buildUserAddressLocationPayload } from '../address/user-address-location.helper';
 import { TransactionClientExtended } from '@/prisma/custom-prisma-client';
+import type { CustomPrismaClient } from '@/prisma/custom-prisma-client';
+
+const userAddressSelect = {
+    id: true,
+    title: true,
+    addressDetail: true,
+    address: true,
+} as const;
 @Injectable()
 export class UserService {
     constructor(
@@ -155,7 +165,8 @@ export class UserService {
     private async getUserAddressResponse(
         id: number,
         userId: number,
-        db: TransactionClientExtended | PrismaService = this.prismaService,
+        db: TransactionClientExtended | CustomPrismaClient = this
+            .prismaService.client,
     ) {
         return await db.userAddress.findFirst({
             where: {
@@ -163,11 +174,7 @@ export class UserService {
                 userId,
                 deleteAt: null,
             },
-            select: {
-                id: true,
-                title: true,
-                address: true,
-            },
+            select: userAddressSelect,
         });
     }
     private async getUserAddressOrThrow(id: number, userId: number) {
@@ -199,6 +206,7 @@ export class UserService {
                         title: address.title,
                         addressId: crAddress.id,
                         userId: userId,
+                        addressDetail: address.addressDetail?.trim() || null,
                     },
                 });
                 return await this.getUserAddressResponse(respo.id, userId, tx);
@@ -216,11 +224,7 @@ export class UserService {
             const addresses =
                 await this.prismaService.client.userAddress.findMany({
                     where: { userId, deleteAt: null },
-                    select: {
-                        id: true,
-                        title: true,
-                        address: true,
-                    },
+                    select: userAddressSelect,
                 });
             return addresses;
         } catch (err) {
@@ -234,37 +238,89 @@ export class UserService {
         updateAddress: UpdateUserAddressDto,
     ) {
         try {
-            const userAddress = await this.getUserAddressOrThrow(addressId, userId);
-            const result = await this.prismaService.transaction(async (tx) => {
-                const updateData: any = {};
-                if (updateAddress.title) updateData.title = updateAddress.title;
-                if (updateAddress.address) {
-                    const addressRecord =
-                        await this.addressService.createAddress(
-                            updateAddress.address,
-                            tx,
-                        );
-                    updateData.addressId = addressRecord.id;
-                }
-                if (!Object.keys(updateData).length) {
-                    throw new BadRequestException(
-                        'No valid address data provided for update',
-                    );
-                }
-                const result = await tx.userAddress.update({
+            await this.getUserAddressOrThrow(addressId, userId);
+
+            const updateData: Record<string, unknown> = {};
+
+            if (updateAddress.title !== undefined) {
+                updateData.title = updateAddress.title;
+            }
+
+            if (updateAddress.addressDetail !== undefined) {
+                updateData.addressDetail =
+                    updateAddress.addressDetail.trim() || null;
+            }
+
+            if (!Object.keys(updateData).length) {
+                throw new BadRequestException(
+                    'No valid address data provided for update',
+                );
+            }
+
+            await this.prismaService.client.userAddress.update({
+                where: {
+                    id: addressId,
+                    userId,
+                },
+                data: updateData,
+            });
+
+            return await this.getUserAddressResponse(addressId, userId);
+        } catch (err) {
+            console.log("update user's address", err);
+            throw err;
+        }
+    }
+
+    async updateUserAddressLocation(
+        addressId: number,
+        userId: number,
+        location: ChangeUserAddressLocationDto,
+    ) {
+        try {
+            const userAddress =
+                await this.prismaService.client.userAddress.findFirst({
                     where: {
-                        id : userAddress.id, 
-                        userId 
+                        id: addressId,
+                        userId,
+                        deleteAt: null,
                     },
-                    data: {
-                        ...updateData,
+                    include: {
+                        address: true,
                     },
                 });
-                return await this.getUserAddressResponse(result.id, userId, tx);
+
+            if (!userAddress) {
+                throw new BadRequestException(
+                    'This address not belong to this user or was deleted',
+                );
+            }
+
+            const result = await this.prismaService.transaction(async (tx) => {
+                const addressRecord = await this.addressService.createAddress(
+                    buildUserAddressLocationPayload(location),
+                    tx,
+                );
+
+                await tx.userAddress.update({
+                    where: {
+                        id: userAddress.id,
+                        userId,
+                    },
+                    data: {
+                        addressId: addressRecord.id,
+                    },
+                });
+
+                return await this.getUserAddressResponse(
+                    userAddress.id,
+                    userId,
+                    tx,
+                );
             });
             return result;
         } catch (err) {
-            console.log("update user's address", err);
+            console.log("update user's address location", err);
             throw err;
         }
     }
@@ -273,11 +329,7 @@ export class UserService {
             const result =
                 await this.prismaService.client.userAddress.findFirst({
                     where: { id, userId, deleteAt: null },
-                    select: {
-                        id: true,
-                        title: true,
-                        address: true,
-                    },
+                    select: userAddressSelect,
                 });
             if (!result)
                 throw new BadRequestException('User Address not found');

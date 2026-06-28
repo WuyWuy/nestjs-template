@@ -1,16 +1,38 @@
 import { CreateAddressDto } from '@/modules/address/dto/address.dto';
-import { IsString, ValidateNested } from 'class-validator';
-import { IsOptional, IsDateString } from 'class-validator';
+import {
+    IsOptional,
+    IsString,
+    MaxLength,
+    ValidateNested,
+} from 'class-validator';
+import { IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PartialType } from '@nestjs/mapped-types';
+
 export class AddUserAddressDto {
     @ValidateNested()
     @Type(() => CreateAddressDto)
     address: CreateAddressDto;
+
     @IsString()
     title: string;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(500)
+    addressDetail?: string;
 }
-export class UpdateUserAddressDto extends PartialType(AddUserAddressDto) {}
+
+export class UpdateUserAddressDto {
+    @IsOptional()
+    @IsString()
+    title?: string;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(500)
+    addressDetail?: string;
+}
+
 export class UpdateUserProfileDto {
     @IsOptional()
     @IsString()

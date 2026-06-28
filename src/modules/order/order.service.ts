@@ -33,6 +33,11 @@ import {
     ONGOING_ORDER_STATUSES,
     ORDER_AUTO_CONFIRM_HOURS,
 } from './order-status.helper';
+import {
+    buildOrderEtaFields,
+    calculateDeliveryMinutes,
+    resolveOrderStatusUpdatedAt,
+} from './delivery-time.helper';
 
 type FoodSnapshot = {
     id: number;
@@ -132,6 +137,8 @@ export class OrderService {
                 userId: true,
                 status: true,
                 deliveredAt: true,
+                deliveringAt: true,
+                deliveryMinutes: true,
                 confirmedAt: true,
                 confirmedBy: true,
                 autoConfirmAt: true,
@@ -156,6 +163,28 @@ export class OrderService {
 
         this.ensureBusinessAccess(order.restaurant.ownerId, userId, roles);
         return order;
+    }
+
+    private resolveOrderNote(
+        data: CreateOrderDto,
+        savedAddressDetail?: string | null,
+    ): string {
+        const explicitNote = data.note?.trim();
+        if (explicitNote) {
+            return explicitNote;
+        }
+
+        const customDetail = data.addressDetail?.trim();
+        if (customDetail) {
+            return customDetail;
+        }
+
+        const savedDetail = savedAddressDetail?.trim();
+        if (savedDetail) {
+            return savedDetail;
+        }
+
+        return '';
     }
 
     private assertAddressCoordinates(
@@ -256,6 +285,7 @@ export class OrderService {
 
             let addressId: number;
             let deliveryAddress: AddressCoordinates;
+            let savedAddressDetail: string | null | undefined;
             if (data.customAddress) {
                 const address = await this.addressService.createAddress(
                     data.customAddress,
@@ -275,6 +305,7 @@ export class OrderService {
                     },
                     select: {
                         addressId: true,
+                        addressDetail: true,
                         address: {
                             select: {
                                 latitude: true,
@@ -292,6 +323,7 @@ export class OrderService {
 
                 addressId = userAddress.addressId;
                 deliveryAddress = userAddress.address;
+                savedAddressDetail = userAddress.addressDetail;
             } else {
                 throw new BadRequestException('Address is required');
             }
@@ -370,12 +402,19 @@ export class OrderService {
 
             this.assertAddressCoordinates(restaurant.address, 'Restaurant');
             this.assertAddressCoordinates(deliveryAddress, 'Delivery');
+            const distanceKm = this.restaurantService.calculateDistance(
+                restaurant.address.latitude,
+                restaurant.address.longitude,
+                deliveryAddress.latitude,
+                deliveryAddress.longitude,
+            );
             const deliveryFee = this.calculateDeliveryFee(
                 restaurant.address.latitude,
                 restaurant.address.longitude,
                 deliveryAddress.latitude,
                 deliveryAddress.longitude,
             );
+            const deliveryMinutes = calculateDeliveryMinutes(distanceKm);
 
             const foodIds = data.orderFoods.map((item) => item.foodId);
             const foods = await tx.food.findMany({
@@ -419,6 +458,11 @@ export class OrderService {
                 );
             }
 
+            const orderNote = this.resolveOrderNote(
+                data,
+                savedAddressDetail,
+            );
+
             const order = await tx.order.create({
                 data: {
                     restaurantId: data.restaurantId,
@@ -427,7 +471,7 @@ export class OrderService {
                     userId,
                     voucherId,
                     addressId,
-                    note: data.note ?? '',
+                    note: orderNote,
                 },
             });
 
@@ -568,6 +612,7 @@ export class OrderService {
                 },
                 data: {
                     totalPrice: finalPrice,
+                    deliveryMinutes,
                 },
                 select: {
                     id: true,
@@ -867,6 +912,8 @@ export class OrderService {
                 totalPrice: true,
                 status: true,
                 deliveredAt: true,
+                deliveringAt: true,
+                deliveryMinutes: true,
                 confirmedAt: true,
                 confirmedBy: true,
                 autoConfirmAt: true,
@@ -895,6 +942,12 @@ export class OrderService {
                         phone: true,
                         ownerId: true,
                         estimatedDeliveryTime: true,
+                        address: {
+                            select: {
+                                latitude: true,
+                                longitude: true,
+                            },
+                        },
                     },
                 },
                 orderFoods: {
@@ -956,20 +1009,31 @@ export class OrderService {
                 },
             });
 
-        const paymentDate = order.payments[0]?.createdAt ?? new Date();
-        const estimatedMinutes = order.restaurant?.estimatedDeliveryTime ?? 20;
-        const expectedArrival = new Date(
-            new Date(paymentDate).getTime() + estimatedMinutes * 60000,
+        const etaFields = buildOrderEtaFields(
+            order,
+            order.restaurant?.address,
+            (lat1, lon1, lat2, lon2) =>
+                this.restaurantService.calculateDistance(
+                    lat1,
+                    lon1,
+                    lat2,
+                    lon2,
+                ),
         );
+
+        const { restaurant, ...orderWithoutRestaurant } = order;
+        const { address: _restaurantAddress, ...restaurantWithoutAddress } =
+            restaurant ?? { address: undefined };
 
         const { status: feStatus, status_step } = mapOrderStatusToFrontend(
             order.status,
         );
 
         return {
-            ...order,
+            ...orderWithoutRestaurant,
+            restaurant: restaurantWithoutAddress,
             totalPrice: Number(order.totalPrice),
-            expected_arrival: expectedArrival.toISOString(),
+            ...etaFields,
             status: feStatus,
             status_step,
             backend_status: order.status,
@@ -999,14 +1063,19 @@ export class OrderService {
         const { status: feStatus, status_step } = mapOrderStatusToFrontend(
             order.status,
         );
+        const etaFields = buildOrderEtaFields(order);
 
         return {
             order_id: order.id,
             status: feStatus,
             status_step,
-            updated_at: (payment?.updatedAt ?? new Date()).toISOString(),
+            updated_at: resolveOrderStatusUpdatedAt(
+                order,
+                payment?.updatedAt,
+            ),
             backend_status: order.status,
             ...buildOrderTimingFields(order),
+            ...etaFields,
         };
     }
 

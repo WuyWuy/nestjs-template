@@ -9,6 +9,7 @@ import {
     IsString,
     IsEnum,
     IsBoolean,
+    MaxLength,
 } from 'class-validator';
 
 import { Type } from 'class-transformer';
@@ -69,6 +70,13 @@ export class CreateOrderDto {
     @IsOptional()
     @IsString()
     note?: string = '';
+
+    /** Chi tiết bổ sung map khi dùng customAddress (one-off), không lưu sổ địa chỉ */
+    @ValidateIf((o) => !!o.customAddress)
+    @IsOptional()
+    @IsString()
+    @MaxLength(500)
+    addressDetail?: string;
 
     @IsEnum(PaymentMethod)
     paymentMethod: PaymentMethod;

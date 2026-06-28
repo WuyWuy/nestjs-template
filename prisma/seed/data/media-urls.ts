@@ -11,6 +11,11 @@ export const seedImages = {
         dessert: p('1551024506-0bccd828d307', 400),
         drinks: p('1571934811356-5cc061b6821f', 400),
         pizza: p('1513104890138-7c749659a591', 400),
+        seafood: p('1559339352-11d035aa65de', 400),
+        korean: p('1588168336346-893c66a0382c', 400),
+        healthy: p('1490645932247-4023f8a9f0b3', 400),
+        breakfast: p('1533086408107-a1570817102fd', 400),
+        bbq: p('1544025162-d76694265947', 400),
     },
     restaurants: {
         burgerTown: {
@@ -45,6 +50,30 @@ export const seedImages = {
             logo: p('1551218808-94e220e084d2', 400),
             cover: p('1544025162-d76694265947', 1200),
         },
+        pho24Legend: {
+            logo: p('1476224203421-9ac39bcb3327', 400),
+            cover: p('1546069901-ba9599a7e63c', 1200),
+        },
+        tokyoRamen: {
+            logo: p('1563379926898-05f4575a45d8', 400),
+            cover: p('1569718212265-22a385e7e984', 1200),
+        },
+        seoulKitchen: {
+            logo: p('1588168336346-893c66a0382c', 400),
+            cover: p('1590301159090-9d922c1370b3', 1200),
+        },
+        oceanCatch: {
+            logo: p('1559339352-11d035aa65de', 400),
+            cover: p('1551244072-81ae59a42b6d', 1200),
+        },
+        greenBowl: {
+            logo: p('1490645932247-4023f8a9f0b3', 400),
+            cover: p('1512621776951-a57141f2eefd', 1200),
+        },
+        sunriseBreakfast: {
+            logo: p('1533086408107-a1570817102fd', 400),
+            cover: p('1484722795874-e89ab7a7aa7b', 1200),
+        },
     },
     avatars: {
         admin: p('1535713875002-d1d0cf377fde', 200),
@@ -56,6 +85,12 @@ export const seedImages = {
         business6: p('1500648767791-00dcc994a43e', 200),
         business7: p('151934518256-9f9027ebee44', 200),
         business8: p('1522075469731-3a1d0bb66108', 200),
+        business9: p('1507003211132-936500a4baa5', 200),
+        business10: p('1500648767791-00dcc994a43e', 200),
+        business11: p('151934518256-9f9027ebee44', 200),
+        business12: p('1438761681033-6461ffad8d80', 200),
+        business13: p('1472099645785-5658abf4ff4e', 200),
+        business14: p('1535713875002-d1d0cf377fde', 200),
         customer1: p('1494790108377-be9c29b29330', 200),
         customer2: p('1472099645785-5658abf4ff4e', 200),
         customer3: p('1494790108377-be9c29b29330', 200),
@@ -104,6 +139,35 @@ export const seedImages = {
         cornOnCob: p('1512058564366-18510be2db19'),
         stickyRice: p('1603133872878-684f208fb84b'),
         icedTea: p('1571934811356-5cc061b6821f'),
+
+        tomYumSeafood: p('1551244072-81ae59a42b6d'),
+        grilledSalmon: p('1467003909585-2f8a72700288'),
+        garlicButterShrimp: p('1559339352-11d035aa65de'),
+        calamariRings: p('1551782450-a2132b4ba21d'),
+
+        bibimbap: p('1590301159090-9d922c1370b3'),
+        koreanFriedChicken: p('1588168336346-893c66a0382c'),
+        kimchiJjigae: p('1546069901-ba9599a7e63c'),
+        beefBulgogi: p('1504674900247-0877df9cc836'),
+
+        quinoaBowl: p('1490645932247-4023f8a9f0b3'),
+        grilledChickenSalad: p('1512621776951-a57141f2eefd'),
+        avocadoToast: p('1540189549336-e6e99c3679fe'),
+        acaiBowl: p('1553909489-cd47e0907980'),
+
+        fullEnglish: p('1484722795874-e89ab7a7aa7b'),
+        pancakeStack: p('1565958011703-44f9829ba187'),
+        baconEggSandwich: p('1553621042-f6e147245754'),
+        fruitParfait: p('1488477181946-6428a0291777'),
+
+        pho24Special: p('1476224203421-9ac39bcb3327'),
+        tokyoShoyuRamen: p('1569718212265-22a385e7e984'),
+        misoRamen: p('1563379926898-05f4575a45d8'),
+        spicyTonkotsu: p('1546069901-ba9599a7e63c'),
+
+        smokedBrisket: p('1544025162-d76694265947'),
+        bbqPorkRibs: p('1504674900247-0877df9cc836'),
+        grilledSausagePlate: p('1512058564366-18510be2db19'),
     },
 } as const;
 

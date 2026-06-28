@@ -58,6 +58,46 @@ describe('AddressService', () => {
         service = new AddressService(prismaService, auditService as any);
     });
 
+    it('should reject create address when coordinates are 0', async () => {
+        await expect(
+            service.createAddress({
+                title: 'Home',
+                latitude: 0,
+                longitude: 106.7,
+                fullText: '123 Nguyen Hue',
+            }),
+        ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject create address when fullText is empty', async () => {
+        await expect(
+            service.createAddress({
+                title: 'Home',
+                latitude: 10.776889,
+                longitude: 106.700806,
+                fullText: '   ',
+            }),
+        ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should update an address in place', async () => {
+        const updatedAddress = {
+            ...address,
+            fullText: '456 Le Loi',
+        };
+        prismaService.client.address.update.mockResolvedValueOnce(updatedAddress);
+
+        const result = await service.updateAddressInPlace(10, {
+            fullText: '456 Le Loi',
+        });
+
+        expect(prismaService.client.address.update).toHaveBeenCalledWith({
+            where: { id: 10 },
+            data: { fullText: '456 Le Loi' },
+        });
+        expect(result).toEqual(updatedAddress);
+    });
+
     it('should return an existing address instead of creating a duplicate', async () => {
         prismaService.client.address.findFirst.mockResolvedValueOnce(address);
 
@@ -108,7 +148,10 @@ describe('AddressService', () => {
         const result = await service.createAddress(input);
 
         expect(prismaService.client.address.create).toHaveBeenCalledWith({
-            data: input,
+            data: {
+                ...input,
+                fullText: input.fullText.trim(),
+            },
         });
         expect(result).toEqual({
             id: 11,

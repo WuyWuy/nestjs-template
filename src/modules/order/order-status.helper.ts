@@ -82,12 +82,20 @@ export function buildStatusUpdateData(
     confirmedBy?: ConfirmedBy,
 ): {
     status: OrderStatus;
+    deliveringAt?: Date;
     deliveredAt?: Date;
     autoConfirmAt?: Date | null;
     confirmedAt?: Date;
     confirmedBy?: ConfirmedBy;
 } {
     const now = new Date();
+
+    if (nextStatus === OrderStatus.DELIVERING) {
+        return {
+            status: nextStatus,
+            deliveringAt: now,
+        };
+    }
 
     if (nextStatus === OrderStatus.DELIVERED) {
         return {

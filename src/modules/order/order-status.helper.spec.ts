@@ -19,6 +19,12 @@ describe('order-status.helper', () => {
         });
     });
 
+    it('sets delivering timestamp when order is out for delivery', () => {
+        const update = buildStatusUpdateData(OrderStatus.DELIVERING);
+
+        expect(update.deliveringAt).toBeInstanceOf(Date);
+    });
+
     it('sets auto confirm timestamp when order is delivered', () => {
         const before = Date.now();
         const update = buildStatusUpdateData(OrderStatus.DELIVERED);

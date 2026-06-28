@@ -7,6 +7,7 @@ import { LocalAuthGuard } from './local-auth.guard';
 import { JwtStrategy } from './jwt.strategy';
 import { LocalStrategy } from './local.strategy';
 import { ConfigService } from '@nestjs/config';
+import { GoogleOauthProvider } from './google.provider';
 
 @Module({
     imports: [
@@ -27,6 +28,7 @@ import { ConfigService } from '@nestjs/config';
         LocalAuthGuard,
         JwtStrategy,
         LocalStrategy,
+        GoogleOauthProvider
     ],
     controllers: [AuthController],
     exports: [AuthService],

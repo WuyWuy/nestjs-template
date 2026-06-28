@@ -5,11 +5,12 @@ on:
     branches:
       - master
       - ci/production
+      - ci/deploy-production-2
   push:
     branches:
       - master
       - ci/production
-
+      - ci/deploy-production-2
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

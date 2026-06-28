@@ -334,7 +334,7 @@ describe('RestaurantService - deleteRestaurantRating', () => {
             client: {
                 restaurantRating: {
                     findFirst: jest.fn(),
-                    delete: jest.fn(),
+                    update: jest.fn(),
                 },
             },
         };
@@ -356,8 +356,11 @@ describe('RestaurantService - deleteRestaurantRating', () => {
         const result = await service.deleteRestaurantRating(12, 5, ['CUSTOMER']);
 
         expect(result.success).toBe(true);
-        expect(prismaService.client.restaurantRating.delete).toHaveBeenCalledWith({
-            id: 12,
+        expect(prismaService.client.restaurantRating.update).toHaveBeenCalledWith({
+            where: { id: 12 },
+            data: {
+                deleteAt: expect.any(Date),
+            },
         });
     });
 
@@ -370,8 +373,11 @@ describe('RestaurantService - deleteRestaurantRating', () => {
         const result = await service.deleteRestaurantRating(12, 5, ['ADMIN']);
 
         expect(result.success).toBe(true);
-        expect(prismaService.client.restaurantRating.delete).toHaveBeenCalledWith({
-            id: 12,
+        expect(prismaService.client.restaurantRating.update).toHaveBeenCalledWith({
+            where: { id: 12 },
+            data: {
+                deleteAt: expect.any(Date),
+            },
         });
     });
 

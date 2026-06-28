@@ -307,7 +307,10 @@ describe('UserService - profile and customers', () => {
 describe('UserService - addresses', () => {
     let service: UserService;
     let prismaService: any;
-    let addressService: { createAddress: jest.Mock };
+    let addressService: {
+        createAddress: jest.Mock;
+        updateAddressInPlace: jest.Mock;
+    };
 
     beforeEach(() => {
         prismaService = {
@@ -333,6 +336,7 @@ describe('UserService - addresses', () => {
         };
         addressService = {
             createAddress: jest.fn(),
+            updateAddressInPlace: jest.fn(),
         };
 
         service = new UserService(
@@ -383,6 +387,7 @@ describe('UserService - addresses', () => {
                 title: 'Home',
                 addressId: 10,
                 userId: 99,
+                addressDetail: null,
             },
         });
         expect(result).toEqual({
@@ -413,6 +418,7 @@ describe('UserService - addresses', () => {
             select: {
                 id: true,
                 title: true,
+                addressDetail: true,
                 address: true,
             },
         });
@@ -421,50 +427,111 @@ describe('UserService - addresses', () => {
         ]);
     });
 
-    it('should update address title and address record inside a transaction', async () => {
+    it('should update addressDetail and title on UserAddress only', async () => {
+        prismaService.client.userAddress.findFirst
+            .mockResolvedValueOnce({
+                id: 5,
+                userId: 99,
+                addressId: 10,
+            })
+            .mockResolvedValueOnce({
+                id: 5,
+                title: 'Office',
+                addressDetail: 'Floor 8',
+                address: {
+                    id: 10,
+                    fullText: '123 Main',
+                },
+            });
+        prismaService.client.userAddress.update.mockResolvedValueOnce({ id: 5 });
+
+        const result = await service.updateUserAddress(5, 99, {
+            title: 'Office',
+            addressDetail: 'Floor 8',
+        });
+
+        expect(prismaService.client.userAddress.update).toHaveBeenCalledWith({
+            where: { id: 5, userId: 99 },
+            data: {
+                title: 'Office',
+                addressDetail: 'Floor 8',
+            },
+        });
+        expect(addressService.updateAddressInPlace).not.toHaveBeenCalled();
+        expect(addressService.createAddress).not.toHaveBeenCalled();
+        expect(result).toEqual({
+            id: 5,
+            title: 'Office',
+            addressDetail: 'Floor 8',
+            address: {
+                id: 10,
+                fullText: '123 Main',
+            },
+        });
+    });
+
+    it('should replace linked Address when updating location bundle', async () => {
         const tx = {
             userAddress: {
                 update: jest.fn().mockResolvedValue({ id: 5 }),
                 findFirst: jest.fn().mockResolvedValue({
                     id: 5,
-                    title: 'Office',
-                    address: { fullText: '456 Office' },
+                    title: 'Home',
+                    addressDetail: 'Floor 8',
+                    address: {
+                        id: 20,
+                        title: 'Home',
+                        fullText: '456 Office',
+                    },
                 }),
             },
         };
         prismaService.client.userAddress.findFirst.mockResolvedValueOnce({
             id: 5,
             userId: 99,
+            addressId: 10,
+            address: {
+                id: 10,
+                title: 'Home',
+                latitude: 10.7,
+                longitude: 106.6,
+                fullText: '123 Main',
+            },
         });
         prismaService.transaction.mockImplementationOnce((callback: any) =>
             callback(tx),
         );
         addressService.createAddress.mockResolvedValueOnce({ id: 20 });
 
-        const result = await service.updateUserAddress(5, 99, {
-            title: 'Office',
-            address: {
-                title: 'Office',
+        const result = await service.updateUserAddressLocation(5, 99, {
+            title: 'District 3 Office',
+            fullText: '456 Office',
+            latitude: 10.8,
+            longitude: 106.7,
+        });
+
+        expect(addressService.createAddress).toHaveBeenCalledWith(
+            {
+                title: 'District 3 Office',
                 latitude: 10.8,
                 longitude: 106.7,
                 fullText: '456 Office',
-            } as any,
-        });
-
+            },
+            tx,
+        );
         expect(tx.userAddress.update).toHaveBeenCalledWith({
-            where: {
-                id: 5,
-                userId: 99,
-            },
-            data: {
-                title: 'Office',
-                addressId: 20,
-            },
+            where: { id: 5, userId: 99 },
+            data: { addressId: 20 },
         });
         expect(result).toEqual({
             id: 5,
-            title: 'Office',
-            address: { fullText: '456 Office' },
+            title: 'Home',
+            addressDetail: 'Floor 8',
+            address: {
+                id: 20,
+                title: 'Home',
+                fullText: '456 Office',
+            },
         });
     });
 
@@ -472,6 +539,7 @@ describe('UserService - addresses', () => {
         prismaService.client.userAddress.findFirst.mockResolvedValueOnce({
             id: 5,
             userId: 99,
+            addressId: 10,
         });
 
         await expect(service.updateUserAddress(5, 99, {})).rejects.toThrow(
@@ -493,6 +561,7 @@ describe('UserService - addresses', () => {
             select: {
                 id: true,
                 title: true,
+                addressDetail: true,
                 address: true,
             },
         });

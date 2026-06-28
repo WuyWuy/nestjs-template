@@ -125,7 +125,10 @@ export class SearchService {
                 ? this.prismaService.client.restaurantRating.groupBy({
                       by: ['restaurantId'],
                       _avg: { vote: true },
-                      where: { restaurantId: { in: restaurantIds } },
+                      where: {
+                          restaurantId: { in: restaurantIds },
+                          deleteAt: null,
+                      },
                   })
                 : Promise.resolve([]),
         ]);
@@ -264,6 +267,9 @@ export class SearchService {
         const avgRatings = await this.prismaService.client.restaurantRating.groupBy({
             by: ['restaurantId'],
             _avg: { vote: true },
+            where: {
+                deleteAt: null,
+            },
         });
         const avgRatingMap = new Map<number, number>();
         for (const item of avgRatings) {

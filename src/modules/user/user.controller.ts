@@ -27,6 +27,9 @@ import {
     UpdateUserAddressDto,
     UpdateUserProfileDto,
 } from './dto/user.dto';
+import { ChangeUserAddressLocationDto } from '../address/dto/address.dto';
+
+const USER_ADDRESS_ROLES = [Role.CUSTOMER, Role.BUSINESS] as const;
 
 @ApiTags('03. User')
 @Controller('user')
@@ -119,18 +122,22 @@ export class UserController {
         );
         return response;
     }
-    //[CUSTOMER'S ADDRESS API RELATED]
-    @ApiOperation({ summary: 'Thêm địa chỉ mới cho người dùng' })
+    //[USER SAVED ADDRESS API — CUSTOMER & BUSINESS]
+    @ApiOperation({
+        summary:
+            'Thêm địa chỉ đã lưu (CUSTOMER, BUSINESS). Map data lấy từ Google Maps API.',
+    })
     @ApiBearerAuth()
-    @Roles(Role.CUSTOMER)
+    @Roles(...USER_ADDRESS_ROLES)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @ApiBody({
         type: AddUserAddressDto,
         examples: {
             example: {
-                summary: 'Thêm địa chỉ giao hàng',
+                summary: 'Thêm địa chỉ với chi tiết bổ sung',
                 value: {
                     title: 'Nhà riêng',
+                    addressDetail: 'Chung cư ABC, tầng 12, căn 1203',
                     address: {
                         title: 'Nhà riêng',
                         latitude: 10.776889,
@@ -156,9 +163,11 @@ export class UserController {
         );
         return responseData;
     }
-    @ApiOperation({ summary: 'Lấy toàn bộ địa chỉ của người dùng' })
+    @ApiOperation({
+        summary: 'Lấy toàn bộ địa chỉ đã lưu (CUSTOMER, BUSINESS)',
+    })
     @ApiBearerAuth()
-    @Roles(Role.CUSTOMER)
+    @Roles(...USER_ADDRESS_ROLES)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('address/all')
     async getUserAllAddress(@Req() req: Request) {
@@ -168,9 +177,12 @@ export class UserController {
         const response = await this.userService.getAllAddress(Number(id));
         return response;
     }
-    @ApiOperation({ summary: 'Xem chi tiết một địa chỉ của người dùng' })
+    @ApiOperation({
+        summary:
+            'Xem chi tiết một địa chỉ đã lưu (CUSTOMER, BUSINESS). :addressId là UserAddress.id',
+    })
     @ApiBearerAuth()
-    @Roles(Role.CUSTOMER)
+    @Roles(...USER_ADDRESS_ROLES)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Get('address/:addressId')
     async getUserAddressById(
@@ -182,27 +194,25 @@ export class UserController {
             throw new UnauthorizedException('User Not Found or token invalid');
         return await this.userService.getUserAddressById(addressId, Number(id));
     }
-    @Roles(Role.CUSTOMER)
+    @ApiOperation({
+        summary:
+            'Cập nhật tên gợi nhớ và addressDetail (CUSTOMER, BUSINESS). Không đổi fullText/tọa độ tại đây.',
+    })
+    @ApiBearerAuth()
+    @Roles(...USER_ADDRESS_ROLES)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @ApiBody({
         type: UpdateUserAddressDto,
         examples: {
             example: {
-                summary: 'Cập nhật địa chỉ giao hàng',
+                summary: 'Cập nhật chi tiết bổ sung cho map',
                 value: {
                     title: 'Văn phòng',
-                    address: {
-                        title: 'Văn phòng',
-                        latitude: 10.786749,
-                        longitude: 106.690529,
-                        fullText:
-                            '45 Vo Van Tan, Ward 6, District 3, Ho Chi Minh City',
-                    },
+                    addressDetail: 'Tòa B, tầng 8, cửa bên phải thang máy',
                 },
             },
         },
     })
-    @ApiOperation({ summary: 'Cập nhật địa chỉ của người dùng' })
     @Put('/address/:addressId')
     async updateUserAddress(
         @Param('addressId', ParseIntPipe) addressId: number,
@@ -219,9 +229,48 @@ export class UserController {
         );
         return response;
     }
-    @ApiOperation({ summary: 'Xóa địa chỉ của người dùng' })
+    @ApiOperation({
+        summary:
+            'Đổi vị trí map (CUSTOMER, BUSINESS). Gửi bundle title + fullText + latitude + longitude từ Google Maps / Photon.',
+    })
     @ApiBearerAuth()
-    @Roles(Role.CUSTOMER)
+    @Roles(...USER_ADDRESS_ROLES)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @ApiBody({
+        type: ChangeUserAddressLocationDto,
+        examples: {
+            example: {
+                summary: 'Chọn địa chỉ mới từ Google Maps / Photon',
+                value: {
+                    title: 'District 3',
+                    fullText:
+                        '45 Vo Van Tan, Ward 6, District 3, Ho Chi Minh City',
+                    latitude: 10.786749,
+                    longitude: 106.690529,
+                },
+            },
+        },
+    })
+    @Put('/address/:addressId/location')
+    async updateUserAddressLocation(
+        @Param('addressId', ParseIntPipe) addressId: number,
+        @Body() locationData: ChangeUserAddressLocationDto,
+        @Req() req: Request,
+    ) {
+        const id = (req.user as any).id;
+        if (!id || isNaN(id))
+            throw new UnauthorizedException('User Not Found or token invalid');
+        return await this.userService.updateUserAddressLocation(
+            addressId,
+            Number(id),
+            locationData,
+        );
+    }
+    @ApiOperation({
+        summary: 'Xóa địa chỉ đã lưu (CUSTOMER, BUSINESS)',
+    })
+    @ApiBearerAuth()
+    @Roles(...USER_ADDRESS_ROLES)
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Delete('address/:addressId')
     async deleteUserAddress(

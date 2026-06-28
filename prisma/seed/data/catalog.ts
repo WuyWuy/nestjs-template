@@ -44,6 +44,36 @@ export const categories = [
         sortOrder: 7,
         image: seedImages.categories.pizza,
     },
+    {
+        name: 'Seafood',
+        description: 'Grilled fish, shrimp plates, and coastal favorites.',
+        sortOrder: 8,
+        image: seedImages.categories.seafood,
+    },
+    {
+        name: 'Korean',
+        description: 'BBQ plates, bibimbap, and spicy stews.',
+        sortOrder: 9,
+        image: seedImages.categories.korean,
+    },
+    {
+        name: 'Healthy',
+        description: 'Salads, grain bowls, and lighter everyday meals.',
+        sortOrder: 10,
+        image: seedImages.categories.healthy,
+    },
+    {
+        name: 'Breakfast',
+        description: 'Morning sets, eggs, pastries, and coffee pairings.',
+        sortOrder: 11,
+        image: seedImages.categories.breakfast,
+    },
+    {
+        name: 'BBQ',
+        description: 'Charcoal grills, smoked meats, and sharing platters.',
+        sortOrder: 12,
+        image: seedImages.categories.bbq,
+    },
 ] as const;
 
 /** 12 ingredients — icon keys map to Material Icons on FE. */
@@ -111,4 +141,33 @@ export const foodIngredientLinks: Record<string, IngredientName[]> = {
     cornOnCob: ['Corn', 'Chili'],
     stickyRice: ['Rice', 'Pork', 'Fresh Herbs'],
     icedTea: ['Black Tea', 'Mint'],
+
+    tomYumSeafood: ['Seafood', 'Chili', 'Fresh Herbs', 'Mint'],
+    grilledSalmon: ['Seafood', 'Fresh Herbs', 'Corn'],
+    garlicButterShrimp: ['Seafood', 'Chili', 'Fresh Herbs'],
+    calamariRings: ['Seafood', 'Corn', 'Chili'],
+
+    bibimbap: ['Rice', 'Pork', 'Chili', 'Fresh Herbs'],
+    koreanFriedChicken: ['Pork', 'Chili', 'Corn'],
+    kimchiJjigae: ['Pork', 'Chili', 'Fresh Herbs'],
+    beefBulgogi: ['Pork', 'Rice', 'Fresh Herbs'],
+
+    quinoaBowl: ['Rice', 'Fresh Herbs', 'Corn'],
+    grilledChickenSalad: ['Pork', 'Fresh Herbs', 'Mint'],
+    avocadoToast: ['Corn', 'Fresh Herbs', 'Fresh Milk'],
+    acaiBowl: ['Fresh Milk', 'Corn', 'Mint'],
+
+    fullEnglish: ['Pork', 'Corn', 'Fresh Herbs'],
+    pancakeStack: ['Fresh Milk', 'Corn'],
+    baconEggSandwich: ['Pork', 'Burger Bun', 'Fresh Herbs'],
+    fruitParfait: ['Fresh Milk', 'Corn', 'Mint'],
+
+    pho24Special: ['Noodles', 'Pork', 'Mint', 'Fresh Herbs'],
+    tokyoShoyuRamen: ['Noodles', 'Pork', 'Fresh Herbs'],
+    misoRamen: ['Noodles', 'Seafood', 'Fresh Herbs'],
+    spicyTonkotsu: ['Noodles', 'Pork', 'Chili'],
+
+    smokedBrisket: ['Pork', 'Chili', 'Fresh Herbs'],
+    bbqPorkRibs: ['Pork', 'Chili'],
+    grilledSausagePlate: ['Pork', 'Corn', 'Chili'],
 };

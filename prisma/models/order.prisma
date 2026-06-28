@@ -4,6 +4,8 @@ model Order {
     restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
     totalPrice   Decimal     @default(0)
     status       OrderStatus
+    deliveryMinutes Int?
+    deliveringAt DateTime?
     deliveredAt  DateTime?
     confirmedAt  DateTime?
     confirmedBy  ConfirmedBy?

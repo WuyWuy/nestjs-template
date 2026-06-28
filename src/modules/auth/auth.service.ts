@@ -688,6 +688,7 @@ export class AuthService {
         if (!data?.id) {
             throw new BadRequestException('Invalid Facebook account');
         }
+        console.log("Profile fb la: " , data)
         return {
             provider: AuthProvider.FACEBOOK,
             providerUserId: String(data.id),

@@ -385,18 +385,70 @@ export class FoodService {
             });
 
             if (data.sizes) {
-                await tx.foodSize.deleteMany({
-                    foodId: id,
-                });
-
-                await tx.foodSize.createMany({
-                    data: data.sizes.map((s) => ({
+                const incomingSizeIds = data.sizes.map((size) => size.sizeId);
+                const removedSizes = await tx.foodSize.findMany({
+                    where: {
                         foodId: id,
-                        sizeId: s.sizeId,
-                        price: s.price,
-                        isDefault: s.isDefault ?? false,
-                    })),
+                        deleteAt: null,
+                        sizeId: {
+                            notIn: incomingSizeIds,
+                        },
+                    },
+                    select: {
+                        id: true,
+                    },
                 });
+                const removedFoodSizeIds = removedSizes.map((size) => size.id);
+
+                if (removedFoodSizeIds.length > 0) {
+                    const deletedAt = new Date();
+
+                    await tx.cartItem.updateMany({
+                        where: {
+                            foodSizeId: {
+                                in: removedFoodSizeIds,
+                            },
+                            deleteAt: null,
+                        },
+                        data: {
+                            deleteAt: deletedAt,
+                        },
+                    });
+
+                    await tx.foodSize.updateMany({
+                        where: {
+                            id: {
+                                in: removedFoodSizeIds,
+                            },
+                        },
+                        data: {
+                            deleteAt: deletedAt,
+                            isDefault: false,
+                        },
+                    });
+                }
+
+                for (const size of data.sizes) {
+                    await tx.foodSize.upsert({
+                        where: {
+                            foodId_sizeId: {
+                                foodId: id,
+                                sizeId: size.sizeId,
+                            },
+                        },
+                        create: {
+                            foodId: id,
+                            sizeId: size.sizeId,
+                            price: size.price,
+                            isDefault: size.isDefault ?? false,
+                        },
+                        update: {
+                            price: size.price,
+                            isDefault: size.isDefault ?? false,
+                            deleteAt: null,
+                        },
+                    });
+                }
             }
 
             if (data.ingredientIds) {

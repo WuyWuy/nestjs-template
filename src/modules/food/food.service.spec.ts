@@ -41,6 +41,12 @@ describe('FoodService', () => {
         foodSize: {
             createMany: jest.fn(),
             deleteMany: jest.fn(),
+            findMany: jest.fn(),
+            updateMany: jest.fn(),
+            upsert: jest.fn(),
+        },
+        cartItem: {
+            updateMany: jest.fn(),
         },
         foodIngredient: {
             createMany: jest.fn(),
@@ -342,18 +348,27 @@ describe('FoodService', () => {
         ).rejects.toThrow(NotFoundException);
     });
 
-    it('should update food sizes and ingredients in a transaction', async () => {
+    it('should reconcile food sizes and remove carts that use deleted sizes', async () => {
         const data = {
             name: 'Updated Burger',
-            sizes: [{ sizeId: 1, price: 11, isDefault: true }],
+            sizes: [
+                { sizeId: 2, price: 20, isDefault: true },
+                { sizeId: 4, price: 30, isDefault: false },
+                { sizeId: 5, price: 40, isDefault: false },
+            ],
             ingredientIds: [7],
         };
         prismaService.client.food.findFirst.mockResolvedValueOnce({
             id: 100,
             restaurantId: 3,
         });
-        prismaService.client.size.findMany.mockResolvedValueOnce([{ id: 1 }]);
+        prismaService.client.size.findMany.mockResolvedValueOnce([
+            { id: 2 },
+            { id: 4 },
+            { id: 5 },
+        ]);
         prismaService.client.ingredient.count.mockResolvedValueOnce(1);
+        tx.foodSize.findMany.mockResolvedValueOnce([{ id: 11 }, { id: 13 }]);
         tx.food.update.mockResolvedValueOnce({ id: 100, name: 'Updated Burger' });
 
         const result = await service.updateFood(99, ['ADMIN'], 100, data);
@@ -362,13 +377,94 @@ describe('FoodService', () => {
             where: { id: 100 },
             data: {
                 name: 'Updated Burger',
-                price: 11,
+                price: 20,
             },
         });
-        expect(tx.foodSize.deleteMany).toHaveBeenCalledWith({ foodId: 100 });
-        expect(tx.foodSize.createMany).toHaveBeenCalledWith({
-            data: [{ foodId: 100, sizeId: 1, price: 11, isDefault: true }],
+        expect(tx.foodSize.findMany).toHaveBeenCalledWith({
+            where: {
+                foodId: 100,
+                deleteAt: null,
+                sizeId: { notIn: [2, 4, 5] },
+            },
+            select: { id: true },
         });
+        expect(tx.cartItem.updateMany).toHaveBeenCalledWith({
+            where: {
+                foodSizeId: { in: [11, 13] },
+                deleteAt: null,
+            },
+            data: {
+                deleteAt: expect.any(Date),
+            },
+        });
+        expect(tx.foodSize.updateMany).toHaveBeenCalledWith({
+            where: {
+                id: { in: [11, 13] },
+            },
+            data: {
+                deleteAt: expect.any(Date),
+                isDefault: false,
+            },
+        });
+        expect(tx.foodSize.upsert).toHaveBeenNthCalledWith(1, {
+            where: {
+                foodId_sizeId: {
+                    foodId: 100,
+                    sizeId: 2,
+                },
+            },
+            create: {
+                foodId: 100,
+                sizeId: 2,
+                price: 20,
+                isDefault: true,
+            },
+            update: {
+                price: 20,
+                isDefault: true,
+                deleteAt: null,
+            },
+        });
+        expect(tx.foodSize.upsert).toHaveBeenNthCalledWith(2, {
+            where: {
+                foodId_sizeId: {
+                    foodId: 100,
+                    sizeId: 4,
+                },
+            },
+            create: {
+                foodId: 100,
+                sizeId: 4,
+                price: 30,
+                isDefault: false,
+            },
+            update: {
+                price: 30,
+                isDefault: false,
+                deleteAt: null,
+            },
+        });
+        expect(tx.foodSize.upsert).toHaveBeenNthCalledWith(3, {
+            where: {
+                foodId_sizeId: {
+                    foodId: 100,
+                    sizeId: 5,
+                },
+            },
+            create: {
+                foodId: 100,
+                sizeId: 5,
+                price: 40,
+                isDefault: false,
+            },
+            update: {
+                price: 40,
+                isDefault: false,
+                deleteAt: null,
+            },
+        });
+        expect(tx.foodSize.deleteMany).not.toHaveBeenCalled();
+        expect(tx.foodSize.createMany).not.toHaveBeenCalled();
         expect(tx.foodIngredient.deleteMany).toHaveBeenCalledWith({ foodId: 100 });
         expect(tx.foodIngredient.upsert).toHaveBeenCalledWith({
             where: {

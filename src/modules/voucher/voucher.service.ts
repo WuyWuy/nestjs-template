@@ -84,9 +84,15 @@ export class VoucherService {
             const now = new Date();
             return await this.prismaService.voucher.findMany({
                 where: {
-                    ...(restaurantIds?.length
-                        ? { restaurantId: { in: restaurantIds } }
-                        : { restaurantId: { not: null } }),
+                    OR: [
+                        {
+                            ...(restaurantIds?.length
+                                ? { restaurantId: { in: restaurantIds } }
+                                : { restaurantId: { not: null } }),
+
+                        }, 
+                        //Maybe something hererre, Idk 
+                    ], 
                     deleteAt: null,
                     endAt: {
                         gte: now,
@@ -121,15 +127,18 @@ export class VoucherService {
                 where: {
                     OR: [
                         {
-                            restaurantId
+                            restaurantId : null 
                         }, 
                         {
-                            restaurantId : null 
-                        }
+                            restaurantId
+                        }, 
                     ], 
                     deleteAt: null, 
                     minimumOrderAmount: {
                         lte: (cost? cost : 0)
+                    }, 
+                    startAt: {
+                        lte: new Date() 
                     }, 
                     endAt: {
                         gte: new Date() 

@@ -712,6 +712,7 @@ export class RestaurantService {
             select: {
                 id: true,
                 name: true,
+                
                 status: true,
                 ratings: {
                     where: {
@@ -719,6 +720,7 @@ export class RestaurantService {
                     },
                     select: {
                         id: true,
+                        tags: true, 
                         vote: true,
                         comment: true,
                         reply: true,

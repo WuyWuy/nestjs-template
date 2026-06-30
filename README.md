@@ -1,131 +1,294 @@
-# Food Delivery Backend (NestJS)
+# Food Delivery Backend
 
-![NestJS](https://img.shields.io/badge/NestJS-%23E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
-![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Bun](https://img.shields.io/badge/Bun-runtime-000000?style=for-the-badge&logo=bun&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-Admin-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-realtime-010101?style=for-the-badge&logo=socketdotio&logoColor=white)
+![MinIO](https://img.shields.io/badge/MinIO-storage-C72E49?style=for-the-badge&logo=minio&logoColor=white)
 
-An enterprise-ready, modular food delivery backend built with NestJS, Prisma ORM, and Bun runtime.
+## Overview
 
----
+Food Delivery Backend is a NestJS API for a food delivery application. It handles authentication, users, addresses, restaurants, foods, carts, orders, payments, vouchers, notifications, chat, search, and admin workflows. The backend uses Prisma with PostgreSQL, Socket.IO for realtime chat, Firebase Admin for push notifications, MinIO for local object storage, and Mailpit for local email testing.
 
-## 🚀 Project Overview & Architecture
+## Tech Stack
 
-This repository acts as the scalable core backend for a food delivery ecosystem. It exposes RESTful APIs and real-time WebSockets to handle user management, vendor dashboards, dynamic food menus with sizes, cart management, payments, order workflows, and real-time chat.
+| Area | Technology |
+| --- | --- |
+| Runtime | Bun |
+| Backend framework | NestJS 11 |
+| Language | TypeScript |
+| Database | PostgreSQL 16 |
+| ORM | Prisma 7 with `@prisma/adapter-pg` |
+| Local resources | Docker Compose |
+| Object storage | MinIO |
+| Email testing | Mailpit |
+| Push notifications | Firebase Admin SDK |
+| Realtime | Socket.IO |
+| API docs | Swagger + Scalar at `/api/docs` in non-production mode |
 
-### 🏛️ System Architecture
+## Prerequisites
 
-The application is structured following modern NestJS module-based architecture:
+- Bun installed
+- Docker and Docker Compose installed
+- Firebase service account for notification features
 
-- **Modular Modules:** Each domain feature (Auth, User, Restaurant, Food, Cart, Order, Payment, Chat, Conversation, Notification) is isolated in its own folder under `src/modules/` containing dedicated controllers, services, and data transfer objects (DTOs).
-- **Domain Event Pub/Sub:** Decoupled event emissions via `@nestjs/event-emitter` to run secondary tasks (e.g. pushing Firebase devices/in-app notifications, updating database status logs) asynchronously without blocking primary execution threads.
-- **Data Persistence:** Prisma ORM abstraction using PostgreSQL, utilizing client extensions for transparent global soft deletes (`deleteAt` timestamping).
-- **Real-Time Communication:** Bi-directional real-time chat over WebSockets (Socket.IO rooms) authenticated with JWT guard checks.
-- **Storage Service:** Local or cloud S3/Minio bucket uploads for static media assets (such as conversation image attachments, food photos, and restaurant covers).
+## Local Backend Setup
 
----
+### 1. Install dependencies
 
-## 📁 Folder Structure
-
-- `src/` - Application source code
-  - `modules/` - Business domain modules (Auth, Order, Notification, etc.)
-  - `bases/` - Generic application bases (guards, filters, interceptors, decorators)
-  - `prisma/` - Prisma custom client initialization and soft-delete extensions
-  - `realtime/` - Socket.IO gateway and chat handlers
-  - `main.ts` - NestJS application bootstrap entrypoint
-- `prisma/` - Database schema, migrations, and seed scripts
-- `docs/` - Support documentation and guides
-
----
-
-## ⚡ Setup & Local Execution
-
-### 1. Install Dependencies
 ```bash
 bun install
 ```
 
-### 2. Configure Environment Variables
-Copy the template environment file and fill in your connection details (Database URL, JWT Secret, Minio keys, Firebase credentials, etc.):
+### 2. Start local resources with Docker
+
+For local backend development, run the infrastructure services and start the API from your machine:
+
+```bash
+docker compose up -d postgres minio mailpit
+```
+
+Local resource URLs:
+
+| Resource | URL / Port | Default credentials |
+| --- | --- | --- |
+| PostgreSQL | `localhost:5430` | `admin` / `admin` |
+| MinIO API | `http://localhost:9000` | `minioadmin` / `minioadmin` |
+| MinIO Console | `http://localhost:9001` | `minioadmin` / `minioadmin` |
+| Mailpit SMTP | `localhost:1025` | none |
+| Mailpit UI | `http://localhost:8025` | none |
+
+The `api` service also exists in `docker-compose.yaml`, but the easiest local development flow is to run only `postgres`, `minio`, and `mailpit` in Docker, then run the NestJS server with `bun dev`.
+
+### 3. Create `.env`
+
+Copy the example file:
+
 ```bash
 cp .env.example .env
 ```
 
-### 3. Database Migration & Seeding
-Synchronize the PostgreSQL schema and seed the initial dataset:
-```bash
-bun prisma db push
-bun prisma generate
-bun prisma db seed
+Use these local development values as the base:
+
+```env
+PORT=4000
+DATABASE_URL="postgresql://admin:admin@localhost:5430/app_db?schema=public"
+NODE_ENV='development'
+
+EMAIL_HOST=localhost
+EMAIL_PORT=1025
+EMAIL_FROM="deliveryapplication@gmail.com"
+
+MINIO_PORT=9000
+MINIO_CONSOLE_PORT=9001
+MINIO_USER=minioadmin
+MINIO_PASSWORD=minioadmin
+MINIO_BUCKET="deliveryapp"
+MINIO_ENDPOINT="localhost"
+MINIO_PUBLIC_URL=http://localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
 ```
 
-### 4. Run the Server
-- **Development Mode:**
-  ```bash
-  bun dev
-  ```
-- **Production Mode:**
-  ```bash
-  bun run build
-  bun run start
-  ```
+Also fill in these groups depending on the feature you are testing:
 
----
+| Group | Variables |
+| --- | --- |
+| JWT and OTP | `ACCESS_SECRET_KEY`, `REFRESH_SECRET_KEY`, `VERIFY_OTP_KEY`, `RESET_PASSWORD_KEY`, `RESET_EMAIL_KEY` |
+| Firebase | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` |
+| Twilio | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFICATION_OTP_SERVICE_SID`, `TWILIO_SENDING_SMS_SERVICE_SID`, `TWILIO_SENDER_PHONE_NUMBER` |
+| Facebook login | `APP_ID`, `APP_SECRET` |
+| MoMo payment | `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY` |
+| Public callback/testing | `NGROK_URL` |
 
-## 📐 Database Diagram (ERD)
+### 4. Configure Firebase
+
+Notifications require a Firebase service account. You can configure it in either of these ways.
+
+Option A: use environment variables in `.env`:
+
+```env
+FIREBASE_PROJECT_ID="your-firebase-project-id"
+FIREBASE_CLIENT_EMAIL="firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com"
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+Keep newline characters in `FIREBASE_PRIVATE_KEY` escaped as `\n`. The backend converts them before initializing Firebase Admin.
+
+Option B: use a service account JSON file:
+
+1. Download the Firebase Admin service account JSON from Firebase Console.
+2. Put it at the project root as `firebase-credential.json`, or set `FIREBASE_CREDENTIAL_PATH` / `GOOGLE_APPLICATION_CREDENTIALS` to the file path.
+3. Make sure the JSON contains `project_id`, `client_email`, and `private_key`.
+
+Do not commit real Firebase credentials or production secrets.
+
+### 5. Prepare the database
+
+The Prisma schema is split across files in `prisma/models`. `prisma.config.ts` points Prisma to that folder and reads `DATABASE_URL` from `.env`.
+
+Generate the Prisma client:
+
+```bash
+bunx prisma generate
+```
+
+Apply existing migrations:
+
+```bash
+bunx prisma migrate deploy
+```
+
+For quick local development, you can push the current schema directly instead:
+
+```bash
+bunx prisma db push
+```
+
+Seed local data:
+
+```bash
+bunx prisma db seed
+```
+
+### 6. Run the backend
+
+```bash
+bun dev
+```
+
+The API runs at:
+
+```text
+http://localhost:4000/api
+```
+
+In development, API documentation is available at:
+
+```text
+http://localhost:4000/api/docs
+```
+
+## Useful Commands
+
+| Command | Description |
+| --- | --- |
+| `bun install` | Install dependencies |
+| `docker compose up -d postgres minio mailpit` | Start local backend resources |
+| `docker compose down` | Stop Docker resources |
+| `bunx prisma generate` | Generate Prisma client |
+| `bunx prisma migrate deploy` | Apply checked-in migrations |
+| `bunx prisma db push` | Push schema directly for local development |
+| `bunx prisma db seed` | Seed local database |
+| `bun dev` | Start backend in watch mode |
+| `bun run build` | Build TypeScript output |
+| `bun run start:prod` | Run compiled production build |
+| `bun test` | Run unit tests |
+| `bun run test:e2e` | Run e2e tests |
+
+## Database Schema
+
+The database uses PostgreSQL with Prisma models stored in `prisma/models`.
+
+Schema entrypoint:
+
+- `prisma.config.ts` sets `schema: "prisma/models"`
+- `prisma/models/schema.prisma` defines Prisma generators and the PostgreSQL datasource
+- Domain models are split by feature, for example `user.prisma`, `restaurant.prisma`, `food.prisma`, `order.prisma`, and `notification.prisma`
+
+### Model Groups
+
+| Group | Models |
+| --- | --- |
+| Auth and users | `User`, `UserRole`, `OTP`, `Identity`, `AuthToken`, `Device`, `UserCard` |
+| Addresses | `Address`, `UserAddress` |
+| Restaurant catalog | `Restaurant`, `RestaurantRating`, `Category`, `Food`, `Size`, `FoodSize`, `Ingredient`, `FoodIngredient`, `FoodRating` |
+| Cart and order | `Cart`, `CartItem`, `Order`, `OrderFood`, `Payment`, `Voucher` |
+| Social and discovery | `UserFavoriteRestaurant`, `SearchHistory` |
+| Chat | `Conversation`, `Message` |
+| Notifications | `Notification`, `NotificationChannel` |
+| Audit | `AuditLog` |
+
+### Main Relationships
 
 ```mermaid
 erDiagram
     User ||--o{ UserRole : has
-    User ||--o{ UserAddress : has
-    User ||--o{ UserCard : has
+    User ||--o{ Identity : owns
     User ||--o{ Device : registers
-    User ||--o{ Notification : receives
+    User ||--o{ UserCard : stores
+    User ||--o{ UserAddress : saves
+    User ||--o{ Restaurant : owns
+    User ||--o| Cart : owns
     User ||--o{ Order : places
-    User ||--o{ Cart : owns
     User ||--o{ RestaurantRating : writes
     User ||--o{ FoodRating : writes
-    User ||--o{ Conversation : chats_as_customer
-    User ||--o{ Conversation : chats_as_seller
+    User ||--o{ UserFavoriteRestaurant : favorites
+    User ||--o{ SearchHistory : searches
+    User ||--o{ Notification : receives
+    User ||--o{ Conversation : customer
+    User ||--o{ Conversation : seller
     User ||--o{ Message : sends
+    User ||--o{ AuditLog : acts
 
-    Address ||--o{ UserAddress : linked
+    Address ||--o{ UserAddress : linked_to
     Address ||--o{ Restaurant : locates
-    Address ||--o{ Order : ships_to
+    Address ||--o{ Order : delivers_to
 
     Restaurant ||--o{ Food : sells
-    Restaurant ||--o{ RestaurantRating : reviewed
-    Restaurant ||--o{ Voucher : issues
+    Restaurant ||--o{ RestaurantRating : receives
+    Restaurant ||--o{ Voucher : offers
     Restaurant ||--o{ Order : receives
+    Restaurant ||--o{ UserFavoriteRestaurant : favorited_by
 
     Category ||--o{ Food : categorizes
-
-    Food ||--o{ FoodSize : has_sizes
-    Food ||--o{ FoodIngredient : has_ingredients
-    Food ||--o{ FoodRating : reviewed
-    Food ||--o{ CartItem : added
-    Food ||--o{ OrderFood : ordered
-
+    Food ||--o{ FoodSize : has
     Size ||--o{ FoodSize : defines
-    Ingredient ||--o{ FoodIngredient : defines
+    Food ||--o{ FoodIngredient : uses
+    Ingredient ||--o{ FoodIngredient : included_in
+    Food ||--o{ FoodRating : receives
+    Food ||--o{ CartItem : added_as
+    Food ||--o{ OrderFood : ordered_as
+    FoodSize ||--o{ CartItem : selected
+    FoodSize ||--o{ OrderFood : selected
 
     Cart ||--o{ CartItem : contains
-    FoodSize ||--o{ CartItem : selected_size
-
     Order ||--o{ OrderFood : contains
-    Order ||--|| Payment : details
-    FoodSize ||--o{ OrderFood : selected_size
+    Order ||--o| Payment : paid_by
+    Order ||--o{ FoodRating : reviewed_by_food
+    Order ||--o| RestaurantRating : reviewed_by_restaurant
     Voucher ||--o{ Order : applied_to
 
-    Notification ||--o{ NotificationChannel : delivers_via
+    Notification ||--o{ NotificationChannel : delivered_through
     Conversation ||--o{ Message : contains
 ```
 
----
+### Enums
 
-## 🧪 Testing
-```bash
-# Run unit and E2E integration tests
-bun test
-```
+Core enums are defined in `prisma/models/base.prisma`:
+
+- `Role`: `ADMIN`, `BUSINESS`, `CUSTOMER`
+- `RestaurantApprovalStatus`: `PENDING`, `APPROVED`, `REJECTED`
+- `TokenType`: `ACCESS`, `REFRESH`
+- `OTPType`: `RESET_PASSWORD_OTP`, `RESET_EMAIL_OTP`, `VERIFY_OTP`
+- `AuthProvider`: `LOCAL`, `FACEBOOK`, `GOOGLE`
+- `OrderStatus`: `PENDING`, `CONFIRMED`, `PREPARING`, `DELIVERING`, `DELIVERED`, `CANCELLED`
+- `ConfirmedBy`: `CUSTOMER`, `SYSTEM`, `ADMIN`
+- `PaymentMethod`: `MOMO`, `CASH`
+- `PaymentStatus`: `UNPAID`, `FAILED`, `SOLVING`, `DONE`
+- `VoucherType`: `PERCENT`, `MONEY`
+- `VoucherStatus`: `APPLYING`, `ENDED`
+- `NotificationType`: `SYSTEM`, `ORDER`, `PAYMENT`, `PROMOTION`, `CHAT`
+- `DeliveryChannel`: `IN_APP`, `DEVICE`
+- `DeliveryStatus`: `PENDING`, `SENT`, `FAILED`, `SKIPPED`
+
+## Notes
+
+- Keep `.env`, Firebase credentials, and production secrets out of git.
+- Run `bunx prisma generate` after schema changes.
+- Use Mailpit for local email testing instead of a real SMTP account.
+- Use MinIO locally for upload flows that need object storage.

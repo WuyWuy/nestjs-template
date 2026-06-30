@@ -100,11 +100,13 @@ export class NotificationController {
     }
 
     @ApiOperation({ summary: 'Gửi thông báo test' })
+    @UseGuards(JwtAuthGuard)
     @Get('test') //Using for testing only - Not production
     async testSendNotification(
         @Req() req: Request
     ) {
         const user = (req.user) as any
+        console.log(user) 
         return await this.notificationService.testPushNotification(Number(user.id))
     }
     @UseGuards(JwtAuthGuard) 
